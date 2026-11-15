@@ -14,7 +14,26 @@
  */
 
 /** Provider used when the profile has no explicit default model selection. */
+import {
+  MATERIAL_DEFAULTS,
+  buildMapPrompt,
+  buildReducePrompt,
+  mergeFacts,
+  needsMapReduce,
+  parseFacts,
+  progressLabel,
+  runWithConcurrency,
+  splitIntoBlocks,
+} from './mapreduce.js'
+
 const FALLBACK_PROVIDER = 'model-tier'
+
+/**
+ * Ceiling for the one retry a truncated-and-empty answer gets. A reasoning model's
+ * thinking is billed against `maxTokens`, so the retry needs real headroom; the cap
+ * keeps a runaway retry from being expensive.
+ */
+const RETRY_MAX_TOKENS = 16000
 
 /**
  * Stream one completion and return its text.
@@ -50,6 +69,11 @@ export async function callModel(ctx, request) {
     system: request.system,
     messages: [{ role: 'user', content: [{ type: 'text', text: request.prompt }] }],
     temperature: Number.isFinite(request.temperature) ? request.temperature : 0.3,
+    // These are utility calls (extract facts / write an outline), not deep reasoning. On a
+    // reasoning model the thinking budget is charged against maxTokens, and a long Chinese
+    // answer then never gets emitted: we saw finish=max-tokens with zero text. Keep the
+    // effort low so the budget goes to output.
+    reasoningEffort: request.reasoningEffort ?? 'low',
     maxTokens: Number.isFinite(request.maxTokens) ? request.maxTokens : 1600,
     // Some provider routes require a session identity to route the request
     // (`x-opencode-session`). Prefer the session that initiated this call when there
@@ -58,27 +82,50 @@ export async function callModel(ctx, request) {
     ...(request.signal === undefined ? {} : { signal: request.signal }),
   }
 
-  let text = ''
-  let failure = null
-  let finishKind = null
-  try {
-    for await (const chunk of llm.stream(options)) {
-      if (chunk === null || typeof chunk !== 'object') continue
-      if (chunk.type === 'text-delta' && typeof chunk.text === 'string') text += chunk.text
-      else if (chunk.type === 'finish') {
-        finishKind = chunk.reason?.kind ?? null
-        if (chunk.reason?.kind === 'error' || chunk.reason?.kind === 'aborted') {
-          failure = chunk.reason.failure ?? { code: 'llm_failed', message: 'model call failed' }
+  /**
+   * One streamed attempt: collect text plus how it finished.
+   * @param {number} maxTokens
+   * @returns {Promise<{text: string, failure: any, finishKind: string | null}>}
+   */
+  const runOnce = async (maxTokens) => {
+    /** @type {{text: string, failure: any, finishKind: string | null}} */
+    const state = { text: '', failure: null, finishKind: null }
+    try {
+      for await (const chunk of llm.stream({ ...options, maxTokens })) {
+        if (chunk === null || typeof chunk !== 'object') continue
+        if (chunk.type === 'text-delta' && typeof chunk.text === 'string') state.text += chunk.text
+        else if (chunk.type === 'finish') {
+          state.finishKind = chunk.reason?.kind ?? null
+          if (chunk.reason?.kind === 'error' || chunk.reason?.kind === 'aborted') {
+            state.failure = chunk.reason.failure ?? { code: 'llm_failed', message: 'model call failed' }
+          }
         }
       }
+    } catch (error) {
+      throw codeError('llm_failed', error instanceof Error ? error.message : String(error))
     }
-  } catch (error) {
-    throw codeError('llm_failed', error instanceof Error ? error.message : String(error))
+    return state
+  }
+
+  const first = await runOnce(options.maxTokens)
+  let { text, failure, finishKind } = first
+
+  // A reasoning model charges its thinking against `maxTokens`, so a long Chinese answer
+  // can spend the whole budget before emitting one character (observed: finish=max-tokens
+  // with empty text). Failing a five-call pipeline on that coin flip is unacceptable, so
+  // exactly one retry with room to answer is allowed.
+  if (failure === null && finishKind === 'max-tokens' && text.trim() === '') {
+    const retryBudget = Math.min(RETRY_MAX_TOKENS, Math.max(options.maxTokens * 2, options.maxTokens + 2000))
+    ;({ text, failure, finishKind } = await runOnce(retryBudget))
   }
 
   if (failure !== null) {
     throw codeError(String(failure.code ?? 'llm_failed'), String(failure.message ?? 'model call failed'))
   }
+  // finish=max-tokens means the model was cut off, not that it failed. A long Chinese
+  // outline routinely hits the cap while still holding usable lines, so return the
+  // prefix and let the caller parse whatever is complete.
+  if (finishKind === 'max-tokens' && text.trim() !== '') return text
   if (text.trim() === '') {
     throw codeError('llm_empty', `the model returned no text${finishKind === null ? '' : ` (finish: ${finishKind})`}`)
   }
@@ -219,4 +266,74 @@ export function codeError(code, message) {
   const error = new Error(message)
   error.code = code
   return error
+}
+
+/**
+ * Long material -> outline, via Map-Reduce.
+ *
+ * One prompt cannot carry a 20,000-character report: the model anchors on the opening
+ * sections and pads the rest. So above the threshold we extract facts per block (map,
+ * bounded concurrency), merge them (de-duplicate, keep every number), then ask once for
+ * the outline (reduce). Below the threshold the single-prompt path is kept because it is
+ * cheaper and better on short input.
+ *
+ * @param {any} ctx
+ * @param {{text: string, maxSlides?: number, topic?: string, options?: any,
+ *          onProgress?: (label: string) => void, signal?: AbortSignal}} input
+ * @returns {Promise<{markdown: string, blocks: number, calls: number, dropped: number}>}
+ */
+export async function assistOutlineFromMaterial(ctx, input) {
+  const material = typeof input.text === 'string' ? input.text : ''
+  if (material.trim() === '') throw codeError('invalid_body', 'material is empty')
+  const options = input.options ?? {}
+  const stats = { blocks: 0, calls: 0, dropped: 0 }
+
+  // Short material: exactly the previous behaviour, one call.
+  if (needsMapReduce(material, options) === false) {
+    const prompt = buildContentPrompt({ description: material, maxSlides: input.maxSlides })
+    const answer = await callModel(ctx, { ...prompt, maxTokens: 3600, signal: input.signal })
+    stats.calls = 1
+    stats.blocks = 1
+    return { markdown: extractMarkdown(answer), ...stats }
+  }
+
+  const blocks = splitIntoBlocks(material, options)
+  if (blocks.length === 0) throw codeError('empty_source', 'material produced no blocks')
+  stats.blocks = blocks.length
+
+  let done = 0
+  const factsPerBlock =
+    Number.isFinite(options.factsPerBlock) ? options.factsPerBlock : MATERIAL_DEFAULTS.factsPerBlock
+  const groups = await runWithConcurrency(
+    blocks,
+    Number.isFinite(options.concurrency) ? options.concurrency : MATERIAL_DEFAULTS.concurrency,
+    async (block) => {
+      const prompt = buildMapPrompt({ block, total: blocks.length, factsPerBlock, deckTitle: input.topic })
+      const answer = await callModel(ctx, {
+        ...prompt,
+        maxTokens: 2200,
+        temperature: 0.2,
+        signal: input.signal,
+      })
+      stats.calls += 1
+      done += 1
+      if (typeof input.onProgress === 'function') input.onProgress(progressLabel(done, blocks.length))
+      return parseFacts(answer)
+    },
+  )
+
+  const merged = mergeFacts(groups, { max: Math.max(24, blocks.length * factsPerBlock) })
+  stats.dropped = merged.dropped
+  if (merged.facts.length === 0) {
+    throw codeError('empty_source', 'the map phase produced no facts — the material may be unreadable')
+  }
+
+  const reducePrompt = buildReducePrompt({
+    facts: merged.facts,
+    maxSlides: input.maxSlides,
+    topic: input.topic,
+  })
+  const answer = await callModel(ctx, { ...reducePrompt, maxTokens: 6000, signal: input.signal })
+  stats.calls += 1
+  return { markdown: extractMarkdown(answer), ...stats }
 }

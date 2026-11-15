@@ -77,11 +77,42 @@ const COMMAND_USAGE = [
   '用法：',
   '  /branddeck deck <一句话描述>     生成卡组（用当前模板与默认风格）',
   '  /branddeck deck --style <id>     指定风格生成',
+  '  /branddeck deck --file <路径>    用一份长材料（.md/.txt）生成，可附一句主题',
   '  /branddeck style <一句话描述>    生成并保存一份风格配置',
   '  /branddeck list                  列出卡组',
   '  /branddeck templates             列出已解析模板',
   '  /branddeck                       查看本帮助与当前状态',
 ].join('\n')
+
+/**
+ * Parse the arguments of `/branddeck deck …`.
+ *
+ * Two flags, order-independent, because they are written by hand:
+ *   --style <id>   pick a style profile
+ *   --file <path>  read the material from a file (the long-document entry)
+ * Everything left over is the description; when a file is given, the description is an
+ * optional topic hint rather than the content itself.
+ *
+ * @param {string} tail text after `deck`
+ */
+export function parseDeckArguments(tail) {
+  let rest = String(tail ?? '').trim()
+  /** @type {{kind: 'deck', description: string, styleId?: string, materialPath?: string}} */
+  const result = { kind: 'deck', description: '' }
+
+  const styleFlag = /(?:^|\s)--style\s+(\S+)\s*/i.exec(rest)
+  if (styleFlag !== null) {
+    result.styleId = styleFlag[1]
+    rest = rest.replace(styleFlag[0], ' ').trim()
+  }
+  const fileFlag = /(?:^|\s)--file\s+("([^"]+)"|\S+)\s*/i.exec(rest)
+  if (fileFlag !== null) {
+    result.materialPath = (fileFlag[2] ?? fileFlag[1]).trim()
+    rest = rest.replace(fileFlag[0], ' ').trim()
+  }
+  result.description = rest
+  return result
+}
 
 /**
  * Parse `/branddeck …` into `{ kind, description, styleId }`.
@@ -105,12 +136,16 @@ export function parseBrandDeckCommand(rawInput) {
     return tail === '' ? { kind: 'style-help' } : { kind: 'style', description: tail }
   }
   if (head === 'deck' || head === 'gen' || head === 'generate' || head === 'make') {
-    // `deck --style <id> <description>` keeps the style selector out of the sentence.
-    const hint = /^--style\s+(\S+)\s*/i.exec(tail)
-    if (hint !== null) {
-      return { kind: 'deck', styleId: hint[1], description: tail.slice(hint[0].length).trim() }
-    }
-    return { kind: 'deck', description: tail }
+    return parseDeckArguments(tail)
+  }
+  if (head === 'file' || head === 'from') {
+    // `/branddeck file <path> [说明]` — the long-material entry.
+    const parts = tail.split(/\s+/).filter((part) => part !== '')
+    if (parts.length === 0) return { kind: 'deck-help-file' }
+    return { kind: 'deck', materialPath: parts[0], description: parts.slice(1).join(' ') }
+  }
+  if (head.startsWith('--style') || head.startsWith('--file')) {
+    return parseDeckArguments(text)
   }
   if (head.startsWith('--style')) {
     const hint = /^--style\s+(\S+)\s*/i.exec(text)
@@ -243,8 +278,21 @@ async function executeBrandDeckCommand(invocation, deps) {
 
   // kind === 'deck'
   const description = typeof parsed.description === 'string' ? parsed.description.trim() : ''
-  if (description === '') {
-    return { kind: 'error', text: `请给一句话描述要做什么演示。\n\n${COMMAND_USAGE}` }
+  const materialPath = typeof parsed.materialPath === 'string' ? parsed.materialPath.trim() : ''
+  if (description === '' && materialPath === '') {
+    return { kind: 'error', text: `请给一句话描述，或用 --file 指定材料文件。\n\n${COMMAND_USAGE}` }
+  }
+
+  // `--file`: the long-document path. Read it here so the pipeline can report a clear
+  // "cannot read" instead of failing inside the model call.
+  let material = ''
+  if (materialPath !== '') {
+    try {
+      material = await readFile(resolvePath(materialPath), 'utf8')
+    } catch {
+      return { kind: 'error', text: `读不到材料文件：${materialPath}` }
+    }
+    if (material.trim() === '') return { kind: 'error', text: `材料文件是空的：${materialPath}` }
   }
   const templateId = config.defaultTemplateId ?? (await firstTemplateId(storeConfig)) ?? null
   if (templateId === null) {
@@ -253,14 +301,29 @@ async function executeBrandDeckCommand(invocation, deps) {
   let generated
   try {
     generated = await assistContent(
-      { description, templateId, styleId: parsed.styleId, maxSlides: config.commandMaxSlides },
+      {
+        material: material !== '' ? material : description,
+        description,
+        title: material !== '' ? description : undefined,
+        templateId,
+        styleId: parsed.styleId,
+        maxSlides: config.commandMaxSlides,
+      },
       { ctx: deps.ctx, config, storeConfig, sessionId },
     )
   } catch (error) {
     return { kind: 'error', text: `调用模型失败：${error instanceof Error ? error.message : String(error)}` }
   }
   if (generated.ok !== true) {
-    return { kind: 'error', text: `没有生成出卡组：${generated.error?.message ?? '未知原因'}` }
+    // Distinguish "the model could not be called" from "the model answered, but the
+    // answer did not become a deck": the two need different next actions (check the
+    // profile's llm wiring vs. rephrase the material).
+    const code = typeof generated.error?.code === 'string' ? generated.error.code : ''
+    const reason = generated.error?.message ?? '未知原因'
+    return {
+      kind: 'error',
+      text: code.startsWith('llm') ? `调用模型失败：${reason}` : `没有生成出卡组：${reason}`,
+    }
   }
   const warnings = Array.isArray(generated.warnings) ? generated.warnings.slice(0, 3) : []
   return {
@@ -269,6 +332,11 @@ async function executeBrandDeckCommand(invocation, deps) {
       `已生成卡组「${generated.deck.title}」(${generated.deckId})，共 ${generated.slideCount} 页。`,
       generated.styleId === undefined ? '' : `  风格 ${generated.styleId} · 模板 ${generated.templateId}`,
       warnings.length > 0 ? `  提示：${warnings.join('；')}` : '',
+      generated.pipeline === undefined
+        ? ''
+        : generated.pipeline.mode === 'map-reduce'
+          ? `  材料 ${generated.pipeline.blocks} 段 · ${generated.pipeline.calls} 次模型调用（Map-Reduce 分层提炼）`
+          : '  单次生成（材料不长，无需分层）',
       '',
       '下一步：',
       `  在侧栏 BrandDeck 面板查看/微调，或 /branddeck list 查看全部`,
@@ -306,6 +374,13 @@ function normalizeConfig(raw) {
     logoSide: raw.logoSide === 'top-right' || raw.logoSide === 'none' ? raw.logoSide : 'auto',
     defaultTemplateId: typeof raw.defaultTemplateId === 'string' ? raw.defaultTemplateId : undefined,
     commandMaxSlides: clampNumber(raw.commandMaxSlides, 3, 30, 10),
+    // Long-material pipeline (see src/mapreduce.js). Above materialThreshold chars the
+    // outline is built Map-Reduce instead of from one oversized prompt.
+    materialThreshold: clampNumber(raw.materialThreshold, 500, 200000, 6000),
+    materialBlockChars: clampNumber(raw.materialBlockChars, 500, 40000, 4000),
+    materialMaxBlocks: clampNumber(raw.materialMaxBlocks, 1, 60, 12),
+    materialConcurrency: clampNumber(raw.materialConcurrency, 1, 8, 3),
+    materialFactsPerBlock: clampNumber(raw.materialFactsPerBlock, 3, 20, 8),
   }
 }
 
@@ -1022,14 +1097,40 @@ async function assistContent(input, deps) {
   theme.templateId = baseTheme.templateId
   theme.templateName = baseTheme.templateName
 
-  const prompt = assist.buildContentPrompt({
-    description: input.description,
-    maxSlides: input.maxSlides ?? effective.maxSlides,
-  })
-  const answer = await assist.callModel(deps.ctx, { ...prompt, maxTokens: 1600, sessionId: deps.sessionId })
-  const markdown = assist.extractMarkdown(answer)
-  if (markdown.trim() === '') {
-    return { ok: false, error: { code: 'outline_unparsable', message: '模型没有返回可用的大纲' }, raw: String(answer).slice(0, 1200) }
+  // One pipeline, two gears: a sentence goes through a single prompt, a long document
+  // through Map-Reduce (per-block facts, then one structuring pass). The threshold lives
+  // in the plugin config so a deployment can tune it without a code change.
+  const material = typeof input.material === 'string' && input.material.trim() !== '' ? input.material : input.description
+  let markdown
+  let pipeline = { blocks: 1, calls: 1, dropped: 0, mode: 'single' }
+  try {
+    const outlined = await assist.assistOutlineFromMaterial(deps.ctx, {
+      text: material,
+      maxSlides: input.maxSlides ?? effective.maxSlides,
+      topic: input.title,
+      options: {
+        threshold: deps.config.materialThreshold,
+        blockChars: deps.config.materialBlockChars,
+        maxBlocks: deps.config.materialMaxBlocks,
+        concurrency: deps.config.materialConcurrency,
+        factsPerBlock: deps.config.materialFactsPerBlock,
+      },
+      onProgress: deps.onProgress,
+      signal: deps.signal,
+    })
+    markdown = outlined.markdown
+    pipeline = {
+      blocks: outlined.blocks,
+      calls: outlined.calls,
+      dropped: outlined.dropped,
+      mode: outlined.blocks > 1 ? 'map-reduce' : 'single',
+    }
+  } catch (error) {
+    const code = typeof error?.code === 'string' ? error.code : 'llm_failed'
+    return { ok: false, error: { code, message: error instanceof Error ? error.message : String(error) } }
+  }
+  if (typeof markdown !== 'string' || markdown.trim() === '') {
+    return { ok: false, error: { code: 'outline_unparsable', message: '模型没有返回可用的大纲' } }
   }
 
   const generated = await generateDeckFrom({
@@ -1041,7 +1142,7 @@ async function assistContent(input, deps) {
     storeConfig: deps.storeConfig,
   })
   if (generated.ok !== true) return generated
-  return { ...generated, markdown, raw: String(answer).slice(0, 1200) }
+  return { ...generated, markdown, pipeline }
 }
 
 /**
@@ -1658,15 +1759,27 @@ async function dispatchEndpoint(endpoint, payload, deps) {
     }
 
     case 'content.assist': {
-      const description = typeof body.description === 'string' ? body.description.trim() : ''
-      if (description === '') return fail('invalid_body', 'Expected { description }')
+      // Two shapes, one endpoint: a sentence ('description' / 'text') or a long document
+      // ('text' or a 'path' to read). The pipeline decides single-pass vs Map-Reduce.
+      let material = typeof body.text === 'string' && body.text.trim() !== '' ? body.text : ''
+      if (material === '' && typeof body.description === 'string') material = body.description.trim()
+      if (material === '' && typeof body.path === 'string' && body.path.trim() !== '') {
+        try {
+          material = await readFile(resolvePath(body.path), 'utf8')
+        } catch {
+          return fail('source_not_found', `cannot read material file ${body.path}`)
+        }
+      }
+      if (material.trim() === '') return fail('invalid_body', 'Expected { description }, { text } or { path }')
       const templates = await store.listTemplates(storeConfig)
       const requested = typeof body.templateId === 'string' && body.templateId !== '' ? body.templateId : null
       const templateId = requested ?? config.defaultTemplateId ?? templates[0]?.templateId ?? null
       try {
         const result = await assistContent(
           {
-            description,
+            material,
+            description: material,
+            title: typeof body.title === 'string' ? body.title : undefined,
             templateId,
             styleId: typeof body.styleId === 'string' ? body.styleId : undefined,
             maxSlides: Number.isFinite(body.maxSlides) ? Number(body.maxSlides) : undefined,

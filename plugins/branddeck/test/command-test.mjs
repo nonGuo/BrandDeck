@@ -190,6 +190,7 @@ check('help text and parser agree on every advertised form', () => {
   const examples = [
     ['deck 一句话描述', 'deck'],
     ['deck --style hw-dense 一句话描述', 'deck'],
+    ['deck --file materials/branddeck-intro.md 主题一句话', 'deck'],
     ['style 一句话描述', 'style'],
     ['list', 'list'],
     ['templates', 'templates'],
@@ -199,6 +200,7 @@ check('help text and parser agree on every advertised form', () => {
     assert(parsed.kind === kind, `"${line}" parsed as ${parsed.kind}, help says ${kind}`)
   }
   assert(help.text.includes('/branddeck deck <一句话描述>'), 'usage line drifted from the parser')
+  assert(help.text.includes('/branddeck deck --file <路径>'), 'the long-material form is not advertised')
   assert(help.text.includes('/branddeck style <一句话描述>'), 'style usage line missing')
   return `${examples.length} forms`
 })

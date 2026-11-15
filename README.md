@@ -83,6 +83,7 @@ cd plugins/branddeck && pnpm install
 /branddeck                                 看一眼用法与当前状态（模板/卡组/风格计数）
 /branddeck deck 给设计团队讲这一季的视觉规范：主色、字体、留白
 /branddeck deck --style <风格id> 讲三个核心变化
+/branddeck deck --file <材料.md> 一句话说明主题    用长材料生成（自动 Map-Reduce）
 /branddeck style 冷静克制、蓝色系、不要卡片、最多 8 页
 /branddeck list                            列出卡组（页数与修订号）
 /branddeck templates                       列出已解析模板
@@ -91,6 +92,21 @@ cd plugins/branddeck && pnpm install
 - 回答直接写进会话记录：生成的卡组 id、页数、风格、下一步命令；
 - 模型只产出大纲/风格参数，**版面由确定性生成器负责**，不会产出无法渲染的卡片；
 - `style` 会把风格**存成可复用文件**，并回一句带 `--style` 的命令，复制即可用。
+
+#### 长材料：Map-Reduce 分层提炼
+
+一句话描述和两万字报告走同一条管线，只是换了档位：
+
+| 材料长度 | 走法 | 模型调用 |
+| --- | --- | --- |
+| ≤ `materialThreshold`（默认 6000 字） | 单次提示词，整段交给模型 | 1 次 |
+| > 阈值 | **Map**：按章节切块、逐块提炼事实（保留数字/人名/时间）；**Reduce**：合并去重后一次编排成大纲 | 块数 + 1 次 |
+
+- 切块**零丢失**：`test/mapreduce-test.mjs` 用「块拼回去 == 原文（去掉空白后逐字相等）」验证，
+  任何块大小下都成立；章节标题内联在块里，模型仍看得见结构；
+- 并发有界（默认 3），块数有上限（默认 12），超长文档把尾巴合并进最后一块而不是丢弃；
+- 回答里的 `pipeline` 会回报 `mode: map-reduce · blocks · calls · dropped`，命令结果也直接写在会话里。
+
 
 ### 面板（可视化微调，顶栏右上角切换）
 
