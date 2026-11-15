@@ -35,6 +35,7 @@ import {
 import { DEFAULT_THEME } from './defaults.js'
 import { imageSize } from './pptx/media.js'
 import { rasterizeSvg } from './svg.js'
+import { themeSvg } from './svg-theme.js'
 
 /** Master name registered on every compiled presentation. */
 export const MASTER_NAME = 'BRANDDECK'
@@ -485,7 +486,18 @@ function addShapeElement(slide, element, theme, pres, label, warnings) {
  */
 function addSvgElement(slide, element, theme, opts, label, warnings) {
   try {
-    const png = rasterizeSvg(element.svgCode, {
+    // Re-skin the figure with the deck's own tokens before rasterising: a model-drawn
+    // SVG arrives with its own palette (Mermaid purple/green, Comic Sans labels) and
+    // would read as a foreign object inside a branded deck. Colours are mapped onto
+    // the template's palette and the font onto the template's typeface; the SVG's
+    // structure is untouched.
+    const themed = themeSvg(element.svgCode, theme)
+    if (themed.remapped > 0) {
+      warnings.push(
+        `${label} · svg "${element.id}": ${themed.remapped} 处颜色已按模板品牌色归一`,
+      )
+    }
+    const png = rasterizeSvg(themed.svg, {
       widthPx: element.w,
       heightPx: element.h,
       scale: opts.svgScale ?? 3,

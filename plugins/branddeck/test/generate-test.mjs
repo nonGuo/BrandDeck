@@ -13,9 +13,16 @@
  * 5. maxSlides truncation + 40-bullet continuation slides ending in （续）
  * 6. determinism (identical JSON) and no mutation of inputs
  * 7. style.colors.primary actually changes the rendered accent colour
+ * 8. layout intents + two-track text:
+ *    8a 版式： lines route to all 5 kinds (zh/en, as a bullet, mid-section)
+ *    8b inference picks compare/timeline/stats/bullets and never overrides an explicit kind
+ *    8c compare/timeline/stats render with 0 repair warnings and 0 overlaps (3 densities x 3 tones)
+ *    8d stats number extraction (2/3/4 cards) + timeline 2 nodes and 6 → +N collapse
+ *    8e long bullets move their detail into speakerNotes, authored notes pass through verbatim
  */
 import {
   DEFAULT_STYLE,
+  DETAIL_TO_NOTES_WARNING,
   MAX_BULLET_CHARS,
   composeDeck,
   parseSourceToOutline,
@@ -687,6 +694,383 @@ check('7 · style.colors.primary changes the rendered accent colour', () => {
   // A `$colors.*` token in the override resolves against the theme.
   assert(stable(tokenForm.deck).includes('#E9002F'), '$colors.accent token did not resolve to the theme accent')
   return `#C7000A -> #00A366 on ${overridden.deck.slides[1].elements.filter((e) => e.type === 'shape').length} shapes, token form resolved to #E9002F`
+})
+
+/* ------------------------------------------------------------------ *
+ * 8. Layout intents (版式) + two-track text
+ * ------------------------------------------------------------------ */
+
+/**
+ * One Markdown slide carrying an explicit layout line, optionally with the line
+ * written as a bullet and/or placed after the first bullet (the contract says
+ * "anywhere inside a slide section").
+ */
+function layoutMarkdown(spelling, { asBullet = false, afterFirst = false, bullets = ['要点一', '要点二'] } = {}) {
+  const line = `${asBullet ? '- ' : ''}版式：${spelling}`
+  const body = afterFirst && bullets.length > 1
+    ? [`- ${bullets[0]}`, line, ...bullets.slice(1).map((bullet) => `- ${bullet}`)]
+    : [line, ...bullets.map((bullet) => `- ${bullet}`)]
+  return `# 版式路由\n\n## 页面\n${body.join('\n')}\n`
+}
+
+check('8a · 版式： lines route to all 5 kinds (zh + en) and never become bullets', () => {
+  const cases = [
+    ['对比', 'compare'],
+    ['compare', 'compare'],
+    ['时间线', 'timeline'],
+    ['timeline', 'timeline'],
+    ['流程', 'timeline'],
+    ['步骤', 'timeline'],
+    ['process', 'timeline'],
+    ['steps', 'timeline'],
+    ['指标', 'stats'],
+    ['数据', 'stats'],
+    ['stat', 'stats'],
+    ['stats', 'stats'],
+    ['kpi', 'stats'],
+    ['列表', 'bullets'],
+    ['清单', 'bullets'],
+    ['bullets', 'bullets'],
+    ['list', 'bullets'],
+  ]
+  const seen = new Map()
+  cases.forEach(([spelling, expected], index) => {
+    // Cover the three shapes of the line across the table: plain, written as a
+    // bullet, and written after the first bullet.
+    const options = {
+      asBullet: index % 3 === 1,
+      afterFirst: index % 3 === 2,
+    }
+    const outline = parseSourceToOutline(layoutMarkdown(spelling, options))
+    assert(outline.slides.length === 1, `${spelling}: ${outline.slides.length} slides`)
+    const slide = outline.slides[0]
+    assert(slide.kind === expected, `版式：${spelling} -> kind ${JSON.stringify(slide.kind)}, expected "${expected}"`)
+    assert(
+      stable(slide.bullets) === stable(['要点一', '要点二']),
+      `版式：${spelling} leaked into bullets: ${stable(slide.bullets)}`,
+    )
+    seen.set(expected, (seen.get(expected) ?? 0) + 1)
+  })
+
+  // `section` is structural: it needs a slide with no bullets, otherwise the copy
+  // would be dropped (and losing copy is not an acceptable "route").
+  for (const spelling of ['章节', '过渡', 'section']) {
+    const outline = parseSourceToOutline(`# 版式路由\n\n## 章节页\n版式：${spelling}\n`)
+    assert(outline.slides[0].kind === 'section', `版式：${spelling} -> ${outline.slides[0].kind}`)
+    assert(outline.slides[0].bullets.length === 0, 'section slide gained bullets')
+  }
+  // ... and an explicit `章节` on a slide WITH copy must not swallow the copy.
+  const guarded = parseSourceToOutline(layoutMarkdown('章节'))
+  assert(guarded.slides[0].bullets.length === 2, 'explicit section dropped the bullets')
+  assert(guarded.slides[0].kind !== 'section', 'explicit section with copy stayed a section')
+
+  // Half-width colon, English spelling, a trailing full stop and an unknown value.
+  const halfWidth = parseSourceToOutline('## 页\n版式: 时间线\n- 第一步：a\n- 第二步：b\n- 第三步：c')
+  assert(halfWidth.slides[0].kind === 'timeline', `版式: 时间线 -> ${halfWidth.slides[0].kind}`)
+  const english = parseSourceToOutline('## 页\nlayout: compare\n- 旧：a\n- 新：b')
+  assert(english.slides[0].kind === 'compare', `layout: compare -> ${english.slides[0].kind}`)
+  const punctuation = parseSourceToOutline('## 页\n版式：指标。\n- 增长 138%\n- 下降 74%')
+  assert(punctuation.slides[0].kind === 'stats', `版式：指标。 -> ${punctuation.slides[0].kind}`)
+  const unknown = parseSourceToOutline('## 页\n版式：瀑布流\n- 要点一\n- 要点二')
+  assert(unknown.slides[0].kind === undefined, `unknown layout value produced kind ${unknown.slides[0].kind}`)
+  assert(
+    stable(unknown.slides[0].bullets) === stable(['要点一', '要点二']),
+    `unknown layout line leaked into bullets: ${stable(unknown.slides[0].bullets)}`,
+  )
+
+  const summary = [...seen.entries()].map(([kind, count]) => `${kind}:${count}`).join(' ')
+  return `${cases.length} spellings → ${summary}; section via 3 spellings, unknown ignored`
+})
+
+check('8b · inference picks compare / timeline / stats / bullets (4 fixtures)', () => {
+  const fixtures = [
+    {
+      label: 'compare (cue prefixes)',
+      bullets: ['旧流程：从零开始排版', '新流程：模板一次解析'],
+      kind: 'compare',
+    },
+    {
+      label: 'compare (标签 pairs)',
+      bullets: ['自建模板相比统一模板：交付慢三倍', '统一模板相比自建模板：交付快三倍'],
+      kind: 'compare',
+    },
+    {
+      label: 'timeline (ordered cues)',
+      bullets: ['第一步：导入模板', '第二步：解析品牌', '第三步：生成卡组'],
+      kind: 'timeline',
+    },
+    {
+      label: 'stats (numeric + short)',
+      bullets: ['内容交付量同比增长 138%', '人工返工工时下降 74%'],
+      kind: 'stats',
+    },
+    {
+      label: 'bullets (nothing matches)',
+      bullets: ['模板只解析一次', '卡组可以复用到下一次汇报'],
+      kind: undefined,
+    },
+  ]
+  for (const fixture of fixtures) {
+    const markdown = `# 推理\n\n## 页面\n${fixture.bullets.map((bullet) => `- ${bullet}`).join('\n')}\n`
+    const slide = parseSourceToOutline(markdown).slides[0]
+    console.log(`    ${fixture.label.padEnd(26)} → kind=${String(slide.kind)}  ${fixture.bullets.join(' / ')}`)
+    assert(slide.kind === fixture.kind, `${fixture.label}: kind ${JSON.stringify(slide.kind)}, expected ${JSON.stringify(fixture.kind)}`)
+  }
+
+  // Timeline needs >= 3 cues: two steps stay a bullet list (conservative).
+  const twoSteps = parseSourceToOutline('## 页\n- 第一步：导入模板\n- 第二步：生成卡组')
+  assert(twoSteps.slides[0].kind === undefined, `2 ordered bullets became ${twoSteps.slides[0].kind}`)
+
+  // A single contrast or a single number is not enough.
+  const oneCue = parseSourceToOutline('## 页\n- 旧流程：从零开始排版\n- 模板只解析一次')
+  assert(oneCue.slides[0].kind === undefined, `1 contrast bullet became ${oneCue.slides[0].kind}`)
+  const oneNumber = parseSourceToOutline('## 页\n- 内容交付量同比增长 138%\n- 卡组可以复用')
+  assert(oneNumber.slides[0].kind === undefined, `1 numeric bullet became ${oneNumber.slides[0].kind}`)
+
+  // Long numeric prose is not a stat row (the <= 24-char rule).
+  const longNumber = parseSourceToOutline(
+    '## 页\n- 内容交付量同比增长 138%，主要来自模板复用与评审流程的合并，返工工时下降 74%\n- 人工返工工时下降 74%',
+  )
+  assert(longNumber.slides[0].kind === undefined, `long numeric prose became ${longNumber.slides[0].kind}`)
+
+  // An explicit kind is NEVER overridden by inference.
+  const explicit = parseSourceToOutline('## 页\n版式：列表\n- 第一步：a\n- 第二步：b\n- 第三步：c')
+  assert(explicit.slides[0].kind === 'bullets', `explicit 列表 was overridden to ${explicit.slides[0].kind}`)
+
+  // Stable: the same input always yields the same kinds.
+  const source = '# 稳定\n\n## A\n- 旧：a\n- 新：b\n\n## B\n- 增长 138%\n- 下降 74%\n\n## C\n- 第一步：a\n- 第二步：b\n- 第三步：c'
+  assert(stable(parseSourceToOutline(source)) === stable(parseSourceToOutline(source)), 'inference is not stable')
+  return `${fixtures.length} fixtures, explicit wins, 3 negative cases, stable`
+})
+
+check('8c · the three new layouts render cleanly (3 densities x 3 tones)', () => {
+  const LAYOUT_FIXTURES = {
+    compare: ['旧：逐页手工排版', '旧：字体各处漂移', '新：模板一次解析', '新：导出即可编辑'],
+    timeline: ['第一步：导入模板', '第二步：解析品牌', '第三步：生成卡组'],
+    stats: ['交付量增长 138%', '返工下降 74%', '效率提升 3.2 倍'],
+  }
+  const printed = []
+  let combinations = 0
+  let slidesChecked = 0
+  let elementsChecked = 0
+  for (const [kind, bullets] of Object.entries(LAYOUT_FIXTURES)) {
+    for (const density of DENSITIES) {
+      for (const tone of TONES) {
+        const tag = `${kind}/${density}/${tone}`
+        const outline = { title: '版式测试', slides: [{ title: '内容页', kind, bullets }] }
+        const { deck, warnings } = composeDeck({ outline, theme: HW_THEME, style: { density, tone } })
+
+        const parsed = CardDeckSchema.safeParse(deck)
+        assert(parsed.success, `${tag}: schema rejected — ${JSON.stringify(parsed.error?.issues ?? [])}`)
+
+        const repaired = repairDeck(deck, HW_THEME)
+        assert(repaired.warnings.length === 0, `${tag}: repair warnings — ${repaired.warnings.join(' | ')}`)
+        assert(warnings.length === 0, `${tag}: compose warnings — ${warnings.join(' | ')}`)
+
+        const contentSlide = deck.slides[1]
+        assert(contentSlide.kind === kind, `${tag}: deck slide kind is ${contentSlide.kind}`)
+        const errors = []
+        collectGeometryErrors(contentSlide, HW_THEME, errors)
+        assert(errors.length === 0, `${tag}: ${errors.join(' | ')}`)
+
+        // Prove the routing is real: each kind leaves its own structural fingerprint
+        // instead of a bullet list.
+        const shapes = shapeElements(contentSlide)
+        if (kind === 'compare') {
+          assert(shapes.some((element) => element.id.includes('-divider-')), `${tag}: no divider`)
+          assert(
+            contentSlide.elements.filter((element) => element.type === 'text' && element.id.includes('-heading-')).length === 2,
+            `${tag}: expected 2 column headings`,
+          )
+        } else if (kind === 'timeline') {
+          assert(shapes.filter((element) => element.shapeType === 'ellipse').length === bullets.length, `${tag}: node count`)
+          assert(shapes.filter((element) => element.id.includes('-seg-')).length === bullets.length - 1, `${tag}: segment count`)
+        } else {
+          // One number + one label per stat bullet. The card surface is a *tone*
+          // decision (`minimal` draws none), so it is only asserted where the tone
+          // actually fills cards — geometry must not depend on the tone.
+          const statTexts = textElements(contentSlide).filter((element) => element.id.includes('-stat-'))
+          const labelTexts = textElements(contentSlide).filter((element) => element.id.includes('-label-'))
+          const cards = shapes.filter((element) => element.shapeType === 'roundRect')
+          assert(labelTexts.length === bullets.length, `${tag}: ${labelTexts.length} labels for ${bullets.length} bullets`)
+          assert(statTexts.length === bullets.length, `${tag}: ${statTexts.length} numbers for ${bullets.length} bullets`)
+          assert(
+            cards.length === (tone === 'minimal' ? 0 : bullets.length),
+            `${tag}: ${cards.length} cards (tone ${tone})`,
+          )
+        }
+
+        slidesChecked += 1
+        elementsChecked += contentSlide.elements.length
+        if (tone === 'formal' && density === 'standard') {
+          printed.push(`${kind}: ${contentSlide.elements.length} elements (${textElements(contentSlide).length} text, ${shapes.length} shape)`)
+        }
+        combinations += 1
+      }
+    }
+  }
+  assert(combinations === 27, `expected 27 combinations, ran ${combinations}`)
+  console.log('    rendered (standard/formal):')
+  for (const line of printed) console.log(`      ${line}`)
+  return `${combinations}/27 combinations clean (0 schema errors, 0 repair warnings, 0 overlaps), ${slidesChecked} slides / ${elementsChecked} elements`
+})
+
+check('8d · stats extracts numbers (2/3/4 cards) and timeline handles 2 and 6 bullets', () => {
+  // --- stats: number extraction -------------------------------------------
+  const statsOutline = {
+    title: '指标',
+    slides: [{ title: '关键指标', kind: 'stats', bullets: ['内容交付量同比增长 138%', '人工返工工时下降 74%'] }],
+  }
+  const statsDeck = composeDeck({ outline: statsOutline, theme: HW_THEME, style: {} })
+  const statsSlide = statsDeck.deck.slides[1]
+  const numbers = textElements(statsSlide).filter((element) => element.id.includes('-stat-')).map((element) => element.content)
+  const labels = textElements(statsSlide).filter((element) => element.id.includes('-label-')).map((element) => element.content)
+  console.log(`    stats numbers: ${stable(numbers)}`)
+  console.log(`    stats labels : ${stable(labels)}`)
+  assert(stable(numbers) === stable(['138%', '74%']), `numbers were ${stable(numbers)}`)
+  assert(stable(labels) === stable(['内容交付量同比增长', '人工返工工时下降']), `labels were ${stable(labels)}`)
+  assert(textElements(statsSlide).find((element) => element.id.includes('-stat-')).style.fontSize >= 40, 'stat number is not big')
+
+  // --- stats: 2 / 3 / 4 cards all fit the safe width ----------------------
+  const box = innerBox(HW_THEME)
+  const cardWidths = []
+  const cardBullets = [
+    ['内容交付量同比增长 138%', '人工返工工时下降 74%'],
+    ['内容交付量同比增长 138%', '人工返工工时下降 74%', '效率提升 3.2 倍'],
+    ['内容交付量同比增长 138%', '人工返工工时下降 74%', '效率提升 3.2 倍', '成本降至三分之一'],
+  ]
+  cardBullets.forEach((bullets, index) => {
+    const { deck, warnings } = composeDeck({
+      outline: { title: '指标', slides: [{ title: '指标页', kind: 'stats', bullets }] },
+      theme: HW_THEME,
+      style: {},
+    })
+    const slide = deck.slides[1]
+    const cards = shapeElements(slide).filter((element) => element.shapeType === 'roundRect')
+    assert(cards.length === bullets.length, `${bullets.length} bullets → ${cards.length} cards`)
+    assert(warnings.length === 0, `${bullets.length} cards: warnings ${stable(warnings)}`)
+    assert(repairDeck(deck, HW_THEME).warnings.length === 0, `${bullets.length} cards: repair warnings`)
+    assert(cards[0].x === box.x, `${bullets.length} cards: first card x=${cards[0].x}`)
+    const last = cards[cards.length - 1]
+    assert(last.x + last.w === box.x + box.w, `${bullets.length} cards: last card ends at ${last.x + last.w}`)
+    // The row must be a row: every card on one line, no overlaps.
+    for (const card of cards) assert(card.y === cards[0].y, `${bullets.length} cards: card y ${card.y}`)
+    // A bullet without a number still gets a label and no number line.
+    const numberCount = textElements(slide).filter((element) => element.id.includes('-stat-')).length
+    cardWidths.push(`${bullets.length}:${cards[0].w}px/${numberCount} numbers`)
+    if (index === 2) {
+      assert(numberCount === 3, `4-card slide should have 3 numbers (one bullet has none), got ${numberCount}`)
+      const labelOnly = textElements(slide).find((element) => element.id === 's2-label-4')
+      assert(labelOnly !== undefined && labelOnly.content === '成本降至三分之一', 'label-only card lost its copy')
+    }
+  })
+  console.log(`    stats card widths: ${cardWidths.join(', ')}`)
+
+  // --- timeline: 2 nodes and 6 → +1 collapse ------------------------------
+  const two = composeDeck({
+    outline: { title: '时间线', slides: [{ title: '两步', kind: 'timeline', bullets: ['第一步：导入模板', '第二步：生成卡组'] }] },
+    theme: HW_THEME,
+    style: {},
+  })
+  const twoNodes = shapeElements(two.deck.slides[1]).filter((element) => element.shapeType === 'ellipse')
+  assert(twoNodes.length === 2, `2 bullets → ${twoNodes.length} nodes`)
+  assert(two.warnings.length === 0, `2-node timeline warnings: ${stable(two.warnings)}`)
+
+  const sixBullets = ['第一步：导入模板', '第二步：解析品牌', '第三步：生成卡组', '第四步：导出', '第五步：评审', '第六步：归档']
+  const six = composeDeck({
+    outline: { title: '时间线', slides: [{ title: '六步', kind: 'timeline', bullets: sixBullets }] },
+    theme: HW_THEME,
+    style: {},
+  })
+  const sixSlide = six.deck.slides[1]
+  const sixNodes = shapeElements(sixSlide).filter((element) => element.shapeType === 'ellipse')
+  const captions = textElements(sixSlide).filter((element) => element.id.includes('-caption-')).map((element) => element.content)
+  console.log(`    6 bullets → ${sixNodes.length} nodes, captions ${stable(captions)}`)
+  console.log(`    fold warning: ${six.warnings.find((warning) => warning.includes('折叠'))}`)
+  assert(sixNodes.length === 5, `6 bullets → ${sixNodes.length} nodes (expected 5)`)
+  assert(captions[captions.length - 1].endsWith('+1'), `last caption was "${captions[captions.length - 1]}"`)
+  assert(
+    six.warnings.some((warning) => warning.includes('折叠为 +1')),
+    `no fold warning in ${stable(six.warnings)}`,
+  )
+  // Folding must not lose the text: it goes to the notes.
+  assert(
+    sixSlide.speakerNotes !== undefined && sixSlide.speakerNotes.includes('第六步：归档'),
+    `folded bullet not kept in notes: ${JSON.stringify(sixSlide.speakerNotes)}`,
+  )
+  assert(repairDeck(six.deck, HW_THEME).warnings.length === 0, '6-node timeline deck needs repair')
+  return `numbers ${stable(numbers)}, cards ${cardWidths.join(' / ')}, timeline 2→2 nodes, 6→5 nodes +1 folded to notes`
+})
+
+check('8e · two-track: a long bullet moves its detail into speakerNotes', () => {
+  // 98 characters: over MAX_BULLET_CHARS, with an early clause boundary after 32.
+  const longBullet =
+    '内容中台把模板解析、卡组编排、内容生成与原生导出串成一条完整链路，评审阶段直接给出可编辑的 pptx，业务方可以在自己的电脑上改字改图改配色而不破坏版式，因此一次解析可以长期复用，边际成本接近零。'
+  assert(Array.from(longBullet).length > MAX_BULLET_CHARS, 'fixture is not long enough')
+  const outline = { title: '双轨', slides: [{ title: '长要点', bullets: [longBullet, '短要点'] }] }
+  const { deck, warnings } = composeDeck({ outline, theme: HW_THEME, style: {} })
+  const slide = deck.slides[1]
+  const visible = textElements(slide).filter((element) => element.role === 'body').map((element) => element.content)
+  console.log(`    visible bullets: ${stable(visible)}`)
+  console.log(`    speakerNotes   : ${JSON.stringify(slide.speakerNotes)}`)
+
+  assert(
+    warnings.some((warning) => warning.includes(DETAIL_TO_NOTES_WARNING)),
+    `no "${DETAIL_TO_NOTES_WARNING}" warning in ${stable(warnings)}`,
+  )
+  assert(typeof slide.speakerNotes === 'string' && slide.speakerNotes !== '', 'notes were not generated')
+  assert(visible.length === 2, `expected 2 visible bullets, got ${visible.length}`)
+  for (const bullet of visible) {
+    assert(Array.from(bullet).length <= MAX_BULLET_CHARS, `visible bullet is ${Array.from(bullet).length} chars`)
+  }
+  assert(visible[0] !== longBullet, 'the long bullet was not shortened')
+  // No text is lost: the note holds everything the page dropped (modulo the clause
+  // separator, which a page bullet does not end with).
+  const flat = longBullet.replace(/\s+/g, ' ').trim()
+  assert(flat.startsWith(visible[0]), `visible bullet "${visible[0]}" is not a prefix of the original`)
+  const remainder = flat.slice(visible[0].length).replace(/^[，,。；;：:\s]+/, '')
+  assert(remainder.length > 0, 'nothing was moved out of the bullet')
+  assert(slide.speakerNotes.includes(remainder), `notes do not contain the removed text "${remainder}"`)
+  assert(repairDeck(deck, HW_THEME).warnings.length === 0, 'two-track deck needs repair')
+
+  // A slide that already HAS notes keeps the old split behaviour and its notes are
+  // passed through verbatim (never truncated, never rewritten).
+  const authored = '作者备注：先讲现象，再讲根因；这一段不能被生成器改动或截断。'
+  const withNotes = composeDeck({
+    outline: { title: '双轨', slides: [{ title: '长要点', bullets: [longBullet, '短要点'], notes: authored }] },
+    theme: HW_THEME,
+    style: {},
+  })
+  const noted = withNotes.deck.slides[1]
+  const notedVisible = textElements(noted).filter((element) => element.role === 'body').map((element) => element.content)
+  assert(noted.speakerNotes === authored, `authored notes changed: ${JSON.stringify(noted.speakerNotes)}`)
+  assert(
+    withNotes.warnings.some((warning) => warning.includes('已拆分')),
+    `expected the historical split warning, got ${stable(withNotes.warnings)}`,
+  )
+  assert(notedVisible.length > 2, `expected the long bullet to split, got ${notedVisible.length} bullets`)
+  assert(
+    notedVisible.every((bullet) => bullet.length > 0),
+    'split produced an empty bullet',
+  )
+
+  // Short copy never grows notes and never warns.
+  const short = composeDeck({
+    outline: { title: '短', slides: [{ title: '短要点', bullets: ['模板只解析一次', '卡组可以复用'] }] },
+    theme: HW_THEME,
+    style: {},
+  })
+  assert(short.deck.slides[1].speakerNotes === undefined, 'short slide gained speaker notes')
+  assert(short.warnings.length === 0, `short slide warned: ${stable(short.warnings)}`)
+
+  // And an explicit notes value always survives, even without long bullets.
+  const notesOnly = composeDeck({
+    outline: { title: '备注', slides: [{ title: '备注页', bullets: ['要点'], notes: '只有备注' }] },
+    theme: HW_THEME,
+    style: {},
+  })
+  assert(notesOnly.deck.slides[1].speakerNotes === '只有备注', 'short slide lost its notes')
+  return `long ${Array.from(longBullet).length} → visible ${Array.from(visible[0]).length} chars, ${slide.speakerNotes.length}-char note, authored notes intact`
 })
 
 /* ------------------------------------------------------------------ *
