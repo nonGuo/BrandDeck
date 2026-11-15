@@ -47,17 +47,23 @@ plugin_manager install_bundle { "target": "D:\\Projects\\ai\\BrandDeck\\plugins\
 | **卡片视图** | 16:9 画布编辑：拖拽/缩放/改字/缩略图排序/溢出预警，自动保存 |
 | **文字视图** | Markdown 大纲编辑，保存后按 `{#id}` 回写卡片，位置与样式不变 |
 
-「生成」里的两个 **一句话入口**（面板内直接调模型，不需要 Agent）：
+### 会话命令 `/branddeck`（对话式生成）
 
-| 入口 | 你说 | 你得到 |
-| --- | --- | --- |
-| 说两句，出风格 | 「华为红、信息密度高、正文卡片式，别超过 10 页」 | 一份**风格草稿**（density/tone/bulletLayout/maxSlides…），审一眼点「保存风格」即复用 |
-| 说两句，出内容 | 「给部门周会做一页汇报：这周做完模板解析，下周启动导出」 | 一份**卡组**（模型写大纲 → 代码排版 → 落库 → 跳转卡片视图） |
+对话式生成是**当前会话的能力**，在对话框输入即可：
 
-实现方式：面板把一句话提交给 Host 路由 `style.assist` / `content.assist`，Host 用 `llm` 服务
-流式调用默认模型（`agentDefaultModel` 的选择），**版面仍由确定性生成器负责** ——
-所以模型再离谱也不会产出无法渲染的卡片。模型不可用时返回 `llm_unavailable`，
-面板给出可读错误，手填流程照常可用。
+```
+/branddeck                                  用法 + 当前状态
+/branddeck deck <一句话描述>                 生成卡组（当前模板 + 默认风格）
+/branddeck deck --style <id> <一句话描述>    指定风格
+/branddeck style <一句话描述>                生成并保存风格配置
+/branddeck list | templates                 列出卡组 / 模板
+```
+
+实现：命令通过 `ctx.commands.register` 注册（`definitionId: '@local/dsh-branddeck'`），
+handler 收到 `invocation.agent` / `rawInput`，返回 `{ kind, text }` 直接进会话记录。
+模型经 Host 的 `llm` 服务流式调用，用的是**当前会话**的模型选择与 sessionId（网关需要）。
+**版面仍由确定性生成器负责** —— 模型只给大纲/风格参数，所以不会产出无法渲染的卡片；
+模型不可用时返回可读错误，手填与工具路径照常可用。
 
 风格块也支持从模板派生、改密度/强调/正文排布/页数上限、保存为可复用风格；
 面板还会给出**一段可直接粘给 Agent 的指令**，让对话变成 `branddeck_style_save` 风格文件。

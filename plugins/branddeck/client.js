@@ -156,17 +156,6 @@ window.__ModuleLoader__.load({
       'gen.failed': '生成失败',
       'gen.done': '已生成',
       'gen.slides': '页',
-      'gen.chatStyleTitle': '说两句，出风格',
-      'gen.chatStylePlaceholder': '例：华为红、信息密度高、正文用卡片、别超过 10 页',
-      'gen.chatStyleAction': '生成风格草稿',
-      'gen.chatStyleBusy': '正在理解…',
-      'gen.styleDraft': '已生成风格草稿「{name}」，检查后点「保存风格」即可复用。',
-      'gen.chatContentTitle': '说两句，出内容',
-      'gen.chatContentPlaceholder': '例：给部门周会做一页汇报，讲本周做完模板解析、下周启动导出引擎',
-      'gen.chatContentAction': '生成卡组',
-      'gen.chatContentBusy': '正在成稿…',
-      'gen.needSentence': '先用一句话描述你想要的',
-      'gen.assistFailed': '生成失败',
       'text.hint': '直接改文字即可；保存后按元素 id 回写，卡片里的位置与样式保持不变。',
       'text.ariaLabel': '卡组文字版（Markdown）',
       'text.loading': '读取文字版…',
@@ -293,17 +282,6 @@ window.__ModuleLoader__.load({
       'gen.failed': 'Generation failed',
       'gen.done': 'Generated',
       'gen.slides': 'slides',
-      'gen.chatStyleTitle': 'Say a sentence, get a style',
-      'gen.chatStylePlaceholder': 'e.g. brand red, dense, card-style body, max 10 pages',
-      'gen.chatStyleAction': 'Draft style',
-      'gen.chatStyleBusy': 'Understanding…',
-      'gen.styleDraft': 'Draft「{name}」is ready — review it, then press Save style.',
-      'gen.chatContentTitle': 'Say a sentence, get slides',
-      'gen.chatContentPlaceholder': 'e.g. a weekly update for my team: template parsing shipped, export engine starts next week',
-      'gen.chatContentAction': 'Generate deck',
-      'gen.chatContentBusy': 'Writing…',
-      'gen.needSentence': 'Describe it in one sentence first',
-      'gen.assistFailed': 'Generation failed',
       'text.hint': 'Edit the copy directly; saving maps it back by element id and keeps every card position and style.',
       'text.ariaLabel': 'Deck text outline (Markdown)',
       'text.loading': 'Loading text…',
@@ -1267,12 +1245,6 @@ window.__ModuleLoader__.load({
 .branddeck-gen-details summary{cursor:pointer;padding:2px 0}
 .branddeck-gen-code{margin:6px 0;padding:10px;border-radius:var(--branddeck-radius-sm,8px);border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary);font-family:var(--branddeck-font-mono);font-size:11.5px;line-height:1.6;white-space:pre-wrap;word-break:break-word}
 .branddeck-gen-textarea{min-height:160px;flex:0 0 auto}
-.branddeck-chat{display:flex;flex-direction:column;gap:6px;padding:10px 12px;border:1px dashed var(--dsw-alias-interactive-bg-active);border-radius:var(--branddeck-radius-sm,8px);background:var(--dsw-alias-bg-layer-2)}
-.branddeck-chat-title{font-size:12px;font-weight:600;color:var(--dsw-alias-label-primary)}
-.branddeck-chat-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.branddeck-chat-row .branddeck-input{flex:1 1 240px;min-width:0}
-.branddeck-chat-note{font-size:12px;color:var(--dsw-alias-state-success-primary)}
-.branddeck-field{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--dsw-alias-label-secondary,#5B6470);white-space:nowrap}
 .branddeck-select{height:26px;max-width:220px;padding:0 6px;border-radius:6px;font-family:inherit;font-size:12px;color:var(--dsw-alias-label-primary,#1B1F24);background:var(--dsw-alias-bg-layer-2,#FFFFFF);border:.5px solid var(--dsw-alias-border-l3,#CFD4DA);outline:none}
 .branddeck-select:focus-visible{border-color:var(--dsw-alias-brand-primary,#247BBF)}
 .branddeck-chip{max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:2px 8px;border-radius:999px;font-size:11px;color:var(--dsw-alias-label-secondary,#5B6470);background:var(--dsw-alias-bg-module-platform,#EEF2F7);border:.5px solid var(--dsw-alias-border-l3,#CFD4DA)}
@@ -2457,11 +2429,6 @@ window.__ModuleLoader__.load({
       const [title, setTitle] = React.useState('')
       const [maxSlides, setMaxSlides] = React.useState('')
 
-      /* In-panel conversation: a sentence in, an artefact out. */
-      const [styleChat, setStyleChat] = React.useState('')
-      const [contentChat, setContentChat] = React.useState('')
-      const [assistNote, setAssistNote] = React.useState(null)
-
       /* style form: a working copy of the selected style */
       const [draft, setDraft] = React.useState(null)
 
@@ -2527,58 +2494,6 @@ window.__ModuleLoader__.load({
         setResult({ kind: 'import', templateId: parsed.templateId, name: parsed.templateName })
         if (typeof parsed.templateId === 'string') setTemplateId(parsed.templateId)
         reload()
-      }
-
-      /** 「说两句，出风格」: the Host asks the model and returns a draft to review. */
-      async function askStyle() {
-        const description = styleChat.trim()
-        if (description === '') {
-          setError(t('gen.needSentence'))
-          return
-        }
-        setBusy('askStyle')
-        setError(null)
-        setAssistNote(null)
-        const response = await callRpc('style.assist', { description, templateId }, 120000)
-        setBusy(null)
-        if (!response.ok) {
-          setError(`${t('gen.assistFailed')}: ${response.error.message || response.error.code}`)
-          return
-        }
-        const draftStyle = response.value.style
-        setDraft(draftStyle)
-        setStyleChat('')
-        setAssistNote(t('gen.styleDraft', { name: draftStyle.name ?? '' }))
-      }
-
-      /** 「说两句，出内容」: model writes the outline, code lays it out, deck is stored. */
-      async function askContent() {
-        const description = contentChat.trim()
-        if (description === '') {
-          setError(t('gen.needSentence'))
-          return
-        }
-        setBusy('askContent')
-        setError(null)
-        setResult(null)
-        const response = await callRpc(
-          'content.assist',
-          { description, templateId, styleId, maxSlides: maxSlides.trim() !== '' ? Number(maxSlides) : undefined },
-          180000,
-        )
-        setBusy(null)
-        if (!response.ok) {
-          setError(`${t('gen.assistFailed')}: ${response.error.message || response.error.code}`)
-          return
-        }
-        setContentChat('')
-        setResult({
-          kind: 'deck',
-          deckId: response.value.deckId,
-          slides: response.value.slideCount,
-          warnings: Array.isArray(response.value.warnings) ? response.value.warnings : [],
-        })
-        if (typeof onGenerated === 'function') onGenerated(response.value.deckId)
       }
 
       async function saveStyle() {
@@ -2774,37 +2689,6 @@ window.__ModuleLoader__.load({
               t('gen.deleteStyle'),
             ),
           ),
-          h(
-            'div',
-            { className: 'branddeck-chat' },
-            h('div', { className: 'branddeck-chat-title' }, t('gen.chatStyleTitle')),
-            h(
-              'div',
-              { className: 'branddeck-chat-row' },
-              h('input', {
-                className: 'branddeck-input',
-                type: 'text',
-                value: styleChat,
-                placeholder: t('gen.chatStylePlaceholder'),
-                'aria-label': t('gen.chatStyleTitle'),
-                onChange: (event) => setStyleChat(event.target.value),
-                onKeyDown: (event) => {
-                  if (event.key === 'Enter') void askStyle()
-                },
-              }),
-              h(
-                'button',
-                {
-                  type: 'button',
-                  className: 'branddeck-btn branddeck-btn-primary',
-                  disabled: busy !== null || styleChat.trim() === '',
-                  onClick: () => void askStyle(),
-                },
-                busy === 'askStyle' ? t('gen.chatStyleBusy') : t('gen.chatStyleAction'),
-              ),
-            ),
-            assistNote === null ? null : h('div', { className: 'branddeck-chat-note' }, assistNote),
-          ),
           draft === null
             ? null
             : h(
@@ -2893,36 +2777,6 @@ window.__ModuleLoader__.load({
           'section',
           { className: 'branddeck-gen-block' },
           h('div', { className: 'branddeck-gen-head' }, h('span', { className: 'branddeck-gen-step' }, '3'), t('gen.stepContent')),
-          h(
-            'div',
-            { className: 'branddeck-chat' },
-            h('div', { className: 'branddeck-chat-title' }, t('gen.chatContentTitle')),
-            h(
-              'div',
-              { className: 'branddeck-chat-row' },
-              h('input', {
-                className: 'branddeck-input',
-                type: 'text',
-                value: contentChat,
-                placeholder: t('gen.chatContentPlaceholder'),
-                'aria-label': t('gen.chatContentTitle'),
-                onChange: (event) => setContentChat(event.target.value),
-                onKeyDown: (event) => {
-                  if (event.key === 'Enter') void askContent()
-                },
-              }),
-              h(
-                'button',
-                {
-                  type: 'button',
-                  className: 'branddeck-btn branddeck-btn-primary',
-                  disabled: busy !== null || contentChat.trim() === '',
-                  onClick: () => void askContent(),
-                },
-                busy === 'askContent' ? t('gen.chatContentBusy') : t('gen.chatContentAction'),
-              ),
-            ),
-          ),
           h('textarea', {
             className: 'branddeck-textarea branddeck-gen-textarea',
             spellCheck: false,

@@ -64,7 +64,219 @@ export function apply(ctx, rawConfig = {}) {
 
   registerTools(ctx, config, storeConfig)
   registerPanelApi(ctx, config, storeConfig)
+  registerCommands(ctx, config, storeConfig)
   if (config.promptSection) registerPromptSection(ctx, config)
+}
+
+/* ------------------------------------------------------------------ *
+ * Session command: /branddeck
+ * ------------------------------------------------------------------ */
+
+/** `/branddeck` sub-command help, kept next to the parser so they cannot drift. */
+const COMMAND_USAGE = [
+  '用法：',
+  '  /branddeck deck <一句话描述>     生成卡组（用当前模板与默认风格）',
+  '  /branddeck deck --style <id>     指定风格生成',
+  '  /branddeck style <一句话描述>    生成并保存一份风格配置',
+  '  /branddeck list                  列出卡组',
+  '  /branddeck templates             列出已解析模板',
+  '  /branddeck                       查看本帮助与当前状态',
+].join('\n')
+
+/**
+ * Parse `/branddeck …` into `{ kind, description, styleId }`.
+ *
+ * The bare form (`/branddeck 给周会做一页`) means "generate a deck", because that is
+ * what someone types 90% of the time.
+ *
+ * @param {string} rawInput text after the command name
+ */
+export function parseBrandDeckCommand(rawInput) {
+  const text = String(rawInput ?? '').trim()
+  if (text === '') return { kind: 'help' }
+  const [first, ...rest] = text.split(/\s+/)
+  const head = first.toLowerCase()
+  const tail = text.slice(first.length).trim()
+
+  if (head === 'help' || head === '?' || head === '--help' || head === '-h') return { kind: 'help' }
+  if (head === 'list' || head === 'ls' || head === 'decks') return { kind: 'list' }
+  if (head === 'templates' || head === 'template' || head === 'tpl') return { kind: 'templates' }
+  if (head === 'style' || head === 'styles' || head === 'theme') {
+    return tail === '' ? { kind: 'style-help' } : { kind: 'style', description: tail }
+  }
+  if (head === 'deck' || head === 'gen' || head === 'generate' || head === 'make') {
+    // `deck --style <id> <description>` keeps the style selector out of the sentence.
+    const hint = /^--style\s+(\S+)\s*/i.exec(tail)
+    if (hint !== null) {
+      return { kind: 'deck', styleId: hint[1], description: tail.slice(hint[0].length).trim() }
+    }
+    return { kind: 'deck', description: tail }
+  }
+  if (head.startsWith('--style')) {
+    const hint = /^--style\s+(\S+)\s*/i.exec(text)
+    return hint === null
+      ? { kind: 'deck', description: rest.join(' ') }
+      : { kind: 'deck', styleId: hint[1], description: text.slice(hint[0].length).trim() }
+  }
+  // Bare text: treat the whole line as the deck description.
+  return { kind: 'deck', description: text }
+}
+
+/**
+ * Register the session-native conversation entry.
+ *
+ * This is deliberately a *command*, not a panel widget: it runs in the current
+ * session, answers in the transcript, and can use the session identity for the
+ * model call. `definitionId` is package-scoped so a later version can evolve the
+ * behaviour without colliding with other commands named `branddeck`.
+ */
+function registerCommands(ctx, config, storeConfig) {
+  ctx.inject(['commands'], (scope) => {
+    scope.effect(
+      () =>
+        scope.commands.register({
+          definitionId: '@local/dsh-branddeck',
+          name: 'branddeck',
+          description: '从一句话生成品牌演示卡组或风格配置（BrandDeck）',
+          input: { hint: '[deck <描述>|style <描述>|list|templates]' },
+          handler: (invocation) =>
+            executeBrandDeckCommand(invocation, { ctx, config, storeConfig }).catch((error) => ({
+              kind: 'error',
+              text: `BrandDeck 执行失败：${error instanceof Error ? error.message : String(error)}`,
+            })),
+        }),
+      'branddeck: /branddeck command',
+    )
+  })
+}
+
+/**
+ * Execute one `/branddeck …` invocation and render the transcript answer.
+ * @param {{agent: any, rawInput: string}} invocation
+ * @param {{ctx: any, config: any, storeConfig: {root?: string}}} deps
+ */
+async function executeBrandDeckCommand(invocation, deps) {
+  const parsed = parseBrandDeckCommand(invocation?.rawInput)
+  const { config, storeConfig } = deps
+  const sessionId = (() => {
+    try {
+      const id = invocation?.agent?.session?.id
+      return typeof id === 'string' ? id : undefined
+    } catch {
+      return undefined
+    }
+  })()
+
+  const status = async () => {
+    const templates = await store.listTemplates(storeConfig)
+    const decks = await store.listDecks(storeConfig)
+    const styleList = styles.listStyles(storeConfig)
+    return [
+      `模板 ${templates.length} 个${templates[0] === undefined ? '' : `（最近：${templates[0].templateId}）`}`,
+      `卡组 ${decks.length} 个${decks[0] === undefined ? '' : `（最近：${decks[0].deckId}，${decks[0].slideCount} 页）`}`,
+      `风格 ${styleList.length} 个`,
+    ].join(' · ')
+  }
+
+  if (parsed.kind === 'help') {
+    return {
+      kind: 'success',
+      text: [`BrandDeck —— 一句话生成品牌演示。`, '', COMMAND_USAGE, '', `当前：${await status()}`].join('\n'),
+    }
+  }
+
+  if (parsed.kind === 'style-help') {
+    return {
+      kind: 'error',
+      text: `风格需要在描述后给出内容，例如：\n  /branddeck style 华为红、信息密度高、正文卡片式\n\n${COMMAND_USAGE}`,
+    }
+  }
+
+  if (parsed.kind === 'list') {
+    const decks = await store.listDecks(storeConfig)
+    if (decks.length === 0) return { kind: 'success', text: '还没有卡组。试试：/branddeck deck <一句话描述>' }
+    return {
+      kind: 'success',
+      text: ['卡组：', ...decks.map((entry) => `  · ${entry.deckId} — ${entry.title}（${entry.slideCount} 页，r${entry.revision ?? 0}）`)].join('\n'),
+    }
+  }
+
+  if (parsed.kind === 'templates') {
+    const templates = await store.listTemplates(storeConfig)
+    if (templates.length === 0) {
+      return { kind: 'success', text: '还没有模板。先运行：branddeck_template_parse { path: "<.pptx 路径>" }' }
+    }
+    return {
+      kind: 'success',
+      text: ['模板：', ...templates.map((entry) => `  · ${entry.templateId} — ${entry.templateName}（${entry.colors?.primary ?? ''}，版式 ${entry.hasLayouts ? '已格式化' : '未格式化'}）`)].join('\n'),
+    }
+  }
+
+  if (parsed.kind === 'style') {
+    const templateId = config.defaultTemplateId ?? (await firstTemplateId(storeConfig)) ?? null
+    if (templateId === null) {
+      return { kind: 'error', text: '还没有模板，无法对齐品牌。先运行 branddeck_template_parse。' }
+    }
+    const theme = await themeFor({ templateId }, config, storeConfig)
+    let draft
+    try {
+      draft = await assistStyle({ description: parsed.description, theme }, { ctx: deps.ctx, storeConfig })
+    } catch (error) {
+      return { kind: 'error', text: `调用模型失败：${error instanceof Error ? error.message : String(error)}` }
+    }
+    if (draft.ok !== true) {
+      return { kind: 'error', text: `没听懂这个风格：${draft.error.message}` }
+    }
+    const saved = styles.writeStyle({ ...draft.style, templateId }, storeConfig)
+    return {
+      kind: 'success',
+      text: [
+        `已保存风格「${saved.name}」(${saved.styleId})`,
+        `  密度 ${saved.density} · 强调 ${saved.tone} · 正文 ${saved.bulletLayout} · 上限 ${saved.maxSlides} 页`,
+        saved.colors?.primary === undefined ? '' : `  主色 ${saved.colors.primary}`,
+        `  用它可以：/branddeck deck --style ${saved.styleId} <一句话描述>`,
+      ]
+        .filter((line) => line !== '')
+        .join('\n'),
+    }
+  }
+
+  // kind === 'deck'
+  const description = typeof parsed.description === 'string' ? parsed.description.trim() : ''
+  if (description === '') {
+    return { kind: 'error', text: `请给一句话描述要做什么演示。\n\n${COMMAND_USAGE}` }
+  }
+  const templateId = config.defaultTemplateId ?? (await firstTemplateId(storeConfig)) ?? null
+  if (templateId === null) {
+    return { kind: 'error', text: '还没有模板，无法对齐品牌。先运行 branddeck_template_parse。' }
+  }
+  let generated
+  try {
+    generated = await assistContent(
+      { description, templateId, styleId: parsed.styleId, maxSlides: config.commandMaxSlides },
+      { ctx: deps.ctx, config, storeConfig, sessionId },
+    )
+  } catch (error) {
+    return { kind: 'error', text: `调用模型失败：${error instanceof Error ? error.message : String(error)}` }
+  }
+  if (generated.ok !== true) {
+    return { kind: 'error', text: `没有生成出卡组：${generated.error?.message ?? '未知原因'}` }
+  }
+  const warnings = Array.isArray(generated.warnings) ? generated.warnings.slice(0, 3) : []
+  return {
+    kind: 'success',
+    text: [
+      `已生成卡组「${generated.deck.title}」(${generated.deckId})，共 ${generated.slideCount} 页。`,
+      generated.styleId === undefined ? '' : `  风格 ${generated.styleId} · 模板 ${generated.templateId}`,
+      warnings.length > 0 ? `  提示：${warnings.join('；')}` : '',
+      '',
+      '下一步：',
+      `  在侧栏 BrandDeck 面板查看/微调，或 /branddeck list 查看全部`,
+      `  导出：branddeck_deck_export { deckId: "${generated.deckId}" }`,
+    ]
+      .filter((line) => line !== '')
+      .join('\n'),
+  }
 }
 
 /**
@@ -93,6 +305,7 @@ function normalizeConfig(raw) {
     promptSection: raw.promptSection !== false,
     logoSide: raw.logoSide === 'top-right' || raw.logoSide === 'none' ? raw.logoSide : 'auto',
     defaultTemplateId: typeof raw.defaultTemplateId === 'string' ? raw.defaultTemplateId : undefined,
+    commandMaxSlides: clampNumber(raw.commandMaxSlides, 3, 30, 10),
   }
 }
 
@@ -813,7 +1026,7 @@ async function assistContent(input, deps) {
     description: input.description,
     maxSlides: input.maxSlides ?? effective.maxSlides,
   })
-  const answer = await assist.callModel(deps.ctx, { ...prompt, maxTokens: 1600 })
+  const answer = await assist.callModel(deps.ctx, { ...prompt, maxTokens: 1600, sessionId: deps.sessionId })
   const markdown = assist.extractMarkdown(answer)
   if (markdown.trim() === '') {
     return { ok: false, error: { code: 'outline_unparsable', message: '模型没有返回可用的大纲' }, raw: String(answer).slice(0, 1200) }
@@ -1328,6 +1541,82 @@ async function dispatchEndpoint(endpoint, payload, deps) {
       return generated.ok === true ? ok(generated) : generated
     }
 
+    case 'command.run': {
+      // Programmatic equivalent of typing the line in the composer: same parser,
+      // same handler, same transcript result. A caller may name a session; without
+      // one the most recently registered live agent is used.
+      const line = typeof body.line === 'string' ? body.line : ''
+      if (line.trim() === '') return fail('invalid_body', 'Expected { line }')
+      const agents = ctx?.get?.('agents') ?? null
+      let live = []
+      try {
+        live = typeof agents?.list === 'function' ? agents.list() : []
+      } catch {
+        live = []
+      }
+      const wanted = typeof body.sessionId === 'string' ? body.sessionId : null
+      const agent = (() => {
+        if (wanted !== null) {
+          try {
+            return agents?.get?.(wanted) ?? null
+          } catch {
+            return null
+          }
+        }
+        return live.length === 0 ? null : live[live.length - 1]
+      })()
+      if (agent === null || agent === undefined) {
+        return fail('no_agent', 'No live session is available to run the command in')
+      }
+      const rawInput = line.replace(/^\s*\/?branddeck\s*/i, '')
+      const answer = await executeBrandDeckCommand(
+        { agent, rawInput, attachments: [] },
+        { ctx, config, storeConfig },
+      ).catch((error) => ({
+        kind: 'error',
+        text: error instanceof Error ? error.message : String(error),
+      }))
+      return ok({ line, rawInput, kind: answer.kind, text: answer.text })
+    }
+
+    case 'command.check': {
+      // Deterministic proof that /branddeck is registered for live agents:
+      // resolve the command registry and ask it for this very command.
+      const commands = ctx?.get?.('commands') ?? null
+      const agents = ctx?.get?.('agents') ?? null
+      const live = (() => {
+        try {
+          return typeof agents?.list === 'function' ? agents.list() : []
+        } catch {
+          return []
+        }
+      })()
+      const rows = live.slice(0, 5).map((agent) => {
+        const sessionId = (() => {
+          try {
+            return agent?.session?.id ?? null
+          } catch {
+            return null
+          }
+        })()
+        let found = null
+        try {
+          const definition = typeof commands?.find === 'function' ? commands.find(agent, 'branddeck') : undefined
+          found = definition === undefined ? null : { name: definition.name, description: definition.description }
+        } catch (error) {
+          found = { error: error instanceof Error ? error.message : String(error) }
+        }
+        return { sessionId, found }
+      })
+      return ok({
+        hasCommands: commands !== null && typeof commands?.find === 'function',
+        hasAgents: agents !== null,
+        liveAgents: live.length,
+        agents: rows,
+        usage: COMMAND_USAGE,
+      })
+    }
+
     case 'assist.providers': {
       // Diagnostics: which model routes this profile offers and which one the panel
       // would use. Makes "why did the sentence-to-style call fail" answerable without
@@ -1551,4 +1840,4 @@ function compileOptions(config) {
   }
 }
 
-export const __internals = { normalizeConfig, slugify, resolveColor, estimateTextOverflow, dispatchEndpoint, handleApiRequest }
+export const __internals = { normalizeConfig, slugify, resolveColor, estimateTextOverflow, dispatchEndpoint, handleApiRequest, executeBrandDeckCommand }
