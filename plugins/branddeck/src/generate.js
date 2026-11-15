@@ -29,6 +29,10 @@
  *   emergency shrink documented in `placeList`).
  * - Density caps bullets per slide and spills the rest onto `<title>（续）`
  *   continuation slides. `maxSlides` is a hard cap (cover + closing included).
+ * - `cards` rows are sized to their content (`textTop + textH + padBottom`), never
+ *   to a fixed band: a one-line bullet gets a short card, not a mostly-empty box.
+ *   Both cards of a row share the taller text height so the grid stays even, and a
+ *   slide whose rows would leave the safe box spills onto a continuation slide.
  *
  * COLOURS
  * - `theme` supplies the tokens, `style.colors` overrides them (hex or
@@ -426,7 +430,10 @@ export function composeDeck(input = {}) {
     warnings.push('封面 · 标题超过 200 字，已截断')
   }
 
-  const content = buildContentSlides(outline, style, warnings)
+  /** @type {LocalContext} */
+  const ctx = { theme, box, palette, style, toneSpec, warnings }
+
+  const content = buildContentSlides(outline, style, ctx, warnings)
   const wantsClosing = style.closingSlide && style.maxSlides >= 2
   const allowed = Math.max(0, style.maxSlides - 1 - (wantsClosing ? 1 : 0))
   if (content.length > allowed) {
@@ -438,9 +445,6 @@ export function composeDeck(input = {}) {
   const slides = []
   let counter = 0
   const nextSlideId = () => `s${(counter += 1)}`
-
-  /** @type {LocalContext} */
-  const ctx = { theme, box, palette, style, toneSpec, warnings }
 
   slides.push(buildCoverSlide(nextSlideId(), ctx, title, outline.subtitle))
 
@@ -531,14 +535,18 @@ function normalizeOutline(outline) {
 
 /**
  * Expand outline slides into the flat list of content slides the layout pass
- * draws. Handles long-bullet splitting and density spilling.
+ * draws. Handles long-bullet splitting and both kinds of spilling:
+ * - count: the density cap (rule 4) spills a title's bullets onto `<title>（续）`;
+ * - height: `cards` rows are sized to their content, so a slide whose rows would
+ *   leave the safe box also spills (see {@link planCardChunks}).
  *
  * @param {{slides: Array<{title: string, bullets: string[], notes?: string, kind: string}>}} outline
  * @param {ReturnType<typeof normalizeStyle>} style
+ * @param {LocalContext} ctx
  * @param {string[]} warnings
  * @returns {Array<{kind: 'section' | 'bullets', title: string, bullets: string[], notes?: string}>}
  */
-function buildContentSlides(outline, style, warnings) {
+function buildContentSlides(outline, style, ctx, warnings) {
   /** @type {Array<{kind: 'section' | 'bullets', title: string, bullets: string[], notes?: string}>} */
   const out = []
   const cap = DENSITY[style.density][style.bulletLayout]
@@ -561,7 +569,16 @@ function buildContentSlides(outline, style, warnings) {
       pieces.push(...parts)
     }
 
-    chunk(pieces, cap).forEach((bullets, chunkIndex) => {
+    const chunks =
+      style.bulletLayout === 'cards'
+        ? planCardChunks(pieces, cap, ctx, slide.title)
+        : chunk(pieces, cap)
+    const countChunks = Math.ceil(pieces.length / Math.max(1, cap))
+    if (chunks.length > countChunks) {
+      warnings.push(`${label} · 卡片按内容高度排布，已溢出到 ${chunks.length - countChunks} 页「（续）」`)
+    }
+
+    chunks.forEach((bullets, chunkIndex) => {
       /** @type {{kind: 'bullets', title: string, bullets: string[], notes?: string}} */
       const item = {
         kind: 'bullets',
@@ -905,8 +922,135 @@ function placeList(builder, ctx, bullets, top, label) {
 }
 
 /**
- * 2-column roundRect cards. `airy` allows 2 per slide, `standard`/`dense` 4; the
- * caller caps the count, so a card slide never has more than 4 bullets.
+ * Card geometry. A card is sized to its content: `textTop + textH + padBottom`,
+ * where `textTop` leaves room for the `bold` tone's accent tick. Cards in the same
+ * visual row share one height (the tallest text of the row) and one text-box
+ * height, so the grid stays even and no card carries a large empty band.
+ */
+const CARD = Object.freeze({
+  /** Horizontal gap between the two columns. */
+  gapX: 24,
+  /** Vertical gap between card rows (design rule: >= 16px). */
+  gapY: 24,
+  /** Left/right padding inside a card. */
+  padX: 28,
+  /** Bottom padding inside a card (breathing room below the text). */
+  padBottom: 32,
+  /** Space between a card's top and its text, with the accent tick. */
+  tickTop: 24,
+  tickH: 6,
+  tickGap: 22,
+  /** Accent tick width. */
+  tickW: 48,
+  /** Minimum text height so an empty-ish card still renders as a card. */
+  minTextH: 30,
+})
+
+/** Text-column width inside one card. */
+function cardTextWidth(box) {
+  return Math.round((box.w - CARD.gapX) / 2) - CARD.padX * 2
+}
+
+/**
+ * @param {boolean} tick
+ */
+function cardTextTop(tick) {
+  return tick ? CARD.tickTop + CARD.tickH + CARD.tickGap : CARD.padX
+}
+
+/**
+ * Measure content-sized card rows for one slide: pair the bullets into the two
+ * columns, take the tallest text per row, and derive the row's card height.
+ *
+ * @param {string[]} bullets
+ * @param {number} textW
+ * @param {number} fontSize
+ * @param {boolean} tick
+ * @returns {{rows: Array<{cardH: number, textH: number, items: Array<{bullet: string, textH: number}>}>, total: number}}
+ */
+function measureCardRows(bullets, textW, fontSize, tick) {
+  /** @type {Array<{cardH: number, textH: number, items: Array<{bullet: string, textH: number}>}>} */
+  const rows = []
+  const textTop = cardTextTop(tick)
+  for (let index = 0; index < bullets.length; index += 2) {
+    const items = bullets.slice(index, index + 2).map((bullet) => ({
+      bullet,
+      textH: textHeight(bullet, textW, fontSize),
+    }))
+    const textH = Math.max(CARD.minTextH, ...items.map((item) => item.textH))
+    rows.push({ cardH: textTop + textH + CARD.padBottom, textH, items })
+  }
+  const total = rows.reduce((sum, row) => sum + row.cardH, 0) + CARD.gapY * Math.max(0, rows.length - 1)
+  return { rows, total }
+}
+
+/**
+ * Top edge of the bullet area on a bullet slide, i.e. below the title and the
+ * optional accent bar. Shared by the card planner and the actual layout so the
+ * height budget used for spilling is the real one.
+ *
+ * @param {LocalContext} ctx
+ * @param {string} title
+ */
+function bulletContentTop(ctx, title) {
+  const { box, style, toneSpec } = ctx
+  const width = FRAME.titleRight - box.x
+  const size = chooseSize(TYPE.slideTitle, title, width, 2)
+  const fitted = clampToLines(title, width, size, 2)
+  let cursor = box.y + textHeight(fitted.text, width, size)
+  if (style.accentBar && toneSpec.bar) cursor += 14 + (style.tone === 'bold' ? 8 : 6)
+  return cursor + 34
+}
+
+/**
+ * Split a title's bullets into card slides that each fit the safe box, honouring
+ * the density cap as a count cap and the measured row heights as a height cap.
+ *
+ * @param {string[]} bullets
+ * @param {number} cap
+ * @param {LocalContext} ctx
+ * @param {string} title
+ * @returns {string[][]}
+ */
+function planCardChunks(bullets, cap, ctx, title) {
+  /** @type {string[][]} */
+  const chunks = []
+  /** @type {string[]} */
+  let current = []
+  const textW = cardTextWidth(ctx.box)
+  const tick = ctx.toneSpec.cardTick
+  const bottom = ctx.box.y + ctx.box.h
+
+  /** @param {number} count number of already-built chunks */
+  const topFor = (count) => bulletContentTop(ctx, count === 0 ? title : `${title}（续）`)
+
+  for (const bullet of bullets) {
+    if (current.length > 0 && current.length >= cap) {
+      chunks.push(current)
+      current = []
+    }
+    if (current.length > 0) {
+      const top = topFor(chunks.length)
+      const total = measureCardRows([...current, bullet], textW, TYPE.card[0], tick).total
+      if (top + total > bottom) {
+        chunks.push(current)
+        current = []
+      }
+    }
+    current.push(bullet)
+  }
+  if (current.length > 0) chunks.push(current)
+  return chunks.length === 0 ? [[]] : chunks
+}
+
+/**
+ * 2-column roundRect cards, each row sized to its own content. `airy` allows 2 per
+ * slide, `standard`/`dense` 4; a card slide therefore never holds more than 4
+ * bullets (height-driven spill is planned earlier by {@link planCardChunks}).
+ *
+ * A lone card (odd bullet count) keeps the column width instead of stretching to
+ * the full 1128px: a full-width card next to three half-width ones reads as an
+ * error, not as emphasis.
  *
  * @param {ReturnType<typeof makeSlideBuilder>} builder
  * @param {LocalContext} ctx
@@ -916,51 +1060,68 @@ function placeList(builder, ctx, bullets, top, label) {
  */
 function placeCards(builder, ctx, bullets, top, label) {
   const { box, palette, style, toneSpec, warnings } = ctx
-  const gapX = 24
-  const gapY = 24
-  const pad = 28
-  const cardW = Math.round((box.w - gapX) / 2)
-  const rows = Math.ceil(bullets.length / 2)
-  const available = box.y + box.h - top
-  const cardH = Math.min(300, Math.floor((available - gapY * (rows - 1)) / rows))
+  const cardW = Math.round((box.w - CARD.gapX) / 2)
+  const textW = cardTextWidth(box)
   const tick = toneSpec.cardTick
-  const textYOffset = tick ? 52 : 28
-  const textH = cardH - textYOffset - 24
-  const textW = cardW - pad * 2
+  const textTop = cardTextTop(tick)
+  const bottom = box.y + box.h
 
+  // Largest body size whose measured rows fit the safe box; the planner sized the
+  // chunk at TYPE.card[0], so this only ever steps down for hand-built outlines.
+  let plan = null
   let fontSize = TYPE.card[TYPE.card.length - 1]
   for (const size of TYPE.card) {
-    if (bullets.every((bullet) => textHeight(bullet, textW, size) <= textH)) {
+    const candidate = measureCardRows(bullets, textW, size, tick)
+    if (top + candidate.total <= bottom) {
+      plan = candidate
       fontSize = size
       break
     }
   }
+  if (plan === null) {
+    fontSize = TYPE.card[TYPE.card.length - 1]
+    plan = measureCardRows(bullets, textW, fontSize, tick)
+    // Last resort (unreachable for planned chunks): keep the grid on the page and
+    // report that the copy had to be squeezed.
+    const scale = (bottom - top) / plan.total
+    if (scale < 1) {
+      plan = {
+        rows: plan.rows.map((row) => {
+          const textH = Math.max(8, Math.floor(row.textH * scale))
+          return { cardH: textTop + textH + CARD.padBottom, textH, items: row.items }
+        }),
+        total: 0,
+      }
+      warnings.push(`${label} · 卡片内容过高，已压缩卡片高度以适应页面`)
+    }
+  }
 
-  bullets.forEach((bullet, index) => {
-    const column = index % 2
-    const row = Math.floor(index / 2)
-    const x = box.x + column * (cardW + gapX)
-    const y = top + row * (cardH + gapY)
-
-    if (toneSpec.cardFill !== null) {
-      builder.shape('card', 'roundRect', { x, y, w: cardW, h: cardH }, {
-        fill: palette[toneSpec.cardFill],
-        radius: 18,
-      })
-    }
-    if (tick) {
-      builder.shape('cardtick', 'rect', { x: x + pad, y: y + 24, w: 48, h: 6 }, { fill: palette.primary })
-    }
-    const needed = textHeight(bullet, textW, fontSize)
-    if (needed > textH) {
-      warnings.push(`${label} · 卡片要点过长（估 ${needed}px > ${textH}px），建议精简`)
-    }
-    builder.text('body', bullet, {
-      x: x + pad,
-      y: y + textYOffset,
-      w: textW,
-      h: Math.min(needed, textH),
-    }, textStyle(fontSize, palette.textPrimary))
+  let rowTop = top
+  plan.rows.forEach((row) => {
+    row.items.forEach((item, column) => {
+      const x = box.x + column * (cardW + CARD.gapX)
+      if (toneSpec.cardFill !== null) {
+        builder.shape('card', 'roundRect', { x, y: rowTop, w: cardW, h: row.cardH }, {
+          fill: palette[toneSpec.cardFill],
+          radius: 18,
+        })
+      }
+      if (tick) {
+        builder.shape('cardtick', 'rect', {
+          x: x + CARD.padX,
+          y: rowTop + CARD.tickTop,
+          w: CARD.tickW,
+          h: CARD.tickH,
+        }, { fill: palette.primary })
+      }
+      builder.text('body', item.bullet, {
+        x: x + CARD.padX,
+        y: rowTop + textTop,
+        w: textW,
+        h: row.textH,
+      }, textStyle(fontSize, palette.textPrimary))
+    })
+    rowTop += row.cardH + CARD.gapY
   })
 }
 

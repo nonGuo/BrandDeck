@@ -73,13 +73,36 @@ cd plugins/branddeck && pnpm install
 # 3) 重启 DeepSeek Harness（Host 半的 JS 需要新的模块生成），再刷新页面
 ```
 
-装好后：左侧栏面板图标 → **BrandDeck**；或直接用工具：
+装好后：左侧栏面板图标 → **BrandDeck**。
+
+### 三个入口（面板顶栏右上角切换）
+
+| 视图 | 用途 |
+| --- | --- |
+| **生成** ← 生产入口 | ① 选/导入模板 → ② 选或派生「风格配置」→ ③ 粘贴文本或填 `.md/.txt` 路径 → **生成卡组** |
+| **卡片视图** | 16:9 画布微调：拖拽、缩放、双击改字、缩略图排序、溢出预警、自动保存、导出 |
+| **文字视图** | Markdown 大纲改文案，保存后按 `{#id}` 回写卡片，位置样式不变 |
+
+「生成」是三步向导：
+
+1. **模板** —— 下拉选已解析模板，或粘贴 `.pptx` 绝对路径 →「导入模板」（解析一次，长期复用）。
+   下方显示该模板的色板圆点、字体与版式数量。
+2. **风格**（`风格配置文件`）—— 选已有风格，或「从模板派生」；可调 **信息密度**（疏/标准/密）、
+   **强调用量**（克制/强烈/极简）、**正文排布**（列表/卡片）、**页数上限**，改完「保存风格」即成为
+   可复用文件（存 `styles/<id>.json`）。展开「用对话生成风格配置」会给出**一段可直接粘给 Agent 的指令**，
+   把一句「华为红、密度高、卡片正文」变成正式的风格文件。
+3. **内容** —— 粘贴文本（Markdown 约定：`# ` 卡组名、`## ` 每页、`- ` 要点、`备注：` 讲者备注），
+   或填 `.md/.txt` 路径 → **生成卡组**。生成后自动跳到卡片视图继续微调。
+
+### 也可以完全不动面板，用工具串起来
 
 ```
-branddeck_template_parse { path: "PPT模板-HW.pptx" }
-branddeck_deck_create    { title: "季度汇报", templateId: "ppt-hw" }
-branddeck_deck_save      { deck: {...} }        # 返回 warnings，按提示收敛
-branddeck_deck_export    { deckId: "季报" }     # → 原生 .pptx
+branddeck_template_parse { path: "D:\\...\\PPT模板-HW.pptx" }        # 一次性：解析 + 格式化模板
+branddeck_style_save     { name: "华为红·紧凑", description: "华为红、密度高、卡片正文",
+                           density: "dense", bulletLayout: "cards" }  # 对话 → 风格文件
+branddeck_generate       { text: "<粘大纲>", templateId: "ppt-hw",
+                           styleId: "<风格id>", outputPath: "out.pptx" }  # 输入 + 风格 → PPT
+branddeck_outline_save   { deckId: "...", markdown: "<改后的文字版>" }   # 迭代文案，不动版式
 ```
 
 配置见 [`plugins/branddeck/README.md`](plugins/branddeck/README.md#5-配置cordis-patchyml-的-row-config)
