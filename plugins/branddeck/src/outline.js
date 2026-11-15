@@ -74,6 +74,58 @@ const ROLE_LABELS = Object.freeze({
   en: Object.freeze({ title: 'Title', subtitle: 'Subtitle', body: 'Body', caption: 'Caption' }),
 })
 
+/**
+ * Slide layout intent ⇄ the `版式：…` line of the text outline.
+ *
+ * `cover` and `section` are structural (the generator decides them from the deck
+ * shape), so they are not offered as editable labels; the four content layouts are.
+ */
+const KIND_LABELS = Object.freeze({
+  bullets: '列表',
+  cards: '卡片',
+  compare: '对比',
+  timeline: '时间线',
+  stats: '指标',
+})
+const KINDS_TO_LABEL = Object.freeze(
+  Object.fromEntries(Object.entries(KIND_LABELS).map(([kind, label]) => [kind, label])),
+)
+const LABEL_TO_KIND = Object.freeze({
+  ...Object.fromEntries(Object.entries(KIND_LABELS).map(([kind, label]) => [label, kind])),
+  列表: 'bullets',
+  清单: 'bullets',
+  list: 'bullets',
+  bullets: 'bullets',
+  卡片: 'cards',
+  卡片式: 'cards',
+  cards: 'cards',
+  对比: 'compare',
+  compare: 'compare',
+  两栏: 'compare',
+  时间线: 'timeline',
+  时间轴: 'timeline',
+  流程: 'timeline',
+  步骤: 'timeline',
+  timeline: 'timeline',
+  指标: 'stats',
+  数据: 'stats',
+  stats: 'stats',
+  kpi: 'stats',
+})
+
+/**
+ * Read a `版式：<label>` line. Accepts both full-width and half-width colons and the
+ * `layout:` spelling the content prompt uses.
+ * @param {string} line
+ * @returns {string | null} the layout kind, or null when the line is not a layout line
+ */
+function matchLayoutLine(line) {
+  const match = /^(?:版式|排版|layout)\s*[:：]\s*(.+)$/i.exec(line.trim())
+  if (match === null) return null
+  const raw = match[1].trim().toLowerCase().replace(/[。.!！]$/, '')
+  return LABEL_TO_KIND[raw] ?? null
+}
+
 const ROLE_ALIASES = new Map([
   ['标题', 'title'],
   ['副标题', 'subtitle'],
@@ -139,6 +191,14 @@ export function deckToOutline(deck, theme, options = {}) {
     const heading = oneLine(textOf(slide?.title).trim())
     lines.push('')
     lines.push(heading === '' ? `## {#${slideId}}` : `## ${heading} {#${slideId}}`)
+
+    // Layout intent round-trips as its own line so it is visible and editable here.
+    // Without this the text view would silently drop it on the next save.
+    const kindLabel = KINDS_TO_LABEL[textOf(slide?.kind)]
+    if (kindLabel !== undefined) {
+      lines.push('')
+      lines.push(`版式：${kindLabel}`)
+    }
 
     for (const element of Array.isArray(slide?.elements) ? slide.elements : []) {
       if (element === null || typeof element !== 'object' || element.type !== 'text') continue
@@ -342,6 +402,21 @@ function parseOutline(markdown, warnings) {
       continue
     }
 
+    // `版式：对比` inside a slide selects that slide's layout. It belongs to the slide,
+    // not to any element, so it must not reach the block/notes buffers.
+    const layoutKind = matchLayoutLine(trimmed)
+    if (layoutKind !== null) {
+      if (slide === null) {
+        warnings.push('deck · "版式：" outside a slide section ignored')
+        continue
+      }
+      if (slide.kind !== undefined && slide.kind !== layoutKind) {
+        warnings.push(`slide ${result.slides.length} · duplicate "版式：" line; the last one wins`)
+      }
+      slide.kind = layoutKind
+      continue
+    }
+
     if (heading !== null && heading.level === 2) {
       block = null
       inNotes = false
@@ -461,6 +536,10 @@ function applySlideSection(section, slide, index, theme, warnings, changes) {
   const elements = slide.elements
 
   if (section.title !== '') slide.title = section.title
+
+  // Layout intent edited in the text view wins; `undefined` leaves a legacy deck's
+  // absent `kind` absent (the renderer then infers from the elements).
+  if (section.kind !== undefined) slide.kind = section.kind
 
   if (section.notes !== null) {
     const notes = section.notes.trim()

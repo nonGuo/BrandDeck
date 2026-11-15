@@ -183,6 +183,12 @@ export function buildStylePrompt(input) {
 
 /**
  * Prompt: a sentence or two → a Markdown outline in BrandDeck's own convention.
+ *
+ * Two rules carry most of the quality here, both learned from reviewing generated
+ * decks: (1) the page carries short phrases while the detail belongs in the notes
+ * ("落入备注" beats truncating), and (2) the model states the *layout intent* of a
+ * slide so对比/时间线/指标 render differently instead of as three identical lists.
+ *
  * @param {{description: string, maxSlides?: number}} input
  */
 export function buildContentPrompt(input) {
@@ -193,8 +199,13 @@ export function buildContentPrompt(input) {
       '严格使用这套约定：',
       '- 第一行 `# <卡组标题>`',
       '- 紧接着每个 `## <页面标题>` 下写要点；`#` 与第一个 `##` 之间**不要写任何要点**（那是封面前言，会被丢弃）',
-      '- 每页 3~5 条 `- <要点>`，每条不超过 40 个汉字，一条一个观点',
-      '- 需要演讲备注时写 `备注：<一句话>`',
+      '- 每页 3~5 条 `- <要点>`，**每条不超过 15 个汉字**，写成动宾短语或关键词，不要整句',
+      '- **细节不要丢**：被压缩掉的解释、案例、数据写进 `备注：<一段话>`（同一页可多写几句）',
+      '- 需要换版式时，在该页第一行写 `版式：<类型>`，可选：`对比`、`时间线`、`指标`、`列表`',
+      '  · 有"A 与 B / 旧方案与新方案 / 优缺点" → `版式：对比`',
+      '  · 有"阶段、步骤、里程碑、Q1-Q4" → `版式：时间线`',
+      '  · 以数字、百分比、金额为主 → `版式：指标`',
+      '  · 其余用 `列表`（可省略不写）',
       '- 不要写 Markdown 表格、不要写代码块、不要写解释性前后文',
       `- 总页数不超过 ${cap} 页（含封面与结尾）`,
       '内容要具体、可执行，避免空话；如果用户只给了主题，就按"现状 → 问题 → 方案 → 价值 → 行动"组织。',

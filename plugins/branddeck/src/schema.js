@@ -116,9 +116,32 @@ export const SlideElementSchema = z.discriminatedUnion('type', [
   ImageElementSchema,
 ])
 
+/**
+ * Layout intent of a slide.
+ *
+ * The generator states it, the text outline round-trips it as a `版式：…` line, and
+ * the compiler/panel may use it. It has to be a first-class DSL field: as an unknown
+ * key it was silently stripped on save (Zod drops what it does not declare), so every
+ * content slide ended up rendered as the same bullet list.
+ *
+ * Absent means "infer from the elements", which keeps decks written before this
+ * field existed valid.
+ */
+export const SlideKindSchema = z.enum([
+  'cover',
+  'section',
+  'bullets',
+  'cards',
+  'compare',
+  'timeline',
+  'stats',
+])
+
 export const CardSlideSchema = z.object({
   slideId: z.string().min(1).max(64),
   title: z.string().optional(),
+  /** Layout intent; absent means "infer from the elements" (legacy decks). */
+  kind: SlideKindSchema.optional(),
   background: colorValue.optional(),
   speakerNotes: z.string().optional(),
   elements: z.array(SlideElementSchema).min(1).max(40),
