@@ -583,8 +583,21 @@ const LABEL_COLON = /[：:]/
  * A "statistic" bullet: a digit run glued to a unit, and short enough to sit on a
  * card (`STAT_MAX_CHARS` code points — a superset of the 汉字 count, so the rule is
  * conservative in the direction that matters: it never fires on prose).
+ *
+ * The unit list deliberately includes *operational* units (天/小时/周/人/次/页/个/%),
+ * not just money and percentages: a real deck says "出片时间从 5 天降到 4 小时" far
+ * more often than "ROI 138%", and a unit-less number would leave the card with no
+ * headline at all.
  */
-const STAT_NUMBER = /([$¥￥]\s*\d+(?:[.,]\d+)?\s*(?:万|亿|k|K|M|B|%|％|倍|元)?|\d+(?:[.,]\d+)?\s*(?:%|％|倍|万|亿|元|美元|块|个百分点|k|K|M|B))/
+const STAT_UNIT = '天|小时|分钟|周|月|年|人|次|页|个|条|项|家|台|套|万|亿|元|美元|块|个百分点|倍|%|％|k|K|M|B'
+const STAT_NUMBER = new RegExp(
+  `([$¥￥]\\s*\\d+(?:[.,]\\d+)?\\s*(?:${STAT_UNIT})?|\\d+(?:[.,]\\d+)?\\s*(?:${STAT_UNIT}))`,
+)
+/**
+ * A change expressed as two numbers: `从 5 天降到 4 小时` / `450ms → 18ms` / `5→2`.
+ * Rendered whole, because "5 天" alone loses the point of the metric.
+ */
+const STAT_RANGE = /(?:从\s*)?(\d+(?:[.,]\d+)?\s*(?:天|小时|分钟|周|月|年|人|次|页|个|条|项|家|台|套|ms|s|%|％|倍|元|万)?)\s*(?:降(?:低|到|至)?|提升(?:到|至)?|缩短(?:到|至)?|增长(?:到|至)?|上升到|→|->|~|至|到)\s*(\d+(?:[.,]\d+)?\s*(?:天|小时|分钟|周|月|年|人|次|页|个|条|项|家|台|套|ms|s|%|％|倍|元|万)?)/
 const STAT_MAX_CHARS = 24
 
 /** Ordered cues that make a bullet read as a step: 第一步 / 阶段 2 / Q1 / 1. / →. */
@@ -1511,6 +1524,18 @@ const STATS = Object.freeze({
  */
 function extractStat(bullet) {
   const flat = oneLine(bullet)
+
+  // `从 5 天降到 4 小时` is one metric, not two: keep both sides so the card says
+  // what actually changed. Checked before the single-number path.
+  const range = STAT_RANGE.exec(flat)
+  if (range !== null) {
+    const headline = `${oneLine(range[1]).replace(/\s+/g, '')}→${oneLine(range[2]).replace(/\s+/g, '')}`
+    const label = oneLine(`${flat.slice(0, range.index)} ${flat.slice(range.index + range[0].length)}`)
+      .replace(/^[，,。；;：:、\s]+/, '')
+      .replace(/[，,。；;：:、\s]+$/, '')
+    return { number: headline, label: label === '' ? flat : label }
+  }
+
   const match = STAT_NUMBER.exec(flat)
   if (match === null) return { label: flat }
   const number = oneLine(match[0]).replace(/\s+/g, '')
