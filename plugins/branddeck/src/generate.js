@@ -1612,7 +1612,13 @@ const TIMELINE = Object.freeze({
   indexW: 32,
   captionSize: 16,
   captionGap: 14,
-  captionMaxLines: 3,
+  captionMaxLines: 2,
+  // A timeline label is an abbreviation, and the character cap is what keeps a
+  // 5-node page inside the deck-wide 150-character budget: five 3-line captions
+  // count as ~200 characters even though each looks short on screen, which trips
+  // repairDeck's "shorten copy" warning — advice the user cannot act on, because
+  // the text was already ellipsized.
+  captionMaxChars: 26,
   captionMaxW: 280,
   segH: 3,
   /** Gap between a dot and the connector segment (so they never touch). */
@@ -1849,8 +1855,13 @@ function buildTimelineSlide(slideId, ctx, item) {
     const bare = oneLine(bullet.replace(TIMELINE_PREFIX, ''))
     let text = bare === '' ? oneLine(bullet) : bare
     if (hidden > 0 && index === nodes.length - 1) text = `${text} +${hidden}`
-    const fitted = clampToLines(text, captionW, TIMELINE.captionSize, TIMELINE.captionMaxLines)
-    if (fitted.truncated) truncated += 1
+    // Character cap first (page budget), then the line cap (layout).
+    const capped =
+      Array.from(text).length > TIMELINE.captionMaxChars
+        ? clampChars(text, TIMELINE.captionMaxChars)
+        : text
+    const fitted = clampToLines(capped, captionW, TIMELINE.captionSize, TIMELINE.captionMaxLines)
+    if (fitted.truncated || capped !== text) truncated += 1
     return { text: fitted.text, h: textHeight(fitted.text, captionW, TIMELINE.captionSize) }
   })
   if (truncated > 0) {
