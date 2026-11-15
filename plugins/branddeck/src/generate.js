@@ -1285,17 +1285,33 @@ function resolveDeckId(requested, title) {
   return deckIdFromTitle(title)
 }
 
-/** @param {string} title */
+/**
+ * Derive a stable, path-safe deck id from a title.
+ *
+ * The ASCII remnant of a mostly-CJK title is noise: `自建模板 vs 统一模板库` used to
+ * yield `vs`, which names nothing and collides easily. So the remnant is only used
+ * when it actually represents the title — at least three characters AND at least a
+ * third of the alphanumeric weight. Otherwise we fall back to `deck-<digest>`, which
+ * is still deterministic (same title → same id) but never meaningless.
+ *
+ * @param {string} title
+ */
 function deckIdFromTitle(title) {
-  const base = String(title ?? '')
+  const text = String(title ?? '')
+  const base = text
     .normalize('NFKD')
     .toLowerCase()
     .replace(/[^a-z0-9._-]+/g, '-')
     .replace(/[-._]{2,}/g, '-')
     .replace(/^[-._]+|[-._]+$/g, '')
     .slice(0, 48)
-  if (/[a-z]/.test(base) && base.length > 0) return base
-  return `deck-${digest(title)}`
+
+  const letters = base.replace(/[^a-z0-9]/g, '')
+  // Weight = alphanumeric characters in the title vs those that survived as ASCII.
+  const titleWeight = [...text].filter((char) => /[\p{L}\p{N}]/u.test(char)).length
+  const coverage = titleWeight === 0 ? 1 : letters.length / titleWeight
+  if (letters.length >= 3 && coverage >= 1 / 3) return letters.slice(0, 48)
+  return `deck-${digest(text)}`
 }
 
 /**

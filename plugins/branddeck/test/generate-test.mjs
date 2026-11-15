@@ -439,6 +439,32 @@ check('2c · framing bullets before the first ## become the cover subtitle, not 
   return `subtitle="${outline.subtitle}", ${outline.slides.length} slide, prose kept`
 })
 
+check('8f · deckId is stable and meaningful (no ASCII dregs from a CJK title)', () => {
+  // Regression: "自建模板 vs 统一模板库…" used to derive the id "vs", which names
+  // nothing and collides easily. The slug must represent the title, or we fall back
+  // to a deterministic digest.
+  const cases = [
+    ['自建模板 vs 统一模板库：差别与三步落地', /^deck-[a-z0-9]{5,}$/],
+    ['BrandDeck 上手三步走', /^branddeck/],
+    ['2026 Q3 Review', /^2026q3review$/],
+    ['季度汇报', /^deck-[a-z0-9]{5,}$/],
+  ]
+  const seen = new Set()
+  for (const [title, pattern] of cases) {
+    const outline = parseSourceToOutline('#' + ' ' + title + '\n\n## 一页\n- 要点')
+    const { deck } = composeDeck({ outline, theme: HW_THEME, style: {} })
+    assert(pattern.test(deck.deckId), `"${title}" -> ${deck.deckId} (expected ${pattern})`)
+    assert(/^[a-zA-Z0-9._-]{1,64}$/.test(deck.deckId), `unsafe id: ${deck.deckId}`)
+    assert(!seen.has(deck.deckId), `duplicate id: ${deck.deckId}`)
+    seen.add(deck.deckId)
+  }
+  // The same title always yields the same id (determinism).
+  const a = composeDeck({ outline: parseSourceToOutline('# 季度汇报\n\n## 一页\n- 要点'), theme: HW_THEME, style: {} })
+  const b = composeDeck({ outline: parseSourceToOutline('# 季度汇报\n\n## 一页\n- 要点'), theme: HW_THEME, style: {} })
+  assert(a.deck.deckId === b.deck.deckId, 'deckId is not deterministic')
+  return `${cases.length} titles, deterministic`
+})
+
 check('3a · composeDeck: 18 combinations are schema-valid and repair-clean', () => {
   let combinations = 0
   for (const density of DENSITIES) {
