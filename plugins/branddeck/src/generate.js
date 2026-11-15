@@ -38,9 +38,10 @@
  * - `theme` supplies the tokens, `style.colors` overrides them (hex or
  *   `$colors.x`), and the RESOLVED hex is written into every element. The deck is
  *   therefore self-contained: it renders the same even if the theme is re-parsed.
- * - `style.fonts` cannot be expressed in the frozen DSL (`TextElementSchema.style`
- *   is `.strict()` and has no `fontFace`), so it is recorded in `deck.metadata`
- *   only and reported in `warnings`.
+ * - `style.fonts` is applied by the CALLER on the theme (`applyStyleToTheme` in
+ *   styles.js) and the compiler resolves a face per text role, so font overrides
+ *   reach the exported .pptx without touching the DSL (whose text style is strict
+ *   and carries no `fontFace`). `deck.metadata.fonts` records what is in force.
  *
  * Judgement calls are documented next to the code that makes them and summarised
  * in the module's report; the ones that matter for callers:
@@ -337,6 +338,13 @@ export function parseSourceToOutline(text, options = {}) {
       continue
     }
 
+    // A horizontal rule is a separator, not content: `---` / `***` / `___`.
+    // (A `---` directly under text was already consumed as a setext heading above.)
+    if (/^(?:-{3,}|\*{3,}|_{3,})$/.test(trimmed)) {
+      flushParagraph()
+      continue
+    }
+
     const bullet = matchBulletLine(trimmed)
     if (bullet !== null) {
       flushParagraph()
@@ -470,9 +478,12 @@ export function composeDeck(input = {}) {
     slides,
   }
 
-  // `TextElementSchema.style` is strict and has no `fontFace`, so requested fonts
-  // have nowhere to go in the DSL. Record them as provenance instead of silently
-  // dropping them (see the module header).
+  // Provenance for the caller. Fonts are deliberately NOT copied here: a style's
+  // font overrides take effect through the *theme* (`applyStyleToTheme` in
+  // styles.js) and the compiler resolves a face per text role, so the exported
+  // .pptx already carries them. `TextElementSchema.style` is strict and has no
+  // `fontFace`, and `CardDeckSchema` is non-strict, so a copy here would be
+  // stripped on save and would only mislead a reader of the stored JSON.
   deck.metadata = {
     generator: 'branddeck/generate',
     style: {
@@ -484,10 +495,8 @@ export function composeDeck(input = {}) {
       coverVariant: style.coverVariant,
       closingSlide: style.closingSlide,
     },
-    fonts: {
-      title: style.fonts.title ?? theme.fonts.title,
-      body: style.fonts.body ?? theme.fonts.body,
-    },
+    /** Fonts actually in force, already applied to the theme by the caller. */
+    fonts: { title: theme.fonts.title, body: theme.fonts.body },
   }
 
   return { deck, warnings: [...new Set(warnings)] }
@@ -932,6 +941,8 @@ const CARD = Object.freeze({
   gapX: 24,
   /** Vertical gap between card rows (design rule: >= 16px). */
   gapY: 24,
+  /** Upper bound when leftover height is spread into the row gap. */
+  gapYMax: 48,
   /** Left/right padding inside a card. */
   padX: 28,
   /** Bottom padding inside a card (breathing room below the text). */
@@ -1059,7 +1070,7 @@ function planCardChunks(bullets, cap, ctx, title) {
  * @param {string} label
  */
 function placeCards(builder, ctx, bullets, top, label) {
-  const { box, palette, style, toneSpec, warnings } = ctx
+  const { box, palette, toneSpec, warnings } = ctx
   const cardW = Math.round((box.w - CARD.gapX) / 2)
   const textW = cardTextWidth(box)
   const tick = toneSpec.cardTick
@@ -1097,6 +1108,16 @@ function placeCards(builder, ctx, bullets, top, label) {
   }
 
   let rowTop = top
+  // Content-sized rows leave slack on a sparsely filled page; spread it into the
+  // row gap (bounded, never past the safe box) so the grid does not bunch at the
+  // top. A single row keeps the base gap and stays title-anchored.
+  const rowsHeight = plan.rows.reduce((sum, row) => sum + row.cardH, 0)
+  const slack = Math.max(0, bottom - top - rowsHeight)
+  const rowGap =
+    plan.rows.length > 1
+      ? Math.min(CARD.gapYMax, CARD.gapY + Math.floor(slack / (plan.rows.length - 1)))
+      : CARD.gapY
+
   plan.rows.forEach((row) => {
     row.items.forEach((item, column) => {
       const x = box.x + column * (cardW + CARD.gapX)
@@ -1121,7 +1142,7 @@ function placeCards(builder, ctx, bullets, top, label) {
         h: row.textH,
       }, textStyle(fontSize, palette.textPrimary))
     })
-    rowTop += row.cardH + CARD.gapY
+    rowTop += row.cardH + rowGap
   })
 }
 
