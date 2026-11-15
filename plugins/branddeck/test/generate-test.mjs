@@ -601,8 +601,13 @@ check('4c · cards: every card is sized to its content (not a fixed band)', () =
  * ------------------------------------------------------------------ */
 
 check('5a · maxSlides truncates and warns', () => {
-  const bullets = Array.from({ length: 40 }, (_, index) => `第 ${index + 1} 条要点：内容中台把模板解析与原生导出串成一条流水线。`)
-  const outline = { title: '上限测试', slides: [{ title: '长清单', bullets }] }
+  // Truncation is about too many *pages*, so the fixture declares many pages: one page
+  // with 40 bullets is a single page now (its overflow goes to the notes, see 5b).
+  const slides = Array.from({ length: 12 }, (_, index) => ({
+    title: `第 ${index + 1} 页`,
+    bullets: ['第一条要点内容', '第二条要点内容', '第三条要点内容'],
+  }))
+  const outline = { title: '上限测试', slides }
   const limited = composeDeck({ outline, theme: HW_THEME, style: { maxSlides: 6 } })
 
   assert(limited.deck.slides.length <= 6, `maxSlides 6 produced ${limited.deck.slides.length} slides`)
@@ -618,26 +623,34 @@ check('5a · maxSlides truncates and warns', () => {
   return `maxSlides 6 -> ${limited.deck.slides.length} slides, warning "${truncation}"; maxSlides 1 -> 1 slide`
 })
 
-check('5b · 40 bullets produce continuation slides titled （续）', () => {
+check('5b · a page never grows a continuation page: overflow moves to the notes', () => {
+  // The deck reads as complete pages, so a page can never be titled `<title>（续）`.
+  // What does not fit stays in the speaker notes — nothing is lost.
   const bullets = Array.from({ length: 40 }, (_, index) => `第 ${index + 1} 条要点：内容中台把模板解析与原生导出串成一条流水线。`)
   const outline = { title: '续页测试', slides: [{ title: '长清单', bullets }] }
   const { deck, warnings } = composeDeck({ outline, theme: HW_THEME, style: { maxSlides: 60, density: 'standard', bulletLayout: 'list' } })
 
   const titles = deck.slides.map((slide) => slide.title)
   console.log(`    slide titles: ${titles.join(' | ')}`)
-  const continuation = titles.filter((title) => typeof title === 'string' && title.endsWith('（续）'))
-  assert(continuation.length > 0, `no continuation slides among ${stable(titles)}`)
-  assert(
-    titles[1] === '长清单' && titles[2] === '长清单（续）',
-    `first continuation title was "${titles[2]}"`,
-  )
-  // 40 bullets at standard density = 4 per slide = 10 content slides + cover + closing.
-  assert(deck.slides.length === 12, `expected 12 slides (cover + 10 + closing), got ${deck.slides.length}`)
+  const continuation = titles.filter((title) => typeof title === 'string' && /（续）$/.test(title))
+  assert(continuation.length === 0, `continuation pages came back: ${stable(titles)}`)
+
+  const content = deck.slides.find((slide) => slide.title === '长清单')
+  assert(content !== undefined, 'the page disappeared instead of clamping')
+  const shown = textElements(content).filter((element) => element.id.includes('-body-')).length
+  assert(shown > 0 && shown < bullets.length, `expected a clamped page, showed ${shown}/${bullets.length}`)
+
+  // The dropped copy must still be reachable: it is in the notes, not deleted.
+  const notes = content.speakerNotes ?? ''
+  const droppedBullet = bullets[bullets.length - 1]
+  assert(notes.includes(droppedBullet), 'overflowing bullet was not preserved in the notes')
+  assert(notes.includes('单页容量以外的要点'), `notes did not explain the clamp: "${notes.slice(0, 40)}"`)
+
   assert(CardDeckSchema.safeParse(deck).success, 'deck is not schema-valid')
   const geometry = repairDeck(deck, HW_THEME).warnings.filter((warning) => GEOMETRY_WARNING.test(warning))
-  assert(geometry.length === 0, `continuation deck has geometry warnings: ${geometry.join(' | ')}`)
-  assert(warnings.every((warning) => !GEOMETRY_WARNING.test(warning)), `unexpected warnings: ${stable(warnings)}`)
-  return `${deck.slides.length} slides, ${continuation.length} continuation slides`
+  assert(geometry.length === 0, `clamped deck has geometry warnings: ${geometry.join(' | ')}`)
+  assert(warnings.some((warning) => warning.includes('已并入演讲备注')), `no clamp warning in ${stable(warnings)}`)
+  return `${deck.slides.length} slides, ${shown}/${bullets.length} bullets on the page, rest in notes`
 })
 
 /* ------------------------------------------------------------------ *
@@ -1104,10 +1117,8 @@ check('8e · two-track: a long bullet moves its detail into speakerNotes', () =>
  * ------------------------------------------------------------------ */
 
 check('8g · a page never spills a single trailing bullet onto a 续 page', () => {
-  // Regression: 5 bullets with a `standard` list cap of 4 used to become 4+1, so the
-  // second page held one bullet and looked like a mistake. Two rules now hold:
-  // short copy that fits one page is not split at all, and when a split is genuinely
-  // needed the planner stretches the cap rather than emitting a thin tail page.
+  // Two rules hold now: short copy that fits one page is not split at all, and copy that
+  // does not fit is clamped into the notes rather than continued on a second page.
   const short = ['第一条要点', '第二条要点', '第三条要点', '第四条要点', '第五条要点']
   const one = composeDeck({
     outline: { title: '溢出', slides: [{ title: '五条', bullets: short }] },
@@ -1119,22 +1130,22 @@ check('8g · a page never spills a single trailing bullet onto a 续 page', () =
   assert(oneCounts.length === 1 && oneCounts[0] === 5, `5 short bullets should stay on one page, got ${stable(oneCounts)}`)
   assert(one.warnings.length === 0, `unexpected warnings: ${stable(one.warnings)}`)
 
-  // Copy long enough to force a height split: every page must still carry >= 2 bullets.
-  const long = Array.from({ length: 10 }, (_, index) => `第 ${index + 1} 条要点写得比较长，用来强制按高度切分页面，确认真实溢出的页不会只剩一条。`)
+  // Copy long enough that it cannot fit: still one page, no `（续）`, overflow to notes.
+  const long = Array.from({ length: 10 }, (_, index) =>
+    `第 ${index + 1} 条要点：内容中台把模板解析、卡组编排、内容生成与原生导出串成一条完整链路，每一层都用数据契约连接，评审阶段直接给出可编辑的 pptx`)
   const many = composeDeck({
     outline: { title: '溢出', slides: [{ title: '十条长要点', bullets: long }] },
     theme: HW_THEME,
     style: { bulletLayout: 'list', density: 'dense' },
   })
   const pages = many.deck.slides.filter((slide) => slide.kind === 'bullets')
-  const counts = pages.map((slide) => textElements(slide).filter((element) => element.id.includes('-body-')).length)
-  assert(pages.length > 1, `expected a continuation page, got ${pages.length} page(s)`)
-  assert(Math.min(...counts) >= 2, `a page kept only ${Math.min(...counts)} bullet(s) — ${stable(counts)}`)
-  const copy = pages.flatMap((slide) => textElements(slide).map((element) => element.content))
-  for (const bullet of long) {
-    assert(copy.some((text) => bullet.startsWith(text.slice(0, 10))), `lost "${bullet.slice(0, 12)}" while splitting`)
-  }
-  return `1 page for 5 short bullets; ${counts.join('+')} for 10 long ones`
+  assert(pages.length === 1, `expected one page, got ${pages.length}`)
+  assert(!many.deck.slides.some((slide) => /（续）$/.test(slide.title ?? '')), 'a 续 title survived')
+  const counts = textElements(pages[0]).filter((element) => element.id.includes('-body-')).length
+  assert(counts > 0 && counts < long.length, `page was not clamped (${counts}/${long.length})`)
+  const notes = pages[0].speakerNotes ?? ''
+  assert(notes.includes(long[long.length - 1]), 'clamped copy was not preserved in the notes')
+  return `1 page for 5 short bullets; long page kept ${counts}/${long.length}, rest in notes`
 })
 
 check('8h · an over-full stats/compare page degrades to a list, not a 续 page', () => {
@@ -1197,6 +1208,142 @@ check('8j · a role label in the slide title is stripped, a real title is not', 
     assert(outline.slides[0].title === expected, `"${input}" → "${outline.slides[0].title}" (expected "${expected}")`)
   }
   return `${cases.length} titles normalised`
+})
+
+check('8k · chapters produce a 目录 page with true page numbers and a divider each', () => {
+  // 总-分-总: the outline names chapters with `章节：`; the composer groups them, numbers
+  // the pages it actually produced, and puts a divider before each chapter.
+  const source = [
+    '# 卡组名',
+    '',
+    '## 总览一页',
+    '章节：总览',
+    '- 要点甲',
+    '',
+    '## 分节一页',
+    '章节：实现',
+    '- 要点乙',
+    '',
+    '## 分节二页',
+    '章节：实现',
+    '- 要点丙',
+    '',
+    '## 总结一页',
+    '章节：总结',
+    '- 要点丁',
+  ].join('\n')
+  const { deck, warnings } = composeDeck({ outline: source, theme: HW_THEME, style: { maxSlides: 20 } })
+  const kinds = deck.slides.map((slide) => slide.kind)
+  const titles = deck.slides.map((slide) => slide.title ?? '')
+  console.log(`    kinds: ${kinds.join(',')} | titles: ${titles.join(' | ')}`)
+
+  assert(kinds[0] === 'cover', `first slide is ${kinds[0]}`)
+  assert(kinds[1] === 'toc', `second slide should be the 目录, got ${kinds[1]}`)
+
+  // The TOC lists the three chapters in order…
+  const toc = deck.slides[1]
+  const tocText = textElements(toc).map((element) => element.content)
+  for (const chapter of ['总览', '实现', '总结']) {
+    assert(tocText.includes(chapter), `目录 missing "${chapter}": ${stable(tocText)}`)
+  }
+
+  // …and each chapter has exactly one divider, right before its first page.
+  const dividers = deck.slides.filter((slide) => slide.kind === 'section')
+  assert(dividers.length === 3, `expected 3 dividers, got ${dividers.length}`)
+  assert(!warnings.some((warning) => warning.includes('续')), `unexpected 续 warning: ${stable(warnings)}`)
+
+  // Page numbers in the TOC must match where the divider actually is (1-based).
+  deck.slides.forEach((slide, index) => {
+    if (slide.kind !== 'section') return
+    const page = index + 1
+    assert(tocText.includes(String(page)), `目录 has no page number ${page} for chapter "${slide.title}"`)
+  })
+
+  // A deck with no chapters keeps the flat shape: no 目录, no dividers.
+  const flat = composeDeck({
+    outline: { title: '无章节', slides: [{ title: '一页', bullets: ['甲'] }, { title: '两页', bullets: ['乙'] }] },
+    theme: HW_THEME,
+    style: { maxSlides: 10 },
+  })
+  assert(!flat.deck.slides.some((slide) => slide.kind === 'toc'), 'flat deck grew a 目录')
+  assert(!flat.deck.slides.some((slide) => slide.kind === 'section'), 'flat deck grew a divider')
+  return `${kinds.length} slides: 目录 + 3 dividers, TOC numbers verified`
+})
+
+check('8l · the page and bullet budgets are configuration, not constants', () => {
+  // Both used to be module constants (150 chars per page, 90 per bullet). They change what
+  // the generator *produces*, so a deployment with another house rule must be able to move
+  // them — and a tighter bullet budget must actually shorten the visible copy.
+  const bullets = [
+    '内容中台把模板解析、卡组编排、内容生成与原生导出串成一条完整链路，每一层都用数据契约连接。',
+    '评审阶段直接给出可编辑的 pptx，业务方可以改字改图改配色而不破坏版式。',
+    '一次解析可以长期复用，边际成本接近零。',
+  ]
+  const wide = composeDeck({
+    outline: { title: '预算', slides: [{ title: '宽预算', bullets }] },
+    theme: HW_THEME,
+    style: { maxSlides: 10 },
+    bulletCharBudget: 200,
+  })
+  const narrow = composeDeck({
+    outline: { title: '预算', slides: [{ title: '窄预算', bullets }] },
+    theme: HW_THEME,
+    style: { maxSlides: 10 },
+    bulletCharBudget: 30,
+  })
+  const visibleChars = (result) => {
+    const slide = result.deck.slides.find((entry) => entry.kind === 'bullets')
+    return textElements(slide)
+      .filter((element) => element.id.includes('-body-'))
+      .reduce((sum, element) => sum + Array.from(element.content).length, 0)
+  }
+  assert(visibleChars(narrow) < visibleChars(wide), `narrow ${visibleChars(narrow)} !< wide ${visibleChars(wide)}`)
+  // A tighter bullet budget means more detail moves to the notes: the visible copy shrinks
+  // and the speaker notes grow to hold the rest (nothing is thrown away).
+  const notesLength = (result) => {
+    const slide = result.deck.slides.find((entry) => entry.kind === 'bullets')
+    return (slide.speakerNotes ?? '').length
+  }
+  assert(notesLength(narrow) > notesLength(wide), `narrow notes ${notesLength(narrow)} !> wide ${notesLength(wide)}`)
+  assert(
+    narrow.warnings.some((warning) => warning.includes('细节已移入演讲备注')),
+    `no two-track warning: ${stable(narrow.warnings)}`,
+  )
+
+  // A tighter page budget must be reported against the configured number, not 150.
+  const repaired = repairDeck(wide.deck, HW_THEME, { slideCharBudget: 60 })
+  assert(
+    repaired.warnings.some((warning) => warning.includes('budget 60')),
+    `repair did not use the configured page budget: ${stable(repaired.warnings.slice(0, 3))}`,
+  )
+  // …and the default stays 150 when nobody says otherwise.
+  const defaults = repairDeck(wide.deck, HW_THEME)
+  assert(
+    !defaults.warnings.some((warning) => warning.includes('budget 60')),
+    'the default budget was overridden by accident',
+  )
+  return `visible chars ${visibleChars(narrow)} (30) vs ${visibleChars(wide)} (200); page budget honoured`
+})
+
+check('8m · a 标签： marker names the compare columns instead of becoming copy', () => {
+  // Regression: a model writing a compare page often emits `标签：故障现象` followed by that
+  // column's bullets. The old splitter treated the marker itself as a bullet, so the literal
+  // text "标签：故障现象" appeared on the slide and the columns were halved arbitrarily.
+  const bullets = ['标签：故障现象', '中文重影', '启动崩溃', '标签：根因', 'pptgenjs 重复写字型名', '插件把 connection 设为硬依赖']
+  const { deck } = composeDeck({
+    outline: { title: '对比', slides: [{ title: '两个真实故障', kind: 'compare', bullets }] },
+    theme: HW_THEME,
+    style: { maxSlides: 10 },
+  })
+  const slide = deck.slides.find((entry) => entry.kind === 'compare')
+  const copy = textElements(slide).map((element) => element.content)
+  console.log(`    compare copy: ${stable(copy)}`)
+  assert(!copy.some((text) => text.startsWith('标签：')), `the marker leaked into the copy: ${stable(copy)}`)
+  assert(copy.includes('故障现象'), 'left column heading missing')
+  assert(copy.includes('根因'), 'right column heading missing')
+  assert(copy.includes('中文重影') && copy.includes('启动崩溃'), 'left column lost bullets')
+  assert(copy.includes('pptgenjs 重复写字型名'), 'right column lost bullets')
+  return `headings + ${copy.length} texts, no marker leakage`
 })
 
 /* ------------------------------------------------------------------ *

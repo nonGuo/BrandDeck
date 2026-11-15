@@ -238,24 +238,58 @@ export function buildStylePrompt(input) {
  *
  * @param {{description: string, maxSlides?: number}} input
  */
+/**
+ * The outline conventions every prompt builder shares.
+ *
+ * Kept in one place because the single-prompt path and the Reduce step must produce the
+ * *same* document: a deck whose structure depends on which path built it is a bug the
+ * reader experiences as inconsistency.
+ *
+ * What is asked for is 总-分-总. The opening chapter states the whole, the middle chapters
+ * carry the parts, the last chapter puts them back together. `章节：` is a hard
+ * requirement rather than a hint: it is what lets the composer draw the 目录 page and the
+ * dividers, and it is how "the logic is unclear" gets fixed structurally instead of by
+ * rewording titles.
+ *
+ * @param {number} cap page cap
+ */
+function outlineConventions(cap) {
+  return [
+    '结构（必须遵守，这是"总-分-总"）：',
+    '- 第一行 `# <卡组标题>`；`#` 与第一个 `##` 之间**不要写要点**（那是封面前言，会被丢弃）',
+    '- **每个 `##` 页块里写一行 `章节：<章节名>`**：同名章节会被编成一章，生成器据此插入目录页与章节隔页',
+    '- 3~5 章为宜，每章 2~4 页',
+    '- 第一章是**总**：先给结论与全景（"要解决什么、结论是什么"）',
+    '- 中间各章是**分**：一章一个主题；页标题写成带结论的完整判断句，不要"XX 方案"这类空标题',
+    '- 最后一章是**总**：回收结论、给出下一步（章名可用"总结"）',
+    '页面与文字：',
+    '- 每页 3~5 条 `- <要点>`，**每条不超过 15 个汉字**，写成动宾短语或关键词，不要整句',
+    '- **细节不要丢**：被压缩掉的解释、案例、数据写进 `备注：<一段话>`（同一页可多写几句）',
+    '- 不要写 Markdown 表格、不要写代码块、不要写解释性前后文',
+    `- 总页数不超过 ${cap} 页（含封面、目录与结尾）`,
+    '版式（在该页块内写一行 `版式：<类型>`）：',
+    '- `对比`：A 与 B / 旧方案与新方案 / 优缺点 → 两栏；栏标题用 `标签：` 前缀给出，没标签就不画栏标题',
+    '- `时间线`：阶段、步骤、里程碑、Q1-Q4 → 编号节点',
+    '- `指标`：整页以数字、百分比、金额为主 → 指标卡（每张卡都要有数字）',
+    '- `架构图`：讲系统分层、模块关系、数据流、处理流程 → 见下条',
+    '- 其余用 `列表`（可省略不写）',
+    '架构图 / 流程图（`版式：架构图`）：',
+    '- 该页除了 2~3 条要点，再写一行 `图：mermaid`，随后另起一行写 `flowchart LR`（幻灯片是 16:9 横版，优先 LR；只有严格的分层/流水线才用 TD）',
+    '- 只用 flowchart：节点 `A[文字]` / `B(文字)` / `C{判断}`，连线 `A --> B`、`A -->|说明| B`',
+    '- 分层用 `subgraph 分组名` … `end`（例如 接入层 / 服务层 / 存储层）',
+    '- 节点文字不超过 12 个汉字，节点 4~9 个；不要用 classDef、style、click 等装饰语法',
+    '- 图是这一页的主体，要点只补一句结论，不要复述图里的节点',
+  ].join('\n')
+}
+
+/** @param {{description: string, maxSlides?: number}} input */
 export function buildContentPrompt(input) {
   const cap = Number.isFinite(input.maxSlides) ? input.maxSlides : 10
   return {
     system: [
       '你是企业演示文稿的内容架构师。用户会用一两句话描述想做的演示，你产出可直接排版的 Markdown 大纲。',
-      '严格使用这套约定：',
-      '- 第一行 `# <卡组标题>`',
-      '- 紧接着每个 `## <页面标题>` 下写要点；`#` 与第一个 `##` 之间**不要写任何要点**（那是封面前言，会被丢弃）',
-      '- 每页 3~5 条 `- <要点>`，**每条不超过 15 个汉字**，写成动宾短语或关键词，不要整句',
-      '- **细节不要丢**：被压缩掉的解释、案例、数据写进 `备注：<一段话>`（同一页可多写几句）',
-      '- 需要换版式时，在该页第一行写 `版式：<类型>`，可选：`对比`、`时间线`、`指标`、`列表`',
-      '  · 有"A 与 B / 旧方案与新方案 / 优缺点" → `版式：对比`',
-      '  · 有"阶段、步骤、里程碑、Q1-Q4" → `版式：时间线`',
-      '  · 以数字、百分比、金额为主 → `版式：指标`',
-      '  · 其余用 `列表`（可省略不写）',
-      '- 不要写 Markdown 表格、不要写代码块、不要写解释性前后文',
-      `- 总页数不超过 ${cap} 页（含封面与结尾）`,
-      '内容要具体、可执行，避免空话；如果用户只给了主题，就按"现状 → 问题 → 方案 → 价值 → 行动"组织。',
+      outlineConventions(cap),
+      '内容要具体、可执行，避免空话；如果用户只给了主题，就按"现状 → 问题 → 方案 → 价值 → 行动"组织成章节。',
     ].join('\n'),
     prompt: ['用户描述：', input.description, '', '请输出 Markdown 大纲。'].join('\n'),
   }

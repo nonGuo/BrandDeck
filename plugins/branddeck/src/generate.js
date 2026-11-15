@@ -90,6 +90,7 @@ import {
   estimateLines,
   innerBox,
   resolveColor,
+  resolveSlideCharBudget,
 } from './schema.js'
 import { makeDefaultTheme } from './defaults.js'
 
@@ -127,6 +128,19 @@ export const DEFAULT_STYLE = Object.freeze({
 /** Bullets longer than this are split before layout (design rule #6). */
 export const MAX_BULLET_CHARS = 90
 
+/**
+ * Effective per-bullet budget: the default unless the caller (plugin config or a request)
+ * says otherwise. Clamped so a hostile value cannot disable the two-track rule or make it
+ * meaningless.
+ *
+ * @param {unknown} value
+ */
+export function resolveBulletChars(value) {
+  const number = Number(value)
+  if (!Number.isFinite(number)) return MAX_BULLET_CHARS
+  return Math.min(200, Math.max(20, Math.floor(number)))
+}
+
 /** Warning emitted when an over-long bullet's detail is moved into the notes. */
 export const DETAIL_TO_NOTES_WARNING = '要点过长，细节已移入演讲备注'
 
@@ -134,12 +148,12 @@ export const DETAIL_TO_NOTES_WARNING = '要点过长，细节已移入演讲备�
  * Layout kinds an OUTLINE may declare, i.e. the subset of `SlideKindSchema` that the
  * text projection can express with a `版式：…` line (`cover` / `cards` are decided by
  * the builder, not by the author). Every value here is a valid `CardSlide.kind`.
- * @type {ReadonlyArray<'section' | 'bullets' | 'compare' | 'timeline' | 'stats'>}
+ * @type {ReadonlyArray<'section' | 'bullets' | 'compare' | 'timeline' | 'stats' | 'diagram'>}
  */
-export const CONTENT_KINDS = Object.freeze(['section', 'bullets', 'compare', 'timeline', 'stats'])
+export const CONTENT_KINDS = Object.freeze(['section', 'bullets', 'compare', 'timeline', 'stats', 'diagram'])
 
 /**
- * @typedef {'section' | 'bullets' | 'compare' | 'timeline' | 'stats'} SlideKind
+ * @typedef {'section' | 'bullets' | 'compare' | 'timeline' | 'stats' | 'diagram'} SlideKind
  */
 
 /**
@@ -148,7 +162,7 @@ export const CONTENT_KINDS = Object.freeze(['section', 'bullets', 'compare', 'ti
  * outline.js keeps its own label table for the deck ⇄ Markdown round-trip (it also
  * knows `卡片`, which only exists as a *presentation* of `bullets`). This table is
  * the parser's: it accepts a superset, and unknown values are silently ignored.
- * @type {ReadonlyMap<string, 'section' | 'bullets' | 'compare' | 'timeline' | 'stats'>}
+ * @type {ReadonlyMap<string, 'section' | 'bullets' | 'compare' | 'timeline' | 'stats' | 'diagram'>}
  */
 const LAYOUT_ALIASES = new Map([
   ['对比', 'compare'],
@@ -174,6 +188,13 @@ const LAYOUT_ALIASES = new Map([
   ['bullets', 'bullets'],
   ['bullet', 'bullets'],
   ['list', 'bullets'],
+  ['架构图', 'diagram'],
+  ['架构', 'diagram'],
+  ['流程图', 'diagram'],
+  ['图示', 'diagram'],
+  ['diagram', 'diagram'],
+  ['architecture', 'diagram'],
+  ['flowchart', 'diagram'],
   ['章节', 'section'],
   ['过渡', 'section'],
   ['section', 'section'],
@@ -283,13 +304,12 @@ const SPARSE_BODY_SIZES = Object.freeze([32, 30, 28, 26, 24])
 /** How far a sparse list may be pushed down while centring (keeps it near its title). */
 const BLOCK_CENTER_MAX = 48
 
-/**
- * A trailing list page with fewer bullets than this reads as an empty slide. The planner
- * stretches the density cap to avoid one (see `planListChunks`), never past `LIST_HARD_MAX`
- * — beyond that the page has stopped being a list you can read at a glance.
- */
-const LIST_MIN_PAGE = 3
-const LIST_HARD_MAX = 8
+/** Supporting bullets a diagram page may carry beside the figure. */
+const DIAGRAM_BULLET_CAP = 3
+/** Space between the title bar and the figure on a diagram page. */
+const DIAGRAM_TOP_GAP = 12
+/** Space between the figure and its caption bullets. */
+const DIAGRAM_CAPTION_GAP = 20
 
 /** Hard-coded last-resort hex values, used only when the theme is unusable. */
 const FALLBACK_COLORS = Object.freeze({
@@ -379,7 +399,7 @@ export function parseSourceToOutline(text, options = {}) {
   const startSlide = (title) => {
     flushParagraph()
     const named = cleanSlideTitle(title)
-    /** @type {{title: string, bullets: string[], notes?: string, kind?: SlideKind}} */
+    /** @type {{title: string, bullets: string[], notes?: string, kind?: SlideKind, chapter?: string}} */
     const slide = { title: named === '' ? '未命名页面' : named, bullets: /** @type {string[]} */ ([]) }
     slides.push(slide)
     current = slide
@@ -416,6 +436,55 @@ export function parseSourceToOutline(text, options = {}) {
     if (layout !== null) {
       flushParagraph()
       if (current !== null && layout.kind !== null) current.kind = layout.kind
+      continue
+    }
+
+    // `章节：一、为什么要做` — the page's chapter. Consecutive pages sharing a chapter
+    // become one section of the deck; the composer inserts the TOC and the dividers.
+    const chapter = parseChapterLine(trimmed)
+    if (chapter !== null) {
+      flushParagraph()
+      if (current !== null) current.chapter = chapter
+      continue
+    }
+
+    // `图：mermaid` — the following lines are a diagram, not copy. Both a fenced block
+    // (```mermaid … ```) and a bare `flowchart LR` block are accepted: a model writes
+    // either, and rejecting one silently loses the picture.
+    if (parseDiagramLine(trimmed) !== null) {
+      flushParagraph()
+      let cursor = index + 1
+      /** @type {string[]} */
+      const collected = []
+      const fence = cursor < lines.length && lines[cursor].trim().startsWith('```')
+      if (fence) cursor += 1
+      while (cursor < lines.length) {
+        const inner = lines[cursor].trim()
+        if (fence && inner.startsWith('```')) {
+          cursor += 1
+          break
+        }
+        if (inner === '') {
+          if (collected.length === 0) {
+            cursor += 1
+            continue
+          }
+          break
+        }
+        if (isBulletLine(inner) || isAtxHeading(inner)) break
+        if (
+          parseLayoutLine(inner) !== null ||
+          parseChapterLine(inner) !== null ||
+          matchNotesLine(inner) !== null ||
+          parseDiagramLine(inner) !== null
+        ) {
+          break
+        }
+        collected.push(inner)
+        cursor += 1
+      }
+      if (current !== null && collected.length > 0) current.diagram = collected.join('\n')
+      index = cursor - 1
       continue
     }
 
@@ -543,9 +612,13 @@ export function parseSourceToOutline(text, options = {}) {
    * @type {Array<{title: string, bullets: string[], notes?: string, kind?: SlideKind}>}
    */
   const normalized = slides.map((slide) => {
-    /** @type {{title: string, bullets: string[], notes?: string, kind?: SlideKind}} */
+    /** @type {{title: string, bullets: string[], notes?: string, kind?: SlideKind, chapter?: string}} */
     const out = { title: slide.title === '' ? '未命名页面' : slide.title, bullets: slide.bullets }
     if (slide.notes !== undefined && slide.notes !== '') out.notes = slide.notes
+    // `chapter` is structural metadata like `notes`, and this white-list rebuild is
+    // exactly where it used to get dropped (which silently disabled the 目录).
+    if (slide.chapter !== undefined && slide.chapter !== '') out.chapter = slide.chapter
+    if (slide.diagram !== undefined && slide.diagram !== '') out.diagram = slide.diagram
     if (slide.bullets.length === 0) {
       out.kind = 'section'
       return out
@@ -591,6 +664,41 @@ function parseLayoutLine(line) {
     .replace(/[。．.；;，,、\s]+$/, '')
   const kind = LAYOUT_ALIASES.get(value)
   return { kind: kind === undefined ? null : kind }
+}
+
+/**
+ * Read one `章节：<name>` line (also `章:` / `chapter:`), bulleted or not.
+ *
+ * A chapter is the deck's "分" level: the composer collects the chapters in order, draws
+ * a 目录 page listing them, and puts a divider before each chapter's first page. Without
+ * a chapter line every page is its own island, which is exactly the "logic is unclear"
+ * complaint a 总-分-总 outline fixes.
+ *
+ * @param {string} line
+ * @returns {string | null} the chapter name, or `null` when this is not a chapter line
+ */
+function parseChapterLine(line) {
+  const match = /^(?:[-*+]\s+)?(?:章节|章|chapter)\s*[:：]\s*(.*)$/i.exec(line.trim())
+  if (match === null) return null
+  const value = oneLine(cleanInline(match[1]))
+  return value === '' ? null : clampChars(value, 40)
+}
+
+/**
+ * Read one `图：mermaid` line (also `示意图：` / `diagram:` / `mermaid:`).
+ *
+ * The value names the notation; only Mermaid is implemented, so an unknown notation is
+ * treated as "no diagram" rather than silently producing an empty figure.
+ *
+ * @param {string} line
+ * @returns {'mermaid' | null}
+ */
+function parseDiagramLine(line) {
+  const match = /^(?:[-*+]\s+)?(?:图|示意图|图表|diagram|mermaid)\s*[:：]\s*(.*)$/i.exec(line.trim())
+  if (match === null) return null
+  const value = oneLine(match[1]).toLowerCase()
+  if (value === '' || value === 'mermaid' || value === 'mmd' || value === '流程图' || value === '架构图') return 'mermaid'
+  return null
 }
 
 /** First-character contrast cues (spec list). `i` covers `VS`/`Before`/`After`. */
@@ -712,17 +820,57 @@ export function composeDeck(input = {}) {
     warnings.push('封面 · 标题超过 200 字，已截断')
   }
 
+  // Two budgets a deployment may move: how much copy one page may carry
+  // (`slideCharBudget`, checked by `repairDeck`) and how long a single bullet may be before
+  // its detail moves to the speaker notes (`bulletCharBudget`).
+  const slideCharBudget = resolveSlideCharBudget(request.slideCharBudget)
+  const bulletCharBudget = resolveBulletChars(request.bulletCharBudget)
+
   /** @type {LocalContext} */
-  const ctx = { theme, box, palette, style, toneSpec, warnings }
+  const ctx = { theme, box, palette, style, toneSpec, warnings, slideCharBudget, bulletCharBudget }
 
   const content = buildContentSlides(outline, style, ctx, warnings)
   const wantsClosing = style.closingSlide && style.maxSlides >= 2
-  const allowed = Math.max(0, style.maxSlides - 1 - (wantsClosing ? 1 : 0))
-  if (content.length > allowed) {
-    warnings.push(`已按上限截断 ${content.length - allowed} 页`)
-    content.length = allowed
+
+  // 总-分-总: a deck whose pages declare chapters gets a 目录 page plus one divider per
+  // chapter, so the reader always knows where they are. A deck with no chapters keeps
+  // the old flat shape — inventing chapters for it would be a lie about its structure.
+  const chapters = []
+  for (const item of content) {
+    if (item.chapter === undefined || item.chapter === '') continue
+    if (!chapters.includes(item.chapter)) chapters.push(item.chapter)
+  }
+  const useChapters = chapters.length >= 2
+
+  /** @type {Array<{type: 'toc'} | {type: 'divider', chapter: string} | {type: 'page', item: any}>} */
+  const plan = []
+  /** @type {string | null} */
+  let currentChapter = null
+  for (const item of content) {
+    if (useChapters && item.chapter !== undefined && item.chapter !== currentChapter) {
+      plan.push({ type: 'divider', chapter: item.chapter })
+      currentChapter = item.chapter
+    }
+    plan.push({ type: 'page', item })
   }
 
+  // Budget, in priority order: cover/closing and the 目录 are structural (a deck with
+  // chapters but no contents page is the thing we were asked to fix), so they are
+  // reserved *first*; content pages then fill whatever is left.
+  const chaptersWithPages = plan.some((unit) => unit.type === 'divider')
+  const wantsToc = useChapters && chaptersWithPages
+  const fixed = 1 + (wantsClosing ? 1 : 0) + (wantsToc ? 1 : 0)
+  const allowed = Math.max(0, style.maxSlides - fixed)
+  if (plan.length > allowed) {
+    const removed = plan.length - allowed
+    plan.length = allowed
+    while (plan.length > 0 && plan[plan.length - 1].type === 'divider') plan.pop()
+    warnings.push(`已按上限截断 ${removed} 页`)
+  }
+  // A 目录 whose chapters were all truncated away would list nothing: drop it then.
+  const keepToc = wantsToc && plan.some((unit) => unit.type === 'divider')
+  if (wantsToc && !keepToc) warnings.push('章节都被截断，目录页未插入')
+  if (keepToc) plan.unshift({ type: 'toc' })
   /** @type {Array<import('./schema.js').CardSlide>} */
   const slides = []
   let counter = 0
@@ -737,10 +885,30 @@ export function composeDeck(input = {}) {
   coverSlide.kind = 'cover'
   slides.push(coverSlide)
 
-  for (const item of content) {
+  // Page numbers are 1-based positions in the finished deck, so the 目录 states the
+  // truth rather than an estimate: cover is page 1, so plan[i] is page i + 2.
+  const tocEntries = []
+  plan.forEach((unit, planIndex) => {
+    if (unit.type !== 'divider') return
+    tocEntries.push({ title: unit.chapter, page: planIndex + 2 })
+  })
+
+  for (const unit of plan) {
     const slideId = nextSlideId()
     /** @type {import('./schema.js').CardSlide} */
     let slide
+    if (unit.type === 'toc') {
+      slide = buildTocSlide(slideId, ctx, { title: '目录', entries: tocEntries })
+      slides.push(slide)
+      continue
+    }
+    if (unit.type === 'divider') {
+      slide = buildSectionSlide(slideId, ctx, { title: unit.chapter })
+      slide.kind = 'section'
+      slides.push(slide)
+      continue
+    }
+    const item = unit.item
     if (item.kind === 'section') {
       slide = buildSectionSlide(slideId, ctx, item)
     } else if (item.kind === 'compare') {
@@ -749,6 +917,8 @@ export function composeDeck(input = {}) {
       slide = buildTimelineSlide(slideId, ctx, item)
     } else if (item.kind === 'stats') {
       slide = buildStatsSlide(slideId, ctx, item)
+    } else if (item.kind === 'diagram') {
+      slide = buildDiagramSlide(slideId, ctx, item)
     } else if (item.kind === 'breather') {
       slide = buildBreatherSlide(slideId, ctx, item)
     } else {
@@ -830,13 +1000,15 @@ function normalizeOutline(outline) {
     const declared = CONTENT_KINDS.includes(raw.kind) ? raw.kind : undefined
     const isSection = bullets.length === 0
     const kind = isSection ? 'section' : declared === undefined || declared === 'section' ? 'bullets' : declared
-    /** @type {{title: string, bullets: string[], notes?: string, kind: SlideKind}} */
+    /** @type {{title: string, bullets: string[], notes?: string, kind: SlideKind, chapter?: string}} */
     const item = {
       title: slideTitle === '' ? '未命名页面' : slideTitle,
       bullets: isSection ? [] : bullets,
       kind,
     }
     if (typeof raw.notes === 'string' && raw.notes.trim() !== '') item.notes = raw.notes.trim()
+    if (typeof raw.chapter === 'string' && raw.chapter.trim() !== '') item.chapter = clampChars(oneLine(raw.chapter), 40)
+    if (typeof raw.diagram === 'string' && raw.diagram.trim() !== '') item.diagram = raw.diagram.trim()
     slides.push(item)
   }
   return {
@@ -848,26 +1020,24 @@ function normalizeOutline(outline) {
 
 /**
  * Expand outline slides into the flat list of content slides the layout pass
- * draws. Handles the two-track text pass and both kinds of spilling:
- * - count: the density cap (rule 4) spills a title's bullets onto `<title>（续）`;
- * - height: `cards` rows are sized to their content, so a slide whose rows would
- *   leave the safe box also spills (see {@link planCardChunks}).
+ * draws.
  *
- * `compare` / `stats` are width-bound layouts, so they always render at most
- * `LAYOUT_BULLET_CAP` bullets per page and spill the rest the same way. `timeline`
- * never spills: extra bullets fold into the last node (`+N`) and their text is kept
- * in the notes (see {@link foldTimeline}).
+ * One outline page → exactly one content page. The deck never grows a `（续）`
+ * page: copy that would not fit is clamped into the speaker notes (see
+ * {@link fitOnePage}), `timeline` folds its extras into the last node (`+N`), and
+ * `compare` / `stats` degrade to a list when the page carries more bullets than the
+ * layout can hold. The reader gets complete pages, which is what "one page, one topic"
+ * has to mean in practice.
  *
- * @param {{slides: Array<{title: string, bullets: string[], notes?: string, kind: SlideKind}>}} outline
+ * @param {{slides: Array<{title: string, bullets: string[], notes?: string, kind: SlideKind, chapter?: string}>}} outline
  * @param {ReturnType<typeof normalizeStyle>} style
  * @param {LocalContext} ctx
  * @param {string[]} warnings
- * @returns {Array<{kind: SlideKind, title: string, bullets: string[], notes?: string}>}
+ * @returns {Array<{kind: SlideKind, title: string, bullets: string[], notes?: string, chapter?: string}>}
  */
 function buildContentSlides(outline, style, ctx, warnings) {
-  /** @type {Array<{kind: SlideKind, title: string, bullets: string[], notes?: string}>} */
+  /** @type {Array<{kind: SlideKind, title: string, bullets: string[], notes?: string, chapter?: string}>} */
   const out = []
-  const cap = DENSITY[style.density][style.bulletLayout]
 
   outline.slides.forEach((slide, index) => {
     const label = `第 ${index + 1} 页「${clampChars(slide.title, 16)}」`
@@ -879,71 +1049,146 @@ function buildContentSlides(outline, style, ctx, warnings) {
 
     // Two-track text: long bullets either keep today's split, or — when there is no
     // notes track yet — hand their overflow detail to the speaker notes.
-    const track = planTwoTrack(slide.bullets, slide.notes, label, warnings)
+    // `标签：甲` is presentation syntax for a column name. Only a compare page reads it
+    // that way; on any other layout it would show up as literal copy, so the colon prefix
+    // is dropped and the words stay as a normal line.
+    const normalisedBullets =
+      slide.kind === 'compare'
+        ? slide.bullets
+        : slide.bullets.map((bullet) => {
+            const marker = GROUP_MARKER.exec(oneLine(bullet))
+            return marker === null ? bullet : cleanInline(marker[1]).trim()
+          }).filter((bullet) => bullet !== '')
+    const track = planTwoTrack(normalisedBullets, slide.notes, label, warnings, {
+      bulletCharBudget: ctx.bulletCharBudget,
+    })
     let kind = slide.kind
+
+    /** @type {{kind: SlideKind, title: string, bullets: string[], notes?: string, chapter?: string, diagram?: string}} */
+    const item = { kind, title: slide.title, bullets: [] }
+    if (slide.chapter !== undefined && slide.chapter !== '') item.chapter = slide.chapter
+    if (slide.diagram !== undefined && slide.diagram !== '') item.diagram = slide.diagram
+
+    if (kind === 'diagram') {
+      // A diagram page: the figure is the content, so the bullets are supporting claims
+      // and are clamped harder (2–3 fit beside a figure, not five).
+      item.bullets = track.bullets.slice(0, DIAGRAM_BULLET_CAP)
+      if (track.notes !== undefined) item.notes = track.notes
+      if (item.diagram === undefined) {
+        warnings.push(`${label} · 声明了架构图版式但没有 \`图：mermaid\` 内容，已改为列表`)
+        item.kind = 'bullets'
+      }
+      out.push(item)
+      return
+    }
 
     if (kind === 'timeline') {
       const folded = foldTimeline(track, label, warnings)
-      /** @type {{kind: SlideKind, title: string, bullets: string[], notes?: string}} */
-      const item = { kind, title: slide.title, bullets: folded.bullets }
+      item.bullets = folded.bullets
       if (folded.notes !== undefined) item.notes = folded.notes
       out.push(item)
       return
     }
 
-    // `compare` / `stats` are bound by their column/card width, not by the density
-    // cap: `LAYOUT_BULLET_CAP` is what keeps a row readable. More bullets than that and
-    // the page is no longer a row/two-column page at all — so it degrades to a list
-    // instead of spilling the remainder onto a nearly empty `（续）` slide.
-    if ((kind === 'compare' || kind === 'stats') && track.bullets.length > LAYOUT_BULLET_CAP[kind]) {
+    // `compare` / `stats` are bound by their column/card width, not by the density cap:
+    // `LAYOUT_BULLET_CAP` is what keeps a row readable. More bullets than that and the
+    // page is no longer a row/two-column page at all — so it degrades to a list.
+    // `标签：` lines are column markers, not content: they must not count against the
+    // bullet cap (a two-column page is still a two-column page with 3+3 bullets).
+    const contentBullets = track.bullets.filter((bullet) => GROUP_MARKER.exec(oneLine(bullet)) === null)
+    if ((kind === 'compare' || kind === 'stats') && contentBullets.length > LAYOUT_BULLET_CAP[kind]) {
       warnings.push(
         `${label} · ${KIND_LABEL[kind]}版式单页最多 ${LAYOUT_BULLET_CAP[kind]} 条，已改为列表呈现`,
       )
       kind = 'bullets'
-    }
-
-    if (kind === 'compare' || kind === 'stats') {
-      const chunks = chunk(track.bullets, LAYOUT_BULLET_CAP[kind])
-      chunks.forEach((bullets, chunkIndex) => {
-        /** @type {{kind: SlideKind, title: string, bullets: string[], notes?: string}} */
-        const item = {
-          kind,
-          title: chunkIndex === 0 ? slide.title : `${slide.title}（续）`,
-          bullets,
-        }
-        if (chunkIndex === 0 && track.notes !== undefined) item.notes = track.notes
-        out.push(item)
+      // Keep the column names visible, but as plain lines: the marker's colon is
+      // presentation syntax, not copy.
+      track.bullets = track.bullets.map((bullet) => {
+        const marker = GROUP_MARKER.exec(oneLine(bullet))
+        return marker === null ? bullet : cleanInline(marker[1]).trim()
       })
+    }
+    if (kind === 'compare' || kind === 'stats') {
+      // No slicing here: the cap check above already degraded the page if it was too full,
+      // and dropping the tail would silently lose copy (the columns own their bullets).
+      item.bullets = track.bullets
+      item.notes = track.notes
+      out.push(item)
       return
     }
 
-    const chunks =
-      style.bulletLayout === 'cards'
-        ? planCardChunks(track.bullets, cap, ctx, slide.title)
-        : planListChunks(track.bullets, cap, ctx, slide.title)
-    const countChunks = Math.ceil(track.bullets.length / Math.max(1, cap))
-    if (chunks.length > countChunks) {
-      warnings.push(`${label} · 要点按高度排布，已溢出到 ${chunks.length - countChunks} 页「（续）」`)
-    }
-
-    chunks.forEach((bullets, chunkIndex) => {
-      /** @type {{kind: SlideKind, title: string, bullets: string[], notes?: string}} */
-      const item = {
-        // The slide's `kind` is what the compiler/panel and the text projection read:
-        // `cards` is a distinct rendering, so it gets its own value.
-        kind: style.bulletLayout === 'cards' ? 'cards' : 'bullets',
-        title: chunkIndex === 0 ? slide.title : `${slide.title}（续）`,
-        bullets,
-      }
-      if (chunkIndex === 0 && track.notes !== undefined) item.notes = track.notes
-      out.push(item)
-    })
+    kind = style.bulletLayout === 'cards' ? 'cards' : 'bullets'
+    item.kind = kind
+    // One page, one topic. A second page titled `（续）` is never produced: whatever
+    // does not fit is clamped here and its text moves into the speaker notes, so the
+    // deck reads as a sequence of complete pages instead of pages cut in half.
+    const fitted = fitOnePage(track.bullets, ctx, slide.title, kind, label, warnings)
+    item.bullets = fitted.bullets
+    const notes = fitted.notes === undefined
+      ? track.notes
+      : mergeNotes(track.notes, [fitted.notes])
+    if (notes !== undefined && notes !== '') item.notes = notes
+    out.push(item)
   })
 
   // Rhythm: break up monotony without inventing meaning (see the two helpers below).
   const varied = varyAdjacentLayouts(out, style)
   const paced = insertBreathers(varied, style)
   return paced
+}
+
+/**
+ * Keep the bullets that fit one page.
+ *
+ * Called instead of splitting the page: the deck must never grow a `（续）` page, so the
+ * choice is between "shrink until it fits" and "keep the page's topic whole and move the
+ * rest into the notes". The measurement uses the very functions the layout uses
+ * (`textHeight` for lists, `measureCardRows` for cards) at the *smallest* size the layout
+ * may pick, so what this keeps always fits, and the leftover is honest overflow rather
+ * than a squeezed page.
+ *
+ * @param {string[]} bullets
+ * @param {LocalContext} ctx
+ * @param {string} title
+ * @param {SlideKind} kind
+ * @param {string} label
+ * @param {string[]} warnings
+ * @returns {{bullets: string[], notes?: string}}
+ */
+function fitOnePage(bullets, ctx, title, kind, label, warnings) {
+  const { box, toneSpec } = ctx
+  const cards = kind === 'cards'
+  const top = bulletContentTop(ctx, title)
+  const available = box.y + box.h - top
+  const textW = cards
+    ? cardTextWidth(box)
+    : FRAME.right - (toneSpec.marker ? box.x + 30 : box.x)
+  // Measure at the size the layout *starts* from (`TYPE.body[0]` / `TYPE.card[0]`), not
+  // at the emergency size: a page that only fits by shrinking to 16px is not a page worth
+  // keeping whole, and measuring optimistically is what let cards spill past the box.
+  const baseSize = cards ? TYPE.card[0] : TYPE.body[0]
+  const gap = cards ? CARD.gapY : DENSITY[ctx.style.density].gap
+
+  /** @param {string[]} list */
+  const measure = (list) => {
+    if (list.length === 0) return 0
+    if (cards) return measureCardRows(list, textW, baseSize, toneSpec.cardTick).total
+    return totalHeight(list.map((bullet) => textHeight(bullet, textW, baseSize)), gap)
+  }
+
+  // Greedy from the top, then trim until the measured height really fits. Trimming (as
+  // opposed to trusting an incremental estimate) is what keeps the layout from having to
+  // compress or overlap afterwards.
+  let kept = bullets.slice()
+  while (kept.length > 0 && measure(kept) > available) kept = kept.slice(0, -1)
+  if (kept.length === bullets.length) return { bullets: kept }
+
+  const dropped = bullets.slice(kept.length)
+  warnings.push(
+    `${label} · 单页放不下 ${dropped.length} 条，已并入演讲备注（一页一主题，不拆续页）`,
+  )
+  const detail = `单页容量以外的要点：${dropped.join('；')}`
+  return { bullets: kept, notes: detail }
 }
 
 /* ------------------------------------------------------------------ *
@@ -1142,7 +1387,8 @@ function splitFirstClause(text, limit) {
  * @param {string[]} warnings
  * @returns {{bullets: string[], notes?: string}}
  */
-function planTwoTrack(bullets, notes, label, warnings) {
+function planTwoTrack(bullets, notes, label, warnings, options = {}) {
+  const bulletChars = resolveBulletChars(options.bulletCharBudget)
   const existing = typeof notes === 'string' && notes.trim() !== '' ? notes.trim() : ''
   /** @type {string[]} */
   const visible = []
@@ -1152,19 +1398,19 @@ function planTwoTrack(bullets, notes, label, warnings) {
 
   for (const bullet of bullets) {
     const flat = oneLine(bullet)
-    if (Array.from(flat).length <= MAX_BULLET_CHARS) {
+    if (Array.from(flat).length <= bulletChars) {
       if (flat !== '') visible.push(flat)
       continue
     }
     if (existing !== '') {
-      const parts = splitLongBullet(bullet, MAX_BULLET_CHARS)
+      const parts = splitLongBullet(bullet, bulletChars)
       if (parts.length > 1) {
-        warnings.push(`${label} · 要点超过 ${MAX_BULLET_CHARS} 字，已拆分为 ${parts.length} 条`)
+        warnings.push(`${label} · 要点超过 ${bulletChars} 字，已拆分为 ${parts.length} 条`)
       }
       visible.push(...parts)
       continue
     }
-    const { head, tail } = splitFirstClause(flat, MAX_BULLET_CHARS)
+    const { head, tail } = splitFirstClause(flat, bulletChars)
     visible.push(head)
     if (tail !== '') {
       detail.push(tail)
@@ -1339,6 +1585,146 @@ function buildSectionSlide(slideId, ctx, item) {
 }
 
 /**
+ * 目录 page: the deck's chapters in order, each with the page it starts on.
+ *
+ * The numbers come from the assembled plan (see `composeDeck`), so they are true
+ * positions rather than estimates. The row rhythm is "index · title · leader dots ·
+ * page": a table of contents that cannot be counted by eye is decoration.
+ *
+ * @param {string} slideId
+ * @param {LocalContext} ctx
+ * @param {{title: string, entries: Array<{title: string, page: number}>}} item
+ * @returns {import('./schema.js').CardSlide}
+ */
+function buildTocSlide(slideId, ctx, item) {
+  const { box, palette, style, toneSpec, warnings } = ctx
+  const builder = makeSlideBuilder(slideId)
+  const header = buildHeader(builder, ctx, item.title)
+  const entries = item.entries.slice(0, TOC.maxEntries)
+  if (item.entries.length > entries.length) {
+    warnings.push(`目录 · 章节过多，仅列出前 ${TOC.maxEntries} 个`)
+  }
+  if (entries.length === 0) {
+    return buildSectionSlide(slideId, ctx, { title: item.title })
+  }
+
+  const indexW = TOC.indexWidth
+  const pageW = TOC.pageWidth
+  const titleX = box.x + indexW
+  const titleW = box.w - indexW - pageW
+  const size = entries.length > 6 ? TOC.sizeSmall : TOC.size
+  const rowH = Math.round(size * 1.9)
+  const contentH = rowH * entries.length
+  const top = Math.max(header.top, Math.round(box.y + (box.h - contentH) / 2))
+
+  entries.forEach((entry, index) => {
+    const y = top + index * rowH
+    builder.text('caption', String(index + 1).padStart(2, '0'), {
+      x: box.x,
+      y,
+      w: indexW,
+      h: rowH,
+    }, textStyle(TOC.indexSize, palette[toneSpec.sub], { bold: true, valign: 'middle' }))
+    builder.text('subtitle', clampChars(entry.title, TOC.maxTitleChars), {
+      x: titleX,
+      y,
+      w: titleW,
+      h: rowH,
+    }, textStyle(size, palette.textPrimary, { valign: 'middle' }))
+    // Leader rule + page number: the rule is a 2px hairline in the neutral surface
+    // colour so it reads as a leader, not as a divider between rows.
+    builder.shape('toc-rule', 'line', {
+      x: titleX,
+      y: y + rowH - 6,
+      w: titleW - TOC.pageGap,
+      h: 2,
+    }, { stroke: palette.surface, strokeWidth: 2 })
+    builder.text('body', String(entry.page), {
+      x: box.x + box.w - pageW,
+      y,
+      w: pageW,
+      h: rowH,
+    }, textStyle(size, palette[toneSpec.sub], { align: 'right', valign: 'middle' }))
+  })
+
+  const slide = slideShell(slideId, builder, palette, header.text, item.notes)
+  slide.kind = 'toc'
+  return slide
+}
+
+/** 目录 geometry: index column, leader gap and page column. */
+const TOC = Object.freeze({
+  maxEntries: 8,
+  indexWidth: 56,
+  pageWidth: 56,
+  pageGap: 24,
+  indexSize: 20,
+  size: 26,
+  sizeSmall: 22,
+  maxTitleChars: 28,
+})
+
+/**
+ * Diagram page: title, the figure, and at most three supporting claims underneath.
+ *
+ * The figure gets the whole body band (a diagram squeezed into a strip is unreadable), and
+ * the bullets sit below it as a one-line summary. The Mermaid source becomes a `diagram`
+ * element; `repairDeck` compiles it to themed SVG, so this builder never draws a node.
+ *
+ * @param {string} slideId
+ * @param {LocalContext} ctx
+ * @param {{title: string, bullets: string[], notes?: string, diagram?: string}} item
+ * @returns {import('./schema.js').CardSlide}
+ */
+function buildDiagramSlide(slideId, ctx, item) {
+  const { box, palette, style, toneSpec, warnings } = ctx
+  const builder = makeSlideBuilder(slideId)
+  const header = buildHeader(builder, ctx, item.title)
+  const bullets = item.bullets.slice(0, DIAGRAM_BULLET_CAP)
+
+  const captionSize = TYPE.body[1]
+  const captionGap = 16
+  const captionHeights = bullets.map((bullet) => textHeight(bullet, box.w, captionSize))
+  const captionTotal = captionHeights.reduce((sum, height) => sum + height, 0) + captionGap * Math.max(0, bullets.length - 1)
+  // The figure is laid out *from the top*, not centred in the leftover band: centring a
+  // short wide diagram leaves a quarter of the page white above it, which reads as a
+  // mistake. The captions follow the figure immediately, and the slack stays at the bottom.
+  const figureTop = header.top + DIAGRAM_TOP_GAP
+  const captionBlock = bullets.length === 0 ? 0 : captionTotal + DIAGRAM_CAPTION_GAP
+  const available = box.y + box.h - figureTop
+  const figureHeight = Math.max(180, available - captionBlock)
+  const captionTop = figureTop + figureHeight + DIAGRAM_CAPTION_GAP
+
+  builder.raw({
+    type: 'diagram',
+    role: 'figure',
+    x: box.x,
+    y: figureTop,
+    w: box.w,
+    h: figureHeight,
+    description: clampChars(item.title, 40),
+    mermaid: item.diagram === undefined ? '' : item.diagram,
+  })
+
+  if (bullets.length > 0) {
+    let y = captionTop
+    bullets.forEach((bullet, index) => {
+      builder.text('body', bullet, { x: box.x, y, w: box.w, h: captionHeights[index] }, textStyle(
+        captionSize,
+        palette[toneSpec.sub],
+      ))
+      y += captionHeights[index] + captionGap
+    })
+  } else if (item.diagram === undefined) {
+    warnings.push(`「${clampChars(item.title, 16)}」· 架构图页没有图，也没有要点`)
+  }
+
+  const slide = slideShell(slideId, builder, palette, header.text, item.notes)
+  slide.kind = 'diagram'
+  return slide
+}
+
+/**
  * Shared slide header: fitted title at the top of the safe area plus the optional
  * accent bar. Every content layout starts with exactly these two elements and then
  * places its body below `top`, so the title/logo rules are stated once.
@@ -1423,6 +1809,15 @@ const LEFT_CUE = /^(?:旧|原来|原先|之前|以前|当前|目前|现状|befor
 const RIGHT_CUE = /^(?:新|现在|之后|未来|目标|after|new|target|to-be)/i
 /** `标签：正文` — the label becomes the column heading. */
 const LABEL_PREFIX = /^([^：:]{1,12})\s*[：:]\s*(.+)$/
+/** `标签：正文` — the label becomes the column heading. */
+/**
+ * `标签：故障现象` — an explicit column marker, on its own line/bullet.
+ *
+ * A model writing a compare page often names each column this way ("标签：现象" followed
+ * by that column's bullets) instead of prefixing every bullet. Rendering those markers as
+ * copy put the literal word "标签：" on the slide.
+ */
+const GROUP_MARKER = /^(?:标签|栏目|分栏|列标题|column|label)\s*[:：]\s*(.+)$/i
 
 /**
  * Split bullets into the two sides of a contrast.
@@ -1440,6 +1835,36 @@ function splitCompareColumns(bullets) {
   const list = bullets.map((bullet) => oneLine(bullet)).filter((bullet) => bullet !== '')
   if (list.length === 0) return { left: [], right: [] }
 
+  // 1. Explicit `标签：` markers: each one names a column and owns the bullets after it.
+  /** @type {Array<{heading: string, bullets: string[]}>} */
+  const groups = []
+  for (const bullet of list) {
+    const marker = GROUP_MARKER.exec(bullet)
+    if (marker !== null) {
+      const heading = cleanInline(marker[1]).trim()
+      if (heading !== '') {
+        groups.push({ heading: clampChars(heading, 14), bullets: [] })
+        continue
+      }
+    }
+    if (groups.length > 0) groups[groups.length - 1].bullets.push(bullet)
+  }
+  const usable = groups.filter((group) => group.bullets.length > 0)
+  if (usable.length === 2) {
+    return {
+      left: usable[0].bullets,
+      right: usable[1].bullets,
+      headings: [usable[0].heading, usable[1].heading],
+    }
+  }
+  if (usable.length > 2) {
+    // Three or more columns cannot be a two-column page: keep both sides balanced.
+    const flat = usable.flatMap((group) => group.bullets)
+    const half = Math.ceil(flat.length / 2)
+    return { left: flat.slice(0, half), right: flat.slice(half) }
+  }
+
+  // 2. Side cues on every bullet (旧/之前 vs 新/现在/目标).
   /** @type {string[]} */
   const left = []
   /** @type {string[]} */
@@ -1455,6 +1880,7 @@ function splitCompareColumns(bullets) {
   }
   if (clean && left.length > 0 && right.length > 0) return { left, right }
 
+  // 3. Halve the list.
   const half = Math.ceil(list.length / 2)
   return { left: list.slice(0, half), right: list.slice(half) }
 }
@@ -1517,15 +1943,18 @@ function buildCompareSlide(slideId, ctx, item) {
   const { box, palette, style, toneSpec, warnings } = ctx
   const builder = makeSlideBuilder(slideId)
   const header = buildHeader(builder, ctx, item.title)
-  const { left, right } = splitCompareColumns(item.bullets)
+  const { left, right, headings } = splitCompareColumns(item.bullets)
 
   /** @type {Array<{heading: string, label: string | null, bullets: string[]}>} */
   const columns = []
   // No author-written label means no column heading: the renderer must not invent
   // 现状 / 目标. An applicability list ("适合季度汇报 / 不适合一次性创意") under those
   // headings reads as a before/after the author never wrote.
-  if (left.length > 0) columns.push(prepareCompareColumn(left, ''))
-  if (right.length > 0) columns.push(prepareCompareColumn(right, ''))
+  // An explicit `标签：` marker names the column, so it wins over the (absent) fallback.
+  const leftHeading = headings === undefined ? '' : headings[0]
+  const rightHeading = headings === undefined ? '' : headings[1]
+  if (left.length > 0) columns.push(prepareCompareColumn(left, leftHeading))
+  if (right.length > 0) columns.push(prepareCompareColumn(right, rightHeading))
   if (columns.length === 0) {
     return buildSectionSlide(slideId, ctx, { title: header.text, notes: item.notes })
   }
@@ -2170,7 +2599,7 @@ function placeList(builder, ctx, bullets, top, label) {
     ))
     const lines = estimateLines(bullet, width, fontSize).lines
     if (lines > 4) {
-      warnings.push(`${label} · 要点过长（约 ${lines} 行），建议精简为 ${MAX_BULLET_CHARS} 字以内`)
+      warnings.push(`${label} · 要点过长（约 ${lines} 行），建议精简为 ${ctx.bulletCharBudget} 字以内`)
     }
     y += height + gap
   })
@@ -2260,109 +2689,9 @@ function bulletContentTop(ctx, title) {
 }
 
 /**
- * Split a title's bullets into card slides that each fit the safe box, honouring
- * the density cap as a count cap and the measured row heights as a height cap.
- *
- * @param {string[]} bullets
- * @param {number} cap
- * @param {LocalContext} ctx
- * @param {string} title
- * @returns {string[][]}
- */
-function planCardChunks(bullets, cap, ctx, title) {
-  /** @type {string[][]} */
-  const chunks = []
-  /** @type {string[]} */
-  let current = []
-  const textW = cardTextWidth(ctx.box)
-  const tick = ctx.toneSpec.cardTick
-  const bottom = ctx.box.y + ctx.box.h
-
-  /** @param {number} count number of already-built chunks */
-  const topFor = (count) => bulletContentTop(ctx, count === 0 ? title : `${title}（续）`)
-
-  for (const bullet of bullets) {
-    if (current.length > 0 && current.length >= cap) {
-      chunks.push(current)
-      current = []
-    }
-    if (current.length > 0) {
-      const top = topFor(chunks.length)
-      const total = measureCardRows([...current, bullet], textW, TYPE.card[0], tick).total
-      if (top + total > bottom) {
-        chunks.push(current)
-        current = []
-      }
-    }
-    current.push(bullet)
-  }
-  if (current.length > 0) chunks.push(current)
-  return chunks.length === 0 ? [[]] : chunks
-}
-
-/**
- * Split a title's bullets into list slides.
- *
- * The density cap is a *preference*, not a hard limit: six short bullets at 22px fit a
- * 720px page with room to spare, and splitting them into 4+2 produces a second page
- * whose void is the most visible defect a reader notices. So the cap is stretched (by
- * one at a time, never past `LIST_HARD_MAX`) until every page carries at least
- * `LIST_MIN_PAGE` bullets — while still refusing any page that would not fit its height.
- *
- * @param {string[]} bullets
- * @param {number} cap
- * @param {LocalContext} ctx
- * @param {string} title
- * @returns {string[][]}
- */
-function planListChunks(bullets, cap, ctx, title) {
-  const { box } = ctx
-  const width = FRAME.right - (ctx.toneSpec.marker ? box.x + 30 : box.x)
-  const gap = DENSITY[ctx.style.density].gap
-  const bottom = box.y + box.h
-  /** @param {number} count already-built pages */
-  const topFor = (count) => bulletContentTop(ctx, count === 0 ? title : `${title}（续）`)
-  const fits = (list, count) => topFor(count) + totalHeight(list.map((bullet) => textHeight(bullet, width, TYPE.body[0])), gap) <= bottom
-
-  /** @param {number} width cap for one page */
-  const plan = (limit) => {
-    /** @type {string[][]} */
-    const pages = []
-    /** @type {string[]} */
-    let current = []
-    for (const bullet of bullets) {
-      const next = [...current, bullet]
-      if (current.length > 0 && (current.length >= limit || !fits(next, pages.length))) {
-        pages.push(current)
-        current = [bullet]
-      } else {
-        current = next
-      }
-    }
-    if (current.length > 0) pages.push(current)
-    return pages
-  }
-
-  let best = plan(cap)
-  // Only a thin *tail* justifies stretching the cap: 40 bullets at a cap of 4 are ten
-  // full pages and must stay ten pages. Six bullets (4+2) and five (4+1) should not
-  // split at all when the copy fits one page.
-  if (best.length > 1 && best.some((page) => page.length < LIST_MIN_PAGE)) {
-    for (let limit = cap + 1; limit <= LIST_HARD_MAX; limit += 1) {
-      const candidate = plan(limit)
-      if (candidate.every((page) => page.length >= LIST_MIN_PAGE)) {
-        best = candidate
-        break
-      }
-    }
-  }
-  return best.length === 0 ? [[]] : best
-}
-
-/**
  * 2-column roundRect cards, each row sized to its own content. `airy` allows 2 per
- * slide, `standard`/`dense` 4; a card slide therefore never holds more than 4
- * bullets (height-driven spill is planned earlier by {@link planCardChunks}).
+ * slide, `standard`/`dense` 4; the page never spills, so the count is whatever
+ * `fitOnePage` could keep (see `buildContentSlides`).
  *
  * A lone card (odd bullet count) keeps the column width instead of stretching to
  * the full 1128px: a full-width card next to three half-width ones reads as an
@@ -2691,6 +3020,24 @@ function makeSlideBuilder(slideId) {
         w: px(geo.w),
         h: px(geo.h),
         style,
+      })
+    },
+    /**
+     * Push an element the builder does not model itself (`diagram` / `svg` / `chart` /
+     * `image`): the geometry is snapped like any other element and the id is derived from
+     * the role, so ids stay deterministic and unique per slide.
+     *
+     * @param {{type: string, role?: string, x: number, y: number, w: number, h: number} & Record<string, any>} element
+     */
+    raw(element) {
+      const { role, x, y, w, h, ...rest } = element
+      elements.push({
+        ...rest,
+        id: nextId(role === undefined ? element.type : role),
+        x: px(x),
+        y: px(y),
+        w: px(w),
+        h: px(h),
       })
     },
   }

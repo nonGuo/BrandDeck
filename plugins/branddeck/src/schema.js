@@ -11,6 +11,8 @@
  */
 import { z } from 'zod'
 
+import { mermaidToSvg } from './mermaid.js'
+
 export const CANVAS = Object.freeze({ width: 1280, height: 720 })
 
 /** Margin kept free on every side; the top-right corner additionally reserves the logo. */
@@ -19,8 +21,20 @@ export const SAFE_AREA = Object.freeze({ top: 64, right: 64, bottom: 64, left: 6
 /** Logo reservation inside the top-right corner of the safe area. */
 export const LOGO_RESERVE = Object.freeze({ width: 150, height: 48, gap: 16 })
 
-/** Text is rejected above this many characters (design doc: 150 chars per slide). */
+/**
+ * Default page text budget, in characters. It is the *default* rather than the law:
+ * a deployment can move it (`slideCharBudget` in the plugin config, or per request),
+ * and `repairDeck` takes the effective value as an option. Kept exported so callers and
+ * the docs have one source of truth for the number.
+ */
 export const SLIDE_TEXT_BUDGET = 150
+
+/** Clamp a caller-supplied page budget into a range that still means something. */
+export function resolveSlideCharBudget(value) {
+  const number = Number(value)
+  if (!Number.isFinite(number)) return SLIDE_TEXT_BUDGET
+  return Math.min(600, Math.max(40, Math.floor(number)))
+}
 
 export const elementBaseShape = {
   id: z.string().min(1).max(64),
@@ -76,6 +90,21 @@ export const SvgElementSchema = z.object({
   svgCode: z.string().min(1),
 })
 
+/**
+ * A diagram authored as text (Mermaid flowchart) rather than as SVG.
+ *
+ * The model is good at `A --> B` and bad at "put the box at x=312". `repairDeck` compiles
+ * this into an ordinary `svg` element with the theme's colours baked in, so the panel,
+ * the rasteriser and the PPTX compiler never need to know a diagram existed.
+ */
+export const DiagramElementSchema = z.object({
+  type: z.literal('diagram'),
+  ...elementBaseShape,
+  description: z.string().optional(),
+  /** Mermaid source; the supported subset is documented in src/mermaid.js. */
+  mermaid: z.string().min(1),
+})
+
 export const ChartElementSchema = z.object({
   type: z.literal('chart'),
   ...elementBaseShape,
@@ -112,6 +141,7 @@ export const SlideElementSchema = z.discriminatedUnion('type', [
   TextElementSchema,
   ShapeElementSchema,
   SvgElementSchema,
+  DiagramElementSchema,
   ChartElementSchema,
   ImageElementSchema,
 ])
@@ -130,11 +160,14 @@ export const SlideElementSchema = z.discriminatedUnion('type', [
 export const SlideKindSchema = z.enum([
   'cover',
   'section',
+  'toc',
   'bullets',
   'cards',
   'compare',
   'timeline',
   'stats',
+  /** A page built around a figure (Mermaid-compiled architecture/flow diagram). */
+  'diagram',
   /** Generator-only pacing page: one oversized statement, no title, no bullets. */
   'breather',
 ])
@@ -284,9 +317,11 @@ function roundRect(elements) {
  *
  * @param {CardDeck} deck
  * @param {ThemeTokens} theme
+ * @param {{slideCharBudget?: number}} [options] page text budget (default 150 chars)
  * @returns {{ deck: CardDeck, warnings: string[] }}
  */
-export function repairDeck(deck, theme) {
+export function repairDeck(deck, theme, options = {}) {
+  const budget = resolveSlideCharBudget(options.slideCharBudget)
   /** @type {string[]} */
   const warnings = []
   const next = structuredClone(deck)
@@ -298,6 +333,7 @@ export function repairDeck(deck, theme) {
       slide.background = resolveColor(slide.background, theme, theme.colors.background)
     }
     rotateDuplicateIds(slide, slideIndex, warnings)
+    compileDiagrams(slide, theme, label, warnings)
     for (const element of slide.elements) {
       const before = { x: element.x, y: element.y, w: element.w, h: element.h }
       // Text needs a usable box; decorative shapes may legitimately be hairlines
@@ -338,10 +374,10 @@ export function repairDeck(deck, theme) {
     }
     roundRect(slide.elements)
     const overflow = estimateTextOverflow(slide, theme)
-    if (overflow.totalCharacters > SLIDE_TEXT_BUDGET) {
+    if (overflow.totalCharacters > budget) {
       warnings.push(
         `${label} · ${overflow.totalCharacters} characters of text ` +
-          `(budget ${SLIDE_TEXT_BUDGET}); shorten copy to avoid overflow`,
+          `(budget ${budget}); shorten copy to avoid overflow`,
       )
     }
     for (const box of overflow.overflowing) {
@@ -354,6 +390,68 @@ export function repairDeck(deck, theme) {
 
 function fmtBox(box) {
   return `${box.x},${box.y} ${box.w}x${box.h}`
+}
+
+/**
+ * Compile `diagram` elements (Mermaid source) into plain `svg` elements.
+ *
+ * This happens at repair time so that "authoring" and "rendering" stay separate: the model
+ * may write a flowchart, but everything downstream — the panel canvas, the 3x rasteriser,
+ * the PPTX compiler — only ever sees an SVG string. A diagram the renderer cannot draw is
+ * dropped with a warning that names the reason, because a deck with a missing figure is
+ * recoverable while a deck that fails to save is not.
+ *
+ * @param {any} slide
+ * @param {ThemeTokens} theme
+ * @param {string} label
+ * @param {string[]} warnings
+ */
+function compileDiagrams(slide, theme, label, warnings) {
+  const elements = Array.isArray(slide.elements) ? slide.elements : []
+  for (let index = 0; index < elements.length; index += 1) {
+    const element = elements[index]
+    if (element === null || typeof element !== 'object' || element.type !== 'diagram') continue
+    try {
+      const rendered = mermaidToSvg(element.mermaid, {
+        width: Math.max(120, Math.round(element.w)),
+        height: Math.max(80, Math.round(element.h)),
+        colors: {
+          textPrimary: theme.colors.textPrimary,
+          secondary: theme.colors.textSecondary,
+          primary: theme.colors.primary,
+          background: theme.colors.background,
+          surface: theme.colors.surface,
+          textSecondary: theme.colors.textSecondary,
+        },
+        fontSize: diagramFontSize(element),
+      })
+      elements[index] = {
+        type: 'svg',
+        id: element.id,
+        x: element.x,
+        y: element.y,
+        w: element.w,
+        h: element.h,
+        ...(typeof element.description === 'string' ? { description: element.description } : {}),
+        svgCode: rendered.svg,
+      }
+      warnings.push(
+        `${label} · 架构图已由 Mermaid 编译为 SVG（${rendered.nodes} 个节点 / ${rendered.edges} 条连线 / ${rendered.groups} 个分组）`,
+      )
+    } catch (error) {
+      warnings.push(
+        `${label} · 架构图无法绘制，已移除：${error instanceof Error ? error.message : String(error)}`,
+      )
+      elements.splice(index, 1)
+      index -= 1
+    }
+  }
+}
+
+/** Diagram label size: shrink a little when the figure is small. */
+function diagramFontSize(element) {
+  const height = Number.isFinite(element?.h) ? element.h : 400
+  return Math.max(10, Math.min(16, Math.round(height / 26)))
 }
 
 function rotateDuplicateIds(slide, slideIndex, warnings) {
@@ -558,8 +656,9 @@ export function estimateTextOverflow(slide, theme) {
  * report exactly what it changed.
  * @param {unknown} input
  * @param {ThemeTokens} theme
+ * @param {{slideCharBudget?: number}} [options]
  */
-export function parseAndRepairDeck(input, theme) {
+export function parseAndRepairDeck(input, theme, options = {}) {
   const parsed = CardDeckSchema.safeParse(input)
   if (!parsed.success) {
     return {
@@ -570,7 +669,7 @@ export function parseAndRepairDeck(input, theme) {
       })),
     }
   }
-  const { deck, warnings } = repairDeck(parsed.data, theme)
+  const { deck, warnings } = repairDeck(parsed.data, theme, options)
   return { ok: /** @type {const} */ (true), deck, warnings }
 }
 

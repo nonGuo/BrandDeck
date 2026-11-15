@@ -374,6 +374,11 @@ function normalizeConfig(raw) {
     logoSide: raw.logoSide === 'top-right' || raw.logoSide === 'none' ? raw.logoSide : 'auto',
     defaultTemplateId: typeof raw.defaultTemplateId === 'string' ? raw.defaultTemplateId : undefined,
     commandMaxSlides: clampNumber(raw.commandMaxSlides, 3, 30, 10),
+    // Page copy budgets. Both used to be module constants (150 chars per page, 90 per
+    // bullet); they shape the *generated* deck, so a deployment that writes denser or
+    // sparser decks must be able to move them. Both are also accepted per request.
+    slideCharBudget: clampNumber(raw.slideCharBudget, 40, 600, 150),
+    bulletCharBudget: clampNumber(raw.bulletCharBudget, 20, 200, 90),
     // Long-material pipeline (see src/mapreduce.js). Above materialThreshold chars the
     // outline is built Map-Reduce instead of from one oversized prompt.
     materialThreshold: clampNumber(raw.materialThreshold, 500, 200000, 6000),
@@ -388,6 +393,37 @@ function clampNumber(value, min, max, fallback) {
   const number = typeof value === 'number' ? value : Number(value)
   if (!Number.isFinite(number)) return fallback
   return Math.min(max, Math.max(min, number))
+}
+
+/**
+ * The copy budgets every repair/compose call needs, config-first with a per-request
+ * override.
+ *
+ * Kept in one function because a repair that used a different budget from the compose is
+ * how a deck ends up "saved clean" and then warned about on export: the panel, the tools
+ * and the command must all measure the same page.
+ *
+ * @param {any} config resolved plugin config
+ * @param {any} [body] request body (may override either budget)
+ * @returns {{slideCharBudget: number, bulletCharBudget: number}}
+ */
+function budgetOptions(config, body) {
+  const source = body !== null && typeof body === 'object' ? body : {}
+  const raw = config !== null && typeof config === 'object' ? config : {}
+  return {
+    slideCharBudget: clampNumber(
+      source.slideCharBudget ?? raw.slideCharBudget,
+      40,
+      600,
+      150,
+    ),
+    bulletCharBudget: clampNumber(
+      source.bulletCharBudget ?? raw.bulletCharBudget,
+      20,
+      200,
+      90,
+    ),
+  }
 }
 
 /* ------------------------------------------------------------------ *
@@ -705,7 +741,7 @@ function registerTools(ctx, config, storeConfig) {
         return { value: fail('invalid_deck', 'deck must be an object') }
       }
       const theme = await themeFor(candidate, config, storeConfig)
-      const repaired = parseAndRepairDeck(candidate, theme)
+      const repaired = parseAndRepairDeck(candidate, theme, budgetOptions(config))
       if (!repaired.ok) {
         return {
           value: fail('invalid_deck', 'The deck does not match the CardDeck schema', repaired.issues),
@@ -746,7 +782,7 @@ function registerTools(ctx, config, storeConfig) {
           : readDeckOrNull(args.deckId, storeConfig)
       if (deck === null) return { value: fail('deck_not_found', 'No deck has been saved yet') }
       const theme = await themeFor(deck, config, storeConfig)
-      const repaired = repairDeck(deck, theme)
+      const repaired = repairDeck(deck, theme, budgetOptions(config))
       return { value: { ok: true, deck: repaired.deck, theme, warnings: repaired.warnings } }
     },
   )
@@ -780,7 +816,7 @@ function registerTools(ctx, config, storeConfig) {
           : readDeckOrNull(args.deckId, storeConfig)
       if (deck === null) return { value: fail('deck_not_found', 'No deck has been saved yet') }
       const theme = await themeFor(deck, config, storeConfig)
-      const repaired = parseAndRepairDeck(deck, theme)
+      const repaired = parseAndRepairDeck(deck, theme, budgetOptions(config))
       if (!repaired.ok) {
         return {
           value: fail('invalid_deck', 'The stored deck no longer matches the schema', repaired.issues),
@@ -1109,7 +1145,7 @@ async function assistContent(input, deps) {
       maxSlides: input.maxSlides ?? effective.maxSlides,
       topic: input.title,
       options: {
-        threshold: deps.config.materialThreshold,
+        threshold: input.materialThreshold ?? deps.config.materialThreshold,
         blockChars: deps.config.materialBlockChars,
         maxBlocks: deps.config.materialMaxBlocks,
         concurrency: deps.config.materialConcurrency,
@@ -1140,6 +1176,8 @@ async function assistContent(input, deps) {
     maxSlides: input.maxSlides ?? effective.maxSlides,
     config: deps.config,
     storeConfig: deps.storeConfig,
+    slideCharBudget: input.slideCharBudget,
+    bulletCharBudget: input.bulletCharBudget,
   })
   if (generated.ok !== true) return generated
   return { ...generated, markdown, pipeline }
@@ -1197,15 +1235,18 @@ async function generateDeckFrom(input) {
     return fail('empty_source', 'The source produced no slides — give it headings or at least a few paragraphs')
   }
 
+  const budgets = budgetOptions(config, input)
   const composed = generator.composeDeck({
     outline,
     theme,
     style: effective,
     deckId: input.deckId,
     maxSlides: Number.isFinite(input.maxSlides) ? input.maxSlides : effective.maxSlides,
+    slideCharBudget: budgets.slideCharBudget,
+    bulletCharBudget: budgets.bulletCharBudget,
   })
 
-  const repaired = parseAndRepairDeck(composed.deck, theme)
+  const repaired = parseAndRepairDeck(composed.deck, theme, budgets)
   if (!repaired.ok) {
     return fail('invalid_deck', 'Generated deck failed validation', repaired.issues)
   }
@@ -1503,7 +1544,7 @@ async function dispatchEndpoint(endpoint, payload, deps) {
       const templates = await store.listTemplates(storeConfig)
       const deck = await activeDeck(storeConfig)
       const theme = deck === null ? DEFAULT_THEME : await themeFor(deck, config, storeConfig)
-      const repaired = deck === null ? null : repairDeck(deck, theme)
+      const repaired = deck === null ? null : repairDeck(deck, theme, budgetOptions(config))
       return ok({
         decks,
         templates,
@@ -1530,7 +1571,7 @@ async function dispatchEndpoint(endpoint, payload, deps) {
       const deck = deckId === null ? await activeDeck(storeConfig) : readDeckOrNull(deckId, storeConfig)
       if (deck === null) return fail('deck_not_found', 'No deck has been saved yet')
       const theme = await themeFor(deck, config, storeConfig)
-      const repaired = repairDeck(deck, theme)
+      const repaired = repairDeck(deck, theme, budgetOptions(config))
       const outline = store.readDeckOutline(deck.deckId, storeConfig, theme)
       return ok({
         deck: repaired.deck,
@@ -1783,6 +1824,12 @@ async function dispatchEndpoint(endpoint, payload, deps) {
             templateId,
             styleId: typeof body.styleId === 'string' ? body.styleId : undefined,
             maxSlides: Number.isFinite(body.maxSlides) ? Number(body.maxSlides) : undefined,
+            // Per-request overrides. The same knobs live in the plugin config, but a
+            // caller that knows its material ("this report is 900 chars, keep it
+            // single-pass") must not have to edit the profile to say so.
+            slideCharBudget: Number.isFinite(body.slideCharBudget) ? Number(body.slideCharBudget) : undefined,
+            bulletCharBudget: Number.isFinite(body.bulletCharBudget) ? Number(body.bulletCharBudget) : undefined,
+            materialThreshold: Number.isFinite(body.materialThreshold) ? Number(body.materialThreshold) : undefined,
           },
           { ctx, config, storeConfig },
         )
@@ -1798,7 +1845,7 @@ async function dispatchEndpoint(endpoint, payload, deps) {
         return fail('invalid_body', 'Expected { deck }')
       }
       const theme = await themeFor(candidate, config, storeConfig)
-      const repaired = parseAndRepairDeck(candidate, theme)
+      const repaired = parseAndRepairDeck(candidate, theme, budgetOptions(config))
       if (!repaired.ok) {
         return fail('invalid_deck', 'The deck does not match the CardDeck schema', repaired.issues)
       }
@@ -1834,7 +1881,7 @@ async function dispatchEndpoint(endpoint, payload, deps) {
       const deck = deckId === null ? await activeDeck(storeConfig) : readDeckOrNull(deckId, storeConfig)
       if (deck === null) return fail('deck_not_found', 'No deck has been saved yet')
       const theme = await themeFor(deck, config, storeConfig)
-      const repaired = parseAndRepairDeck(deck, theme)
+      const repaired = parseAndRepairDeck(deck, theme, budgetOptions(config))
       if (!repaired.ok) {
         return fail('invalid_deck', 'The stored deck no longer matches the schema', repaired.issues)
       }
