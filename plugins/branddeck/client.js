@@ -103,6 +103,19 @@ window.__ModuleLoader__.load({
       'panel': '品牌演示',
       'appTitle': 'BrandDeck 品牌演示',
       'action.refresh': '刷新',
+      'view.switch': '切换视图',
+      'view.cards': '卡片视图',
+      'view.text': '文字视图',
+      'text.hint': '直接改文字即可；保存后按元素 id 回写，卡片里的位置与样式保持不变。',
+      'text.ariaLabel': '卡组文字版（Markdown）',
+      'text.loading': '读取文字版…',
+      'text.saving': '应用中…',
+      'text.dirty': '未应用',
+      'text.synced': '与卡片一致',
+      'text.failed': '应用失败',
+      'text.revert': '还原',
+      'text.apply': '保存并应用到卡片',
+      'text.applied': '已应用 · 修订 {revision} · 更新 {updated} 新增 {added} 删除 {removed}',
       'action.export': '导出 PPTX',
       'action.retry': '重试',
       'action.duplicateSlide': '+ 复制页',
@@ -166,6 +179,19 @@ window.__ModuleLoader__.load({
       'panel': 'BrandDeck',
       'appTitle': 'BrandDeck',
       'action.refresh': 'Refresh',
+      'view.switch': 'Switch view',
+      'view.cards': 'Cards',
+      'view.text': 'Text',
+      'text.hint': 'Edit the copy directly; saving maps it back by element id and keeps every card position and style.',
+      'text.ariaLabel': 'Deck text outline (Markdown)',
+      'text.loading': 'Loading text…',
+      'text.saving': 'Applying…',
+      'text.dirty': 'Not applied',
+      'text.synced': 'In sync with cards',
+      'text.failed': 'Apply failed',
+      'text.revert': 'Revert',
+      'text.apply': 'Save and apply to cards',
+      'text.applied': 'Applied · revision {revision} · updated {updated} added {added} removed {removed}',
       'action.export': 'Export PPTX',
       'action.retry': 'Retry',
       'action.duplicateSlide': '+ Duplicate slide',
@@ -1085,10 +1111,20 @@ window.__ModuleLoader__.load({
 
     const CSS_TEXT = `
 /* branddeck:stylesheet:start */
-.branddeck-root{display:flex;flex-direction:column;height:100%;min-height:0;overflow:hidden;font-size:13px;line-height:1.5;color:var(--dsw-alias-label-primary,#1B1F24);background:var(--dsw-alias-bg-base,#FFFFFF);font-family:inherit}
+.branddeck-root{--branddeck-font-mono:ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",Menlo,monospace;display:flex;flex-direction:column;height:100%;min-height:0;overflow:hidden;font-size:13px;line-height:1.5;color:var(--dsw-alias-label-primary,#1B1F24);background:var(--dsw-alias-bg-base,#FFFFFF);font-family:inherit}
 .branddeck-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 12px;border-bottom:.5px solid var(--dsw-alias-border-l2,#E3E6EA);background:var(--dsw-alias-bg-layer-1,#F7F8FA)}
 .branddeck-toolbar-title{font-size:14px;font-weight:600;margin-right:2px;white-space:nowrap}
 .branddeck-toolbar-spacer{flex:1 1 auto}
+.branddeck-viewtoggle{display:inline-flex;border:1px solid var(--dsw-alias-border-l2);border-radius:var(--branddeck-radius-sm,8px);overflow:hidden}
+.branddeck-viewtoggle-btn{appearance:none;border:0;background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;line-height:1;padding:6px 10px;cursor:pointer}
+.branddeck-viewtoggle-btn:hover{background:var(--dsw-alias-interactive-bg-hover)}
+.branddeck-viewtoggle-on{background:var(--dsw-alias-interactive-bg-active);color:var(--dsw-alias-label-primary);font-weight:600}
+.branddeck-textview{display:flex;flex-direction:column;gap:8px;flex:1 1 auto;min-height:0;padding:12px}
+.branddeck-textbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.branddeck-textbar-hint{font-size:12px;color:var(--dsw-alias-label-tertiary)}
+.branddeck-textarea{flex:1 1 auto;min-height:240px;width:100%;resize:none;box-sizing:border-box;padding:12px 14px;border-radius:var(--branddeck-radius-md,12px);border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);font-family:var(--branddeck-font-mono);font-size:12.5px;line-height:1.65;tab-size:2;white-space:pre-wrap}
+.branddeck-textarea:focus{outline:2px solid var(--dsw-alias-button-primary-fill);outline-offset:-1px}
+.branddeck-banner-ok{border-color:var(--dsw-alias-state-success-primary)}
 .branddeck-field{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--dsw-alias-label-secondary,#5B6470);white-space:nowrap}
 .branddeck-select{height:26px;max-width:220px;padding:0 6px;border-radius:6px;font-family:inherit;font-size:12px;color:var(--dsw-alias-label-primary,#1B1F24);background:var(--dsw-alias-bg-layer-2,#FFFFFF);border:.5px solid var(--dsw-alias-border-l3,#CFD4DA);outline:none}
 .branddeck-select:focus-visible{border-color:var(--dsw-alias-brand-primary,#247BBF)}
@@ -2087,10 +2123,164 @@ window.__ModuleLoader__.load({
       return node.isContentEditable === true
     }
 
+    /**
+     * The TEXT version of the deck (「文字版」).
+     *
+     * Looks like a document, edits like one, but round-trips through the Host:
+     * `outline.get` renders the Markdown twin of the deck, `outline.save` applies
+     * the edited text back onto the card JSON. Elements keep their geometry
+     * because the Host matches them by `{#id}`; new `### 角色 {#id}` blocks are
+     * auto-laid out in the safe area.
+     */
+    function TextView(props) {
+      const { deckId, t, disabled, onApplied } = props
+      const [markdown, setMarkdown] = React.useState('')
+      const [origin, setOrigin] = React.useState('')
+      const [status, setStatus] = React.useState('loading')
+      const [error, setError] = React.useState(null)
+      const [feedback, setFeedback] = React.useState(null)
+
+      const load = React.useCallback(() => {
+        if (typeof deckId !== 'string' || deckId.length === 0) {
+          setStatus('empty')
+          return
+        }
+        let alive = true
+        setStatus('loading')
+        setError(null)
+        callRpc('outline.get', { deckId }).then((result) => {
+          if (!alive) return
+          if (result.ok) {
+            const text = typeof result.value.markdown === 'string' ? result.value.markdown : ''
+            setMarkdown(text)
+            setOrigin(text)
+            setStatus('idle')
+            return
+          }
+          setError(readableError(result.error))
+          setStatus('error')
+        })
+        return () => {
+          alive = false
+        }
+      }, [deckId])
+
+      React.useEffect(() => load(), [load])
+
+      const dirty = markdown !== origin
+
+      async function apply() {
+        if (typeof deckId !== 'string' || deckId.length === 0) return
+        setStatus('saving')
+        setError(null)
+        const result = await callRpc('outline.save', { deckId, markdown })
+        if (!result.ok) {
+          setError(readableError(result.error))
+          setStatus('error')
+          return
+        }
+        const value = result.value ?? {}
+        const text = typeof value.markdown === 'string' ? value.markdown : markdown
+        setMarkdown(text)
+        setOrigin(text)
+        setStatus('idle')
+        const changes = value.changes ?? {}
+        setFeedback({
+          revision: value.revision ?? null,
+          updated: Number(changes.updated ?? 0),
+          added: Number(changes.added ?? 0),
+          removed: Number(changes.removed ?? 0),
+          warnings: Array.isArray(value.warnings) ? value.warnings : [],
+        })
+        if (typeof onApplied === 'function') onApplied()
+      }
+
+      if (status === 'empty') {
+        return h('div', { className: 'branddeck-textview' }, h('div', { className: 'branddeck-empty' }, t('empty.title')))
+      }
+
+      const statusText =
+        status === 'loading'
+          ? t('text.loading')
+          : status === 'saving'
+            ? t('text.saving')
+            : dirty
+              ? t('text.dirty')
+              : status === 'error'
+                ? t('text.failed')
+                : t('text.synced')
+
+      return h(
+        'div',
+        { className: 'branddeck-textview' },
+        h(
+          'div',
+          { className: 'branddeck-textbar' },
+          h('span', { className: 'branddeck-textbar-hint' }, t('text.hint')),
+          h('span', { className: 'branddeck-toolbar-spacer' }),
+          h('span', { className: `branddeck-save branddeck-save-${dirty ? 'dirty' : 'saved'}` }, statusText),
+          h(
+            'button',
+            {
+              type: 'button',
+              className: 'branddeck-btn',
+              disabled: status === 'loading' || status === 'saving' || !dirty,
+              onClick: () => {
+                setMarkdown(origin)
+                setFeedback(null)
+              },
+            },
+            t('text.revert'),
+          ),
+          h(
+            'button',
+            {
+              type: 'button',
+              className: 'branddeck-btn branddeck-btn-primary',
+              disabled: disabled || status === 'loading' || status === 'saving' || !dirty,
+              onClick: () => void apply(),
+            },
+            t('text.apply'),
+          ),
+        ),
+        error === null
+          ? null
+          : h('div', { className: 'branddeck-banner branddeck-banner-error' }, h('span', { className: 'branddeck-banner-text' }, error)),
+        feedback === null
+          ? null
+          : h(
+              'div',
+              { className: 'branddeck-banner branddeck-banner-ok' },
+              h(
+                'span',
+                { className: 'branddeck-banner-text' },
+                t('text.applied', {
+                  revision: String(feedback.revision ?? '—'),
+                  updated: feedback.updated,
+                  added: feedback.added,
+                  removed: feedback.removed,
+                }) + (feedback.warnings.length > 0 ? ` · ${feedback.warnings.slice(0, 3).join(' / ')}` : ''),
+              ),
+            ),
+        h('textarea', {
+          className: 'branddeck-textarea',
+          spellCheck: false,
+          value: markdown,
+          'aria-label': t('text.ariaLabel'),
+          onChange: (event) => {
+            setMarkdown(event.target.value)
+            setFeedback(null)
+          },
+        }),
+      )
+    }
+
     function DeckPanelBody() {
       const [state, dispatch] = React.useReducer(reducer, undefined, createInitialState)
       const [scale, setScale] = React.useState(computeScale(CANVAS.width))
       const [reloadToken, setReloadToken] = React.useState(0)
+      /* 「卡片视图」/「文字视图」 — two editable faces of the same deck. */
+      const [view, setView] = React.useState('cards')
 
       const rootRef = React.useRef(null)
       const stageRef = React.useRef(null)
@@ -2457,6 +2647,30 @@ window.__ModuleLoader__.load({
         h('span', { className: `branddeck-save branddeck-save-${state.saveState}` }, saveLabel),
         h('span', { className: 'branddeck-toolbar-spacer' }),
         h(
+          'div',
+          { className: 'branddeck-viewtoggle', role: 'group', 'aria-label': t('view.switch') },
+          h(
+            'button',
+            {
+              type: 'button',
+              className: `branddeck-viewtoggle-btn${view === 'cards' ? ' branddeck-viewtoggle-on' : ''}`,
+              'aria-pressed': view === 'cards',
+              onClick: () => setView('cards'),
+            },
+            t('view.cards'),
+          ),
+          h(
+            'button',
+            {
+              type: 'button',
+              className: `branddeck-viewtoggle-btn${view === 'text' ? ' branddeck-viewtoggle-on' : ''}`,
+              'aria-pressed': view === 'text',
+              onClick: () => setView('text'),
+            },
+            t('view.text'),
+          ),
+        ),
+        h(
           'button',
           { type: 'button', className: 'branddeck-btn', onClick: () => setReloadToken((token) => token + 1) },
           t('action.refresh'),
@@ -2615,7 +2829,15 @@ window.__ModuleLoader__.load({
         )
       }
 
-      const body = h(
+      const body =
+        view === 'text'
+          ? h(TextView, {
+              deckId: state.deck === null ? '' : state.deck.deckId,
+              t,
+              disabled: state.deck === null,
+              onApplied: () => setReloadToken((token) => token + 1),
+            })
+          : h(
         'div',
         { className: 'branddeck-body' },
         h(SlideRail, {
@@ -2646,7 +2868,6 @@ window.__ModuleLoader__.load({
           onDeleteElement: (id) => dispatch({ type: 'element/delete', id }),
         }),
       )
-
       const modal =
         state.exporting === true
           ? h(

@@ -234,7 +234,7 @@ check('uses the same-origin Host route only', () => {
 })
 
 check('uses only the documented RPC endpoints', () => {
-  const allowed = new Set(['state', 'decks.list', 'decks.get', 'decks.save', 'decks.create', 'export', 'templates.parse', 'templates.logo'])
+  const allowed = new Set(['state', 'decks.list', 'decks.get', 'decks.save', 'decks.create', 'export', 'templates.parse', 'templates.logo', 'outline.get', 'outline.save', 'decks.materialize', 'templates.spec'])
   const used = [...source.matchAll(/callRpc\('([^']+)'/g)].map((match) => match[1])
   assert(used.length > 0, 'no callRpc endpoint found')
   for (const endpoint of used) assert(allowed.has(endpoint), `invented endpoint "${endpoint}"`)

@@ -35,6 +35,7 @@ import { homedir } from 'node:os'
 import { join, dirname, resolve } from 'node:path'
 import { CardDeckSchema, ThemeTokensSchema } from './schema.js'
 import { DEFAULT_THEME, makeDefaultTheme } from './defaults.js'
+import { deckToOutline, applyOutline } from './outline.js'
 
 const SAFE_ID = /^[a-zA-Z0-9._-]{1,64}$/
 const STORE_DIRNAME = 'branddeck'
@@ -86,10 +87,31 @@ function templateDir(id, config = {}) {
 }
 
 /**
+ * Directory holding one deck's artefacts (`card.json` / `outline.md` / `meta.json`).
+ * @param {string} id
+ * @param {{root?: string, home?: string}} [config]
+ */
+function deckDir(id, config = {}) {
+  assertSafeId(id)
+  return join(storeRoot(config), 'decks', id)
+}
+
+/**
+ * Canonical card JSON inside the deck directory.
  * @param {string} id
  * @param {{root?: string, home?: string}} [config]
  */
 function deckFile(id, config = {}) {
+  assertSafeId(id)
+  return join(deckDir(id, config), 'card.json')
+}
+
+/**
+ * Pre-0.2 single-file deck location, still read so existing stores keep working.
+ * @param {string} id
+ * @param {{root?: string, home?: string}} [config]
+ */
+function legacyDeckFile(id, config = {}) {
   assertSafeId(id)
   return join(storeRoot(config), 'decks', `${id}.json`)
 }
@@ -293,6 +315,18 @@ export function writeTemplate(input, config = {}) {
 
   writeJsonAtomic(join(dir, 'theme.json'), theme)
 
+  // Reusable style sheet: the layouts inventory and the human-readable spec are
+  // written next to the tokens so the next run (or a reviewer) never has to
+  // re-derive them from the .pptx.
+  const layoutsInventory = input.layoutsInventory ?? null
+  if (layoutsInventory !== null && layoutsInventory !== undefined) {
+    writeJsonAtomic(join(dir, 'layouts.json'), layoutsInventory)
+  }
+  const hasSpec = typeof input.markdown === 'string' && input.markdown.trim().length > 0
+  if (hasSpec) {
+    writeFileAtomic(join(dir, 'template.md'), Buffer.from(/** @type {string} */ (input.markdown), 'utf8'))
+  }
+
   const media = Array.isArray(input.media)
     ? input.media.map((entry) => ({
         path: entry?.path ?? '',
@@ -308,6 +342,7 @@ export function writeTemplate(input, config = {}) {
     templateId,
     templateName: templateName.trim(),
     sourcePath: input.meta?.sourcePath ?? null,
+    sourceCopy: existsSync(join(dir, 'source.pptx')) ? 'source.pptx' : null,
     slideCount: Number.isFinite(input.meta?.slideCount) ? input.meta.slideCount : 0,
     masters: input.meta?.masters ?? null,
     layouts: input.meta?.layouts ?? null,
@@ -315,6 +350,8 @@ export function writeTemplate(input, config = {}) {
     slideSize: input.meta?.slideSize ?? null,
     raw: input.meta?.raw ?? null,
     hasLogo,
+    hasLayouts: layoutsInventory !== null && layoutsInventory !== undefined,
+    hasSpec,
     updatedAt: new Date().toISOString(),
     media,
   }
@@ -351,7 +388,18 @@ export function readTemplate(id, config = {}) {
   if (hasLogo) assets.logoPath = logoPath
   else delete assets.logoPath
   theme.brandAssets = assets
-  return { theme, meta, logoPath: hasLogo ? logoPath : null, hasLogo, dir }
+  const layoutsFile = join(dir, 'layouts.json')
+  const specFile = join(dir, 'template.md')
+  return {
+    theme,
+    meta,
+    logoPath: hasLogo ? logoPath : null,
+    hasLogo,
+    dir,
+    layouts: existsSync(layoutsFile) ? readJsonIfPresent(layoutsFile) : null,
+    markdown: existsSync(specFile) ? readFileSync(specFile, 'utf8') : null,
+    sourcePath: existsSync(join(dir, 'source.pptx')) ? join(dir, 'source.pptx') : null,
+  }
 }
 
 /**
@@ -408,6 +456,9 @@ export function summarizeTemplate(input) {
     updatedAt: meta.updatedAt ?? null,
     slideCount: Number.isFinite(meta.slideCount) ? meta.slideCount : 0,
     mediaCount: Array.isArray(meta.media) ? meta.media.length : 0,
+    ...(typeof meta.hasLayouts === 'boolean' ? { hasLayouts: meta.hasLayouts } : {}),
+    ...(typeof meta.hasSpec === 'boolean' ? { hasSpec: meta.hasSpec } : {}),
+    ...(typeof meta.sourceCopy === 'string' ? { sourceCopy: meta.sourceCopy } : {}),
   }
 }
 
@@ -425,12 +476,20 @@ export function summarizeTemplate(input) {
  */
 
 /**
- * Persist a deck (schema-validated).
+ * Persist a deck (schema-validated) as a **deck bundle**: the card JSON plus the
+ * editable text twin, a meta record and a revision snapshot.
+ *
+ * Why a directory instead of one JSON: generation is rarely one-shot — people
+ * adjust copy and layout over several rounds. Keeping `card.json` (geometry
+ * truth) next to `outline.md` (content truth) and `revisions/` (history) makes
+ * every round inspectable, diffable and reversible.
+ *
  * @param {import('./schema.js').CardDeck} deck
  * @param {{root?: string, home?: string}} [config]
+ * @param {{outline?: string, theme?: import('./schema.js').ThemeTokens, keepRevisions?: number, revisionReason?: string}} [options]
  * @returns {DeckSummary}
  */
-export function writeDeck(deck, config = {}) {
+export function writeDeck(deck, config = {}, options = {}) {
   const parsed = CardDeckSchema.safeParse(deck)
   if (!parsed.success) {
     const error = storeError(
@@ -446,9 +505,106 @@ export function writeDeck(deck, config = {}) {
     throw error
   }
   ensureStore(config)
-  const file = deckFile(parsed.data.deckId, config)
-  writeJsonAtomic(file, parsed.data)
-  return summarizeDeck(parsed.data, { updatedAt: mtimeIso(file) })
+  const id = parsed.data.deckId
+  const dir = deckDir(id, config)
+  mkdirSync(dir, { recursive: true })
+
+  const cardFile = deckFile(id, config)
+  writeJsonAtomic(cardFile, parsed.data)
+
+  const outline =
+    typeof options.outline === 'string'
+      ? options.outline
+      : deckToOutline(parsed.data, options.theme ?? makeDefaultTheme())
+  writeFileAtomic(join(dir, 'outline.md'), Buffer.from(outline, 'utf8'))
+
+  const metaPath = join(dir, 'meta.json')
+  const previous = readJsonIfPresent(metaPath) ?? {}
+  const revision = Number(previous.revision ?? 0) + 1
+  const updatedAt = mtimeIso(cardFile)
+  const baseMeta = {
+    deckId: id,
+    title: parsed.data.title,
+    templateId: parsed.data.templateId,
+    slideCount: parsed.data.slides.length,
+    revision,
+    updatedAt,
+    previousUpdatedAt: previous.updatedAt ?? null,
+    revisions: Array.isArray(previous.revisions) ? previous.revisions : [],
+  }
+
+  // Snapshot before bumping the counter so `revisions/0001` is the first saved state.
+  const snapshot = saveRevision(dir, previous, standardize(parsed.data), outline, updatedAt, options.revisionReason)
+  baseMeta.revisions = snapshot.entries
+  baseMeta.revision = snapshot.revision
+  writeJsonAtomic(metaPath, baseMeta)
+
+  // Legacy single-file location is removed so `listDecks` cannot show the deck twice.
+  const legacy = legacyDeckFile(id, config)
+  if (existsSync(legacy)) {
+    try {
+      unlinkSync(legacy)
+    } catch {
+      /* best effort */
+    }
+  }
+
+  return summarizeDeck(parsed.data, { updatedAt, revision: baseMeta.revision, dir })
+}
+
+/**
+ * Snapshot the current state into `revisions/NNNN-{card.json,outline.md}` and prune
+ * old generations. The counter comes from the meta record so ids never repeat.
+ * @param {string} dir
+ * @param {{revision?: number, revisions?: any[]}} previous
+ * @param {import('./schema.js').CardDeck} deck
+ * @param {string} outline
+ * @param {string | null} updatedAt
+ * @param {string | undefined} reason
+ * @param {number} [keep]
+ */
+function saveRevision(dir, previous, deck, outline, updatedAt, reason, keep = 20) {
+  const revisionsDir = join(dir, 'revisions')
+  mkdirSync(revisionsDir, { recursive: true })
+  const next = Number(previous.revision ?? 0) + 1
+  const stamp = String(next).padStart(4, '0')
+  writeJsonAtomic(join(revisionsDir, `${stamp}-card.json`), deck)
+  writeFileAtomic(join(revisionsDir, `${stamp}-outline.md`), Buffer.from(outline, 'utf8'))
+
+  /** @type {{revision: number, updatedAt: string | null, reason: string | null, card: string, outline: string}[]} */
+  const entries = [...(Array.isArray(previous.revisions) ? previous.revisions : [])]
+  entries.push({
+    revision: next,
+    updatedAt,
+    reason: typeof reason === 'string' && reason.length > 0 ? reason : null,
+    card: `revisions/${stamp}-card.json`,
+    outline: `revisions/${stamp}-outline.md`,
+  })
+
+  // Keep the newest `keep` generations; drop the oldest files to bound growth.
+  while (entries.length > keep) {
+    const dropped = entries.shift()
+    for (const rel of [dropped?.card, dropped?.outline]) {
+      if (typeof rel !== 'string') continue
+      const file = join(dir, rel)
+      if (existsSync(file)) {
+        try {
+          unlinkSync(file)
+        } catch {
+          /* best effort */
+        }
+      }
+    }
+  }
+  return { revision: next, entries }
+}
+
+/**
+ * Deep-clone a deck into plain JSON (revision snapshots must not alias the caller).
+ * @param {import('./schema.js').CardDeck} deck
+ */
+function standardize(deck) {
+  return JSON.parse(JSON.stringify(deck))
 }
 
 /**
@@ -457,9 +613,12 @@ export function writeDeck(deck, config = {}) {
  * @returns {import('./schema.js').CardDeck}
  */
 export function readDeck(id, config = {}) {
-  const file = deckFile(id, config)
-  if (!existsSync(file)) throw storeError('deck_not_found', `deck "${id}" not found`)
-  const deck = readJsonIfPresent(file)
+  const dir = deckDir(id, config)
+  const cardFile = deckFile(id, config)
+  const legacy = legacyDeckFile(id, config)
+  const source = existsSync(cardFile) ? cardFile : existsSync(legacy) ? legacy : null
+  if (source === null) throw storeError('deck_not_found', `deck "${id}" not found (${dir})`)
+  const deck = readJsonIfPresent(source)
   const parsed = CardDeckSchema.safeParse(deck)
   if (!parsed.success) {
     const error = storeError('invalid_deck', `stored deck "${id}" no longer matches CardDeckSchema`)
@@ -473,6 +632,94 @@ export function readDeck(id, config = {}) {
 }
 
 /**
+ * The editable text twin of a deck. Regenerated on demand for decks written by an
+ * older version that only had `card.json`.
+ * @param {string} id
+ * @param {{root?: string, home?: string}} [config]
+ * @param {import('./schema.js').ThemeTokens} [theme]
+ * @returns {{markdown: string, revision: number, updatedAt: string | null}}
+ */
+export function readDeckOutline(id, config = {}, theme) {
+  const dir = deckDir(id, config)
+  const outlineFile = join(dir, 'outline.md')
+  const meta = readJsonIfPresent(join(dir, 'meta.json')) ?? {}
+  if (existsSync(outlineFile)) {
+    return {
+      markdown: readFileSync(outlineFile, 'utf8'),
+      revision: Number(meta.revision ?? 0),
+      updatedAt: meta.updatedAt ?? null,
+    }
+  }
+  const deck = readDeck(id, config)
+  return {
+    markdown: deckToOutline(deck, theme ?? makeDefaultTheme()),
+    revision: Number(meta.revision ?? 0),
+    updatedAt: meta.updatedAt ?? null,
+  }
+}
+
+/**
+ * Apply edited outline text back onto the stored deck, then persist both twins.
+ * Geometry is preserved for every element the markdown still mentions.
+ * @param {string} id
+ * @param {string} markdown
+ * @param {{root?: string, home?: string}} [config]
+ * @param {{theme?: import('./schema.js').ThemeTokens, prune?: boolean}} [options]
+ * @returns {{deck: import('./schema.js').CardDeck, warnings: string[], changes: any, revision: number}}
+ */
+export function writeDeckOutline(id, markdown, config = {}, options = {}) {
+  const deck = readDeck(id, config)
+  const theme = options.theme ?? makeDefaultTheme()
+  const applied = applyOutline(markdown, deck, theme, { prune: options.prune === true })
+  const meta = writeDeck(applied.deck, config, {
+    outline: deckToOutline(applied.deck, theme),
+    theme,
+    revisionReason: 'outline edit',
+  })
+  return {
+    deck: readDeck(id, config),
+    warnings: applied.warnings,
+    changes: applied.changes,
+    revision: Number(meta.revision ?? 0),
+  }
+}
+
+/**
+ * Copy a deck bundle (card/outline/meta) into a user-chosen directory, e.g. the
+ * workspace, so it can be reviewed, diffed and committed with git.
+ * @param {string} id
+ * @param {string} targetDir
+ * @param {{root?: string, home?: string}} [config]
+ * @param {{theme?: import('./schema.js').ThemeTokens}} [options]
+ * @returns {{dir: string, files: string[]}}
+ */
+export function materializeDeck(id, targetDir, config = {}, options = {}) {
+  const deck = readDeck(id, config)
+  const theme = options.theme ?? makeDefaultTheme()
+  const dir = resolve(targetDir)
+  mkdirSync(dir, { recursive: true })
+  const outline = readDeckOutline(id, config, theme)
+  const files = []
+  writeJsonAtomic(join(dir, 'card.json'), deck)
+  files.push(join(dir, 'card.json'))
+  writeFileAtomic(join(dir, 'outline.md'), Buffer.from(outline.markdown, 'utf8'))
+  files.push(join(dir, 'outline.md'))
+  const meta = readJsonIfPresent(join(deckDir(id, config), 'meta.json')) ?? {}
+  writeJsonAtomic(join(dir, 'meta.json'), {
+    deckId: deck.deckId,
+    title: deck.title,
+    templateId: deck.templateId,
+    slideCount: deck.slides.length,
+    revision: Number(meta.revision ?? 0),
+    updatedAt: meta.updatedAt ?? null,
+    materializedAt: new Date().toISOString(),
+    note: 'card.json 是几何真相，outline.md 是文字真相；用 branddeck_outline_save 回写。',
+  })
+  files.push(join(dir, 'meta.json'))
+  return { dir, files }
+}
+
+/**
  * List decks, newest first (by file mtime).
  * @param {{root?: string, home?: string}} [config]
  * @returns {DeckSummary[]}
@@ -482,13 +729,27 @@ export function listDecks(config = {}) {
   if (!existsSync(decksDir)) return []
   /** @type {DeckSummary[]} */
   const summaries = []
+  /** @type {Set<string>} */
+  const seen = new Set()
+
   for (const entry of readdirSync(decksDir, { withFileTypes: true })) {
-    if (!entry.isFile() || !entry.name.endsWith('.json')) continue
-    const id = entry.name.slice(0, -'.json'.length)
-    if (!SAFE_ID.test(id) || id.includes('..')) continue
+    // New layout: one directory per deck. Legacy layout: one JSON file per deck.
+    const isDir = entry.isDirectory()
+    const id = isDir ? entry.name : entry.name.endsWith('.json') ? entry.name.slice(0, -'.json'.length) : ''
+    if (id === '' || !SAFE_ID.test(id) || id.includes('..')) continue
+    if (seen.has(id)) continue
+    seen.add(id)
     try {
       const deck = readDeck(id, config)
-      summaries.push(summarizeDeck(deck, { updatedAt: mtimeIso(join(decksDir, entry.name)) }))
+      const stampFile = isDir ? join(decksDir, id, 'card.json') : join(decksDir, entry.name)
+      const meta = isDir ? readJsonIfPresent(join(decksDir, id, 'meta.json')) : null
+      summaries.push(
+        summarizeDeck(deck, {
+          updatedAt: mtimeIso(stampFile),
+          revision: Number(meta?.revision ?? 0),
+          dir: join(decksDir, id),
+        }),
+      )
     } catch {
       // Skip unparsable decks instead of failing the whole listing.
     }
@@ -527,6 +788,8 @@ export function summarizeDeck(deck, extra = {}) {
     templateId: String(deck?.templateId ?? DEFAULT_THEME.templateId),
     slideCount: slides.length,
     updatedAt: extra.updatedAt ?? null,
+    ...(Number.isFinite(extra.revision) ? { revision: Number(extra.revision) } : {}),
+    ...(typeof extra.dir === 'string' ? { dir: extra.dir } : {}),
   }
 }
 
@@ -680,7 +943,7 @@ export function createDeck(input, config = {}) {
   }
 
   const storeConfig = input?.config ?? config
-  if (input?.persist === true) writeDeck(parsed.data, storeConfig)
+  if (input?.persist === true) writeDeck(parsed.data, storeConfig, { theme })
   return parsed.data
 }
 

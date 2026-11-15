@@ -58,6 +58,10 @@ plugin_manager install_bundle { "target": "D:\\Projects\\ai\\BrandDeck\\plugins\
 | `branddeck_deck_save` | `{ deck }` 校验 + 修复 + 落盘，返回 `warnings` |
 | `branddeck_deck_get` / `branddeck_deck_list` | 读回 / 列举 |
 | `branddeck_deck_export` | `{ deckId?, outputPath? }` 编译原生 `.pptx`（默认 `<cwd>/branddeck/<deckId>.pptx`） |
+| `branddeck_template_spec` | `{ templateId? }` 模板规格书（`template.md` + 版式清单） |
+| `branddeck_outline_get` | `{ deckId? }` 读文字版（Markdown 大纲） |
+| `branddeck_outline_save` | `{ deckId, markdown, prune? }` 文字版回写卡片（按 `{#id}` 保位保样式） |
+| `branddeck_deck_materialize` | `{ deckId?, dir? }` 把 card.json/outline.md/meta.json 落到工作区，便于 git review |
 
 系统提示段 `branddeck` 教会模型 DSL 规则：安全区 64px、右上 Logo 预留、单页正文 ≤150 字、
 SVG 仅允许纯矢量标签（禁 `foreignObject`/`script`）、流程图优先用 `svg`/`shape` 而非长文本。

@@ -11,6 +11,7 @@
  * engine modules under `src/`; this file only wires capabilities together.
  */
 import { mkdir, readFile } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
 import { join, resolve as resolvePath } from 'node:path'
 
 import { DEFAULT_THEME } from './src/defaults.js'
@@ -33,12 +34,16 @@ export const inject = ['tools']
 export const TOOL_NAMES = Object.freeze({
   templateParse: 'branddeck_template_parse',
   templateList: 'branddeck_template_list',
+  templateSpec: 'branddeck_template_spec',
   themeGet: 'branddeck_theme_get',
   deckCreate: 'branddeck_deck_create',
   deckSave: 'branddeck_deck_save',
   deckGet: 'branddeck_deck_get',
   deckList: 'branddeck_deck_list',
   deckExport: 'branddeck_deck_export',
+  outlineGet: 'branddeck_outline_get',
+  outlineSave: 'branddeck_outline_save',
+  deckMaterialize: 'branddeck_deck_materialize',
 })
 
 const PROMPT_ORDER = 2650
@@ -261,6 +266,9 @@ function registerTools(ctx, config, storeConfig) {
           meta: parsed.meta,
           media: parsed.media,
           sourcePath: templatePath,
+          sourceBytes: bytes,
+          layoutsInventory: parsed.layouts ?? null,
+          markdown: parsed.markdown ?? null,
         },
         storeConfig,
       )
@@ -311,6 +319,38 @@ function registerTools(ctx, config, storeConfig) {
         return { value: { ok: true, theme: template.theme, source: 'template' } }
       } catch {
         return { value: { ok: true, theme: DEFAULT_THEME, source: 'default' } }
+      }
+    },
+  )
+
+  register(
+    TOOL_NAMES.templateSpec,
+    'Read the formatted, reusable spec of a parsed template: a Markdown brand sheet (palette, fonts, page size, layout list, logo, media) plus the layouts inventory (masters/layouts/placeholder geometry). Re-parses the stored source copy automatically when an older template lacks it.',
+    {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        templateId: {
+          type: 'string',
+          description: 'Template id from branddeck_template_list; omit for the default/most recent template.',
+        },
+      },
+    },
+    async (args) => {
+      const templates = await store.listTemplates(storeConfig)
+      const templateId = args.templateId ?? config.defaultTemplateId ?? templates[0]?.templateId
+      if (templateId === undefined) return { value: fail('template_not_found', 'No template has been parsed yet') }
+      const resolved = await ensureTemplateDoc(templateId, storeConfig)
+      if (resolved === null) return { value: fail('template_not_found', `template "${templateId}" not found`) }
+      return {
+        value: {
+          ok: true,
+          templateId,
+          templateName: resolved.theme.templateName,
+          hasLayouts: resolved.layouts !== null,
+          markdown: resolved.markdown,
+          layouts: resolved.layouts,
+        },
       }
     },
   )
@@ -479,11 +519,163 @@ function registerTools(ctx, config, storeConfig) {
       }
     },
   )
+
+  register(
+    TOOL_NAMES.outlineGet,
+    'Read the editable TEXT version of a deck (Markdown outline: slide headings, text elements as `### 角色 {#id}`, speaker notes). This is the cheap surface to revise copy on; geometry lives in the card JSON and is preserved when you save it back.',
+    {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        deckId: { type: 'string', description: 'Deck id; omit for the most recently saved deck.' },
+      },
+    },
+    async (args) => {
+      const deck =
+        args.deckId === undefined
+          ? await activeDeck(storeConfig)
+          : readDeckOrNull(args.deckId, storeConfig)
+      if (deck === null) return { value: fail('deck_not_found', 'No deck has been saved yet') }
+      const theme = await themeFor(deck, config, storeConfig)
+      const outline = store.readDeckOutline(deck.deckId, storeConfig, theme)
+      return {
+        value: {
+          ok: true,
+          deckId: deck.deckId,
+          revision: outline.revision,
+          updatedAt: outline.updatedAt,
+          markdown: outline.markdown,
+        },
+      }
+    },
+  )
+
+  register(
+    TOOL_NAMES.outlineSave,
+    'Apply an edited TEXT version of a deck back onto the card version. Text elements matched by {#id} keep their exact position and style; new `### 角色 {#new-id}` blocks are auto-laid out in the safe area; graphics/charts/SVG are untouched. Returns per-element changes and warnings.',
+    {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        deckId: { type: 'string', description: 'Deck id to update.' },
+        markdown: { type: 'string', description: 'The complete outline Markdown (as returned by branddeck_outline_get, edited).' },
+        prune: {
+          type: 'boolean',
+          description: 'Remove text elements missing from the Markdown (default false: they are kept).',
+        },
+      },
+      required: ['deckId', 'markdown'],
+    },
+    async (args) => {
+      const existing = readDeckOrNull(args.deckId, storeConfig)
+      if (existing === null) return { value: fail('deck_not_found', `deck "${args.deckId}" not found`) }
+      const theme = await themeFor(existing, config, storeConfig)
+      const applied = store.writeDeckOutline(args.deckId, args.markdown, storeConfig, {
+        theme,
+        prune: args.prune === true,
+      })
+      return {
+        value: {
+          ok: true,
+          deckId: applied.deck.deckId,
+          revision: applied.revision,
+          changes: applied.changes,
+          warnings: applied.warnings,
+        },
+      }
+    },
+  )
+
+  register(
+    TOOL_NAMES.deckMaterialize,
+    'Write the deck bundle (card.json + outline.md + meta.json) into a visible directory — e.g. the workspace — so the user can review, diff and commit both the card and text versions with git.',
+    {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        deckId: { type: 'string', description: 'Deck id; omit for the most recently saved deck.' },
+        dir: {
+          type: 'string',
+          description: 'Target directory. Relative paths resolve against the session working directory. Defaults to <cwd>/branddeck/<deckId>.',
+        },
+      },
+    },
+    async (args, exec) => {
+      const deck =
+        args.deckId === undefined
+          ? await activeDeck(storeConfig)
+          : readDeckOrNull(args.deckId, storeConfig)
+      if (deck === null) return { value: fail('deck_not_found', 'No deck has been saved yet') }
+      const theme = await themeFor(deck, config, storeConfig)
+      const cwd = workspaceOf(exec)
+      const dir =
+        typeof args.dir === 'string' && args.dir.trim() !== ''
+          ? resolvePath(cwd, args.dir)
+          : resolvePath(cwd, 'branddeck', deck.deckId)
+      const result = store.materializeDeck(deck.deckId, dir, storeConfig, { theme })
+      return { value: { ok: true, dir: result.dir, files: result.files, deckId: deck.deckId } }
+    },
+  )
 }
 
 async function firstTemplateId(storeConfig) {
   const templates = await store.listTemplates(storeConfig)
   return templates[0]?.templateId
+}
+
+/**
+ * Read a template's formatted spec, back-filling `layouts.json` / `template.md`
+ * for templates parsed by an older version.
+ *
+ * This is the "next time you can use it directly" guarantee: the spec is derived
+ * once, stored next to `theme.json`, and only re-derived when it is missing and a
+ * `source.pptx` copy exists.
+ *
+ * @param {string} templateId
+ * @param {{root?: string}} storeConfig
+ * @returns {Promise<{theme: any, layouts: any, markdown: string | null} | null>}
+ */
+async function ensureTemplateDoc(templateId, storeConfig) {
+  let template
+  try {
+    template = await store.readTemplate(templateId, storeConfig)
+  } catch {
+    return null
+  }
+  if (template.markdown !== null && template.layouts !== null) {
+    return { theme: template.theme, layouts: template.layouts, markdown: template.markdown }
+  }
+  const source = template.sourcePath ?? template.meta?.sourcePath ?? null
+  if (source === null || !existsSync(source)) {
+    return { theme: template.theme, layouts: template.layouts, markdown: template.markdown }
+  }
+  try {
+    const parsed = await parsePptxTemplate({
+      path: source,
+      templateId,
+      templateName: template.theme.templateName,
+      storeConfig,
+    })
+    await store.writeTemplate(
+      {
+        templateId,
+        templateName: parsed.theme.templateName,
+        tokens: parsed.theme,
+        logoBytes: parsed.logoBytes,
+        meta: parsed.meta,
+        media: parsed.media,
+        sourceBytes: await readFile(source),
+        sourcePath: source,
+        layoutsInventory: parsed.layouts ?? null,
+        markdown: parsed.markdown ?? null,
+      },
+      storeConfig,
+    )
+    const refreshed = await store.readTemplate(templateId, storeConfig)
+    return { theme: refreshed.theme, layouts: refreshed.layouts, markdown: refreshed.markdown }
+  } catch {
+    return { theme: template.theme, layouts: template.layouts, markdown: template.markdown }
+  }
 }
 
 /** Logo bytes for a theme, or null when the template had no master logo. */
@@ -547,11 +739,17 @@ const PROMPT_TEXT = `## BrandDeck（品牌演示卡组）
 不要手写 pptxgenjs 脚本，也不要直接改 .pptx 文件。
 
 工作流：
-1. 模板：${TOOL_NAMES.templateParse} { path } —— 从企业 .pptx 模板提取品牌色板、中英文字体与母版 Logo。（已解析过就跳过，用 ${TOOL_NAMES.templateList} 查看）
+1. 模板：${TOOL_NAMES.templateParse} { path } —— 从企业 .pptx 模板提取品牌色板、中英文字体与母版 Logo，
+   并一次性格式化为 theme.json（令牌）+ layouts.json（版式）+ template.md（规格书）+ source.pptx（原件副本）。
+   （解析过就跳过；用 ${TOOL_NAMES.templateList} 查看，用 ${TOOL_NAMES.templateSpec} 读规格书。）
 2. 对齐品牌：${TOOL_NAMES.themeGet} { templateId } —— 拿到 colors/fonts，写元素时用 "$colors.primary" 这类令牌，不要硬编码颜色。
 3. 建卡组：${TOOL_NAMES.deckCreate} { title, templateId }。
 4. 写内容：${TOOL_NAMES.deckSave} { deck } —— 一次提交整份 deck；返回的 warnings 必须处理（溢出/越界/图表长度不匹配）。
-5. 导出：${TOOL_NAMES.deckExport} { deckId, outputPath }。
+5. 改文案优先用文字版，比重发整份 JSON 便宜且不动版式：
+   ${TOOL_NAMES.outlineGet} { deckId } 读 Markdown 大纲 → 改文字 → ${TOOL_NAMES.outlineSave} { deckId, markdown } 回写。
+   元素用 {#id} 锚定，位置与样式保持不变；新增一条「### 正文 {#新id}」会自动排版进安全区。
+6. 需要让用户 review / 进 git 时：${TOOL_NAMES.deckMaterialize} { deckId, dir } —— 落出 card.json + outline.md + meta.json。
+7. 导出：${TOOL_NAMES.deckExport} { deckId, outputPath }。
 
 卡组 DSL（虚拟画布 ${CANVAS.width}×${CANVAS.height}，px）：
 - 安全区：上下左右各 ${SAFE_AREA.top}px；右上角预留 Logo 区，避免把标题放进去。
@@ -732,7 +930,80 @@ async function dispatchEndpoint(endpoint, payload, deps) {
       if (deck === null) return fail('deck_not_found', 'No deck has been saved yet')
       const theme = await themeFor(deck, config, storeConfig)
       const repaired = repairDeck(deck, theme)
-      return ok({ deck: repaired.deck, theme, warnings: repaired.warnings, decks })
+      const outline = store.readDeckOutline(deck.deckId, storeConfig, theme)
+      return ok({
+        deck: repaired.deck,
+        theme,
+        warnings: repaired.warnings,
+        decks,
+        outline: outline.markdown,
+        revision: outline.revision,
+        updatedAt: outline.updatedAt,
+      })
+    }
+
+    case 'outline.get': {
+      const deckId = typeof body.deckId === 'string' && body.deckId !== '' ? body.deckId : null
+      const deck = deckId === null ? await activeDeck(storeConfig) : readDeckOrNull(deckId, storeConfig)
+      if (deck === null) return fail('deck_not_found', 'No deck has been saved yet')
+      const theme = await themeFor(deck, config, storeConfig)
+      const outline = store.readDeckOutline(deck.deckId, storeConfig, theme)
+      return ok({
+        deckId: deck.deckId,
+        markdown: outline.markdown,
+        revision: outline.revision,
+        updatedAt: outline.updatedAt,
+      })
+    }
+
+    case 'outline.save': {
+      const deckId = typeof body.deckId === 'string' && body.deckId !== '' ? body.deckId : null
+      if (deckId === null) return fail('invalid_body', 'Expected { deckId, markdown }')
+      if (typeof body.markdown !== 'string') return fail('invalid_body', 'Expected { deckId, markdown }')
+      const existing = readDeckOrNull(deckId, storeConfig)
+      if (existing === null) return fail('deck_not_found', `deck "${deckId}" not found`)
+      const theme = await themeFor(existing, config, storeConfig)
+      const applied = store.writeDeckOutline(deckId, body.markdown, storeConfig, {
+        theme,
+        prune: body.prune === true,
+      })
+      const outline = store.readDeckOutline(deckId, storeConfig, theme)
+      return ok({
+        deck: applied.deck,
+        theme,
+        markdown: outline.markdown,
+        revision: applied.revision,
+        changes: applied.changes,
+        warnings: applied.warnings,
+      })
+    }
+
+    case 'decks.materialize': {
+      const deckId = typeof body.deckId === 'string' && body.deckId !== '' ? body.deckId : null
+      const deck = deckId === null ? await activeDeck(storeConfig) : readDeckOrNull(deckId, storeConfig)
+      if (deck === null) return fail('deck_not_found', 'No deck has been saved yet')
+      const theme = await themeFor(deck, config, storeConfig)
+      const target =
+        typeof body.dir === 'string' && body.dir.trim() !== ''
+          ? resolvePath(body.dir)
+          : join(store.storeRoot(storeConfig), 'decks', deck.deckId)
+      const result = store.materializeDeck(deck.deckId, target, storeConfig, { theme })
+      return ok({ dir: result.dir, files: result.files, deckId: deck.deckId })
+    }
+
+    case 'templates.spec': {
+      const templates = await store.listTemplates(storeConfig)
+      const requested = typeof body.templateId === 'string' && body.templateId !== '' ? body.templateId : null
+      const templateId = requested ?? config.defaultTemplateId ?? templates[0]?.templateId ?? null
+      if (templateId === null) return fail('template_not_found', 'No template has been parsed yet')
+      const resolved = await ensureTemplateDoc(templateId, storeConfig)
+      if (resolved === null) return fail('template_not_found', `template "${templateId}" not found`)
+      return ok({
+        templateId,
+        templateName: resolved.theme.templateName,
+        markdown: resolved.markdown,
+        layouts: resolved.layouts,
+      })
     }
 
     case 'decks.save': {
@@ -750,8 +1021,14 @@ async function dispatchEndpoint(endpoint, payload, deps) {
         deckId: repaired.deck.deckId || slugify(repaired.deck.title ?? 'deck'),
         templateId: repaired.deck.templateId || theme.templateId,
       }
-      await store.writeDeck(normalized, storeConfig)
-      return ok({ deck: normalized, theme, warnings: repaired.warnings })
+      const saved = await store.writeDeck(normalized, storeConfig, { theme })
+      return ok({
+        deck: normalized,
+        theme,
+        warnings: repaired.warnings,
+        revision: Number(saved?.revision ?? 0),
+        updatedAt: saved?.updatedAt ?? null,
+      })
     }
 
     case 'decks.create': {
@@ -829,6 +1106,9 @@ async function dispatchEndpoint(endpoint, payload, deps) {
           meta: parsed.meta,
           media: parsed.media,
           sourcePath: absolute,
+          sourceBytes: bytes,
+          layoutsInventory: parsed.layouts ?? null,
+          markdown: parsed.markdown ?? null,
         },
         storeConfig,
       )

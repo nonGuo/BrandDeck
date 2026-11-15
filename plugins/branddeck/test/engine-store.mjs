@@ -225,10 +225,16 @@ await test('writeDeck/readDeck/listDecks/deleteDeck: CRUD round trip, newest fir
   await new Promise((done) => setTimeout(done, 20)) // ensure a distinct mtime
   writeDeck(second, { root: ROOT })
 
-  assert(existsSync(join(ROOT, 'decks', 'first-deck.json')), 'deck file written')
+  // A deck is a bundle directory: card.json (geometry) + outline.md (text) + meta.json.
+  const firstDir = join(ROOT, 'decks', 'first-deck')
+  assert(existsSync(join(firstDir, 'card.json')), 'deck card.json written')
+  assert(existsSync(join(firstDir, 'outline.md')), 'deck outline.md written')
+  assert(existsSync(join(firstDir, 'meta.json')), 'deck meta.json written')
+  assert(existsSync(join(firstDir, 'revisions', '0001-card.json')), 'revision snapshot written')
   assertEqual(readDeck('first-deck', { root: ROOT }).title, 'First Deck', 'readDeck returns the deck')
   const listed = listDecks({ root: ROOT })
   assertEqual(listed.map((entry) => entry.deckId), ['second-deck', 'first-deck'], 'newest first')
+  assertEqual(listed[1].revision, 1, 'summary carries the revision')
   assertEqual(summarizeDeck(first, { updatedAt: 'x' }).slideCount, 1, 'summarizeDeck')
 
   assertEqual(deleteDeck('first-deck', { root: ROOT }), true, 'deleteDeck removes an existing deck')
@@ -255,8 +261,9 @@ await test('createDeck({persist:true}) writes the deck and nothing escapes the s
   }
   walk(ROOT)
   const files = readdirSync(join(ROOT, 'decks'))
-  assert(files.every((name) => name.endsWith('.json')), 'decks/ holds only .json files')
-  return `${files.length} deck file(s)`
+  // One directory per deck (the legacy single-file layout is gone).
+  assert(files.every((name) => !name.endsWith('.json')), 'decks/ holds no loose .json files')
+  return `${files.length} deck dir(s)`
 })
 
 await test('summarizeTemplate/summarizeDeck: stable shapes for the HTTP API', () => {

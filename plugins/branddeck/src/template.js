@@ -164,11 +164,34 @@ export async function parsePptxTemplate(input = {}) {
     notes: raw.notes,
   }
 
+  // Format the template once, here: the layouts inventory + a human-readable spec
+  // are stored next to the tokens so a later run never re-derives them.
+  //
+  // The spec builder is loaded lazily and optionally: the spec is a convenience
+  // artefact, and a missing/broken builder must never take the whole plugin down
+  // (a static import would fail module evaluation for every caller).
+  let doc = { markdown: null, layouts: null }
+  try {
+    const builder = await import('./template-doc.js')
+    doc = builder.buildTemplateDoc({
+      pkg,
+      structure,
+      theme: restoreExtraAssets(checked.data, logo, logoPath),
+      meta,
+      media,
+    })
+  } catch (error) {
+    // A spec problem must never fail template parsing: the tokens are the contract.
+    meta.specError = error instanceof Error ? error.message : String(error)
+  }
+
   return {
     theme: restoreExtraAssets(checked.data, logo, logoPath),
     logoBytes: logo === null ? null : logo.buffer,
     meta,
     media,
+    layouts: doc.layouts ?? null,
+    markdown: doc.markdown ?? null,
     raw: { ...raw, themePart: structure.themePart },
   }
 }
