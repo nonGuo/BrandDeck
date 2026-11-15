@@ -1,0 +1,10 @@
+{
+  "deckId": "branddeck10pptx",
+  "title": "BrandDeck 工程实现详解：从一句话到10页可编辑pptx",
+  "templateId": "ppt-hw",
+  "slideCount": 15,
+  "revision": 1,
+  "updatedAt": "2026-11-15T21:22:24.693Z",
+  "materializedAt": "2026-11-15T21:24:11.478Z",
+  "note": "card.json 是几何真相，outline.md 是文字真相；用 branddeck_outline_save 回写。"
+}

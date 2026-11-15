@@ -1,0 +1,1924 @@
+{
+  "deckId": "branddeck10pptx",
+  "title": "BrandDeck 工程实现详解：从一句话到10页可编辑pptx",
+  "templateId": "ppt-hw",
+  "slides": [
+    {
+      "slideId": "s1",
+      "title": "BrandDeck 工程实现详解：从一句话到10页可编辑pptx",
+      "kind": "cover",
+      "background": "#FFFFFF",
+      "elements": [
+        {
+          "type": "shape",
+          "id": "s1-bar-1",
+          "x": 64,
+          "y": 224,
+          "w": 8,
+          "h": 189,
+          "shapeType": "rect",
+          "style": {
+            "fill": "#C7000A"
+          }
+        },
+        {
+          "type": "text",
+          "id": "s1-title-1",
+          "x": 98,
+          "y": 232,
+          "w": 952,
+          "h": 173,
+          "role": "title",
+          "content": "BrandDeck 工程实现详解：从一句话到10页可编辑pptx",
+          "style": {
+            "fontSize": 64,
+            "bold": true,
+            "color": "#1D1D1A",
+            "align": "left"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s1-rule-1",
+          "x": 98,
+          "y": 439,
+          "w": 952,
+          "h": 2,
+          "shapeType": "line",
+          "style": {
+            "stroke": "#EBEBEB",
+            "strokeWidth": 2
+          }
+        }
+      ]
+    },
+    {
+      "slideId": "s2",
+      "title": "目录",
+      "kind": "toc",
+      "background": "#FFFFFF",
+      "elements": [
+        {
+          "type": "text",
+          "id": "s2-title-1",
+          "x": 64,
+          "y": 64,
+          "w": 986,
+          "h": 54,
+          "role": "title",
+          "content": "目录",
+          "style": {
+            "fontSize": 40,
+            "bold": true,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s2-bar-1",
+          "x": 64,
+          "y": 132,
+          "w": 96,
+          "h": 6,
+          "shapeType": "rect",
+          "style": {
+            "fill": "#C7000A"
+          }
+        },
+        {
+          "type": "text",
+          "id": "s2-caption-1",
+          "x": 64,
+          "y": 262,
+          "w": 56,
+          "h": 49,
+          "role": "caption",
+          "content": "01",
+          "style": {
+            "fontSize": 20,
+            "bold": true,
+            "color": "#666666",
+            "valign": "middle"
+          }
+        },
+        {
+          "type": "text",
+          "id": "s2-subtitle-1",
+          "x": 120,
+          "y": 262,
+          "w": 1040,
+          "h": 49,
+          "role": "subtitle",
+          "content": "全景结论",
+          "style": {
+            "fontSize": 26,
+            "color": "#1D1D1A",
+            "valign": "middle"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s2-toc-rule-1",
+          "x": 120,
+          "y": 305,
+          "w": 1016,
+          "h": 2,
+          "shapeType": "line",
+          "style": {
+            "stroke": "#EBEBEB",
+            "strokeWidth": 2
+          }
+        },
+        {
+          "type": "text",
+          "id": "s2-body-1",
+          "x": 1160,
+          "y": 262,
+          "w": 56,
+          "h": 49,
+          "role": "body",
+          "content": "3",
+          "style": {
+            "fontSize": 26,
+            "color": "#666666",
+            "align": "right",
+            "valign": "middle"
+          }
+        },
+        {
+          "type": "text",
+          "id": "s2-caption-2",
+          "x": 64,
+          "y": 311,
+          "w": 56,
+          "h": 49,
+          "role": "caption",
+          "content": "02",
+          "style": {
+            "fontSize": 20,
+            "bold": true,
+            "color": "#666666",
+            "valign": "middle"
+          }
+        },
+        {
+          "type": "text",
+          "id": "s2-subtitle-2",
+          "x": 120,
+          "y": 311,
+          "w": 1040,
+          "h": 49,
+          "role": "subtitle",
+          "content": "生成链路",
+          "style": {
+            "fontSize": 26,
+            "color": "#1D1D1A",
+            "valign": "middle"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s2-toc-rule-2",
+          "x": 120,
+          "y": 354,
+          "w": 1016,
+          "h": 2,
+          "shapeType": "line",
+          "style": {
+            "stroke": "#EBEBEB",
+            "strokeWidth": 2
+          }
+        },
+        {
+          "type": "text",
+          "id": "s2-body-2",
+          "x": 1160,
+          "y": 311,
+          "w": 56,
+          "h": 49,
+          "role": "body",
+          "content": "6",
+          "style": {
+            "fontSize": 26,
+            "color": "#666666",
+            "align": "right",
+            "valign": "middle"
+          }
+        },
+        {
+          "type": "text",
+          "id": "s2-caption-3",
+          "x": 64,
+          "y": 360,
+          "w": 56,
+          "h": 49,
+          "role": "caption",
+          "content": "03",
+          "style": {
+            "fontSize": 20,
+            "bold": true,
+            "color": "#666666",
+            "valign": "middle"
+          }
+        },
+        {
+          "type": "text",
+          "id": "s2-subtitle-3",
+          "x": 120,
+          "y": 360,
+          "w": 1040,
+          "h": 49,
+          "role": "subtitle",
+          "content": "数据与版式",
+          "style": {
+            "fontSize": 26,
+            "color": "#1D1D1A",
+            "valign": "middle"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s2-toc-rule-3",
+          "x": 120,
+          "y": 403,
+          "w": 1016,
+          "h": 2,
+          "shapeType": "line",
+          "style": {
+            "stroke": "#EBEBEB",
+            "strokeWidth": 2
+          }
+        },
+        {
+          "type": "text",
+          "id": "s2-body-3",
+          "x": 1160,
+          "y": 360,
+          "w": 56,
+          "h": 49,
+          "role": "body",
+          "content": "9",
+          "style": {
+            "fontSize": 26,
+            "color": "#666666",
+            "align": "right",
+            "valign": "middle"
+          }
+        },
+        {
+          "type": "text",
+          "id": "s2-caption-4",
+          "x": 64,
+          "y": 409,
+          "w": 56,
+          "h": 49,
+          "role": "caption",
+          "content": "04",
+          "style": {
+            "fontSize": 20,
+            "bold": true,
+            "color": "#666666",
+            "valign": "middle"
+          }
+        },
+        {
+          "type": "text",
+          "id": "s2-subtitle-4",
+          "x": 120,
+          "y": 409,
+          "w": 1040,
+          "h": 49,
+          "role": "subtitle",
+          "content": "边界与目标",
+          "style": {
+            "fontSize": 26,
+            "color": "#1D1D1A",
+            "valign": "middle"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s2-toc-rule-4",
+          "x": 120,
+          "y": 452,
+          "w": 1016,
+          "h": 2,
+          "shapeType": "line",
+          "style": {
+            "stroke": "#EBEBEB",
+            "strokeWidth": 2
+          }
+        },
+        {
+          "type": "text",
+          "id": "s2-body-4",
+          "x": 1160,
+          "y": 409,
+          "w": 56,
+          "h": 49,
+          "role": "body",
+          "content": "12",
+          "style": {
+            "fontSize": 26,
+            "color": "#666666",
+            "align": "right",
+            "valign": "middle"
+          }
+        }
+      ]
+    },
+    {
+      "slideId": "s3",
+      "title": "全景结论",
+      "kind": "section",
+      "background": "#FFFFFF",
+      "elements": [
+        {
+          "type": "text",
+          "id": "s3-title-1",
+          "x": 64,
+          "y": 294,
+          "w": 1152,
+          "h": 71,
+          "role": "title",
+          "content": "全景结论",
+          "style": {
+            "fontSize": 52,
+            "bold": true,
+            "color": "#1D1D1A",
+            "align": "center",
+            "valign": "middle"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s3-rule-1",
+          "x": 580,
+          "y": 397,
+          "w": 120,
+          "h": 6,
+          "shapeType": "rect",
+          "style": {
+            "fill": "#C7000A"
+          }
+        }
+      ]
+    },
+    {
+      "slideId": "s4",
+      "title": "企业合规演示平均5天，BrandDeck瞄准半小时",
+      "kind": "bullets",
+      "background": "#FFFFFF",
+      "speakerNotes": "企业做合规演示平均花5天，多数时间用于找模板、调字体和修版式。BrandDeck的目标是让80%的常规演示从5天变成半小时，不取代设计师做那20%的精品；实测一句话可产出10页卡组。",
+      "elements": [
+        {
+          "type": "text",
+          "id": "s4-title-1",
+          "x": 64,
+          "y": 64,
+          "w": 986,
+          "h": 54,
+          "role": "title",
+          "content": "企业合规演示平均5天，BrandDeck瞄准半小时",
+          "style": {
+            "fontSize": 40,
+            "bold": true,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s4-bar-1",
+          "x": 64,
+          "y": 132,
+          "w": 96,
+          "h": 6,
+          "shapeType": "rect",
+          "style": {
+            "fill": "#C7000A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s4-marker-1",
+          "x": 64,
+          "y": 238,
+          "w": 8,
+          "h": 8,
+          "shapeType": "roundRect",
+          "style": {
+            "fill": "#C7000A",
+            "radius": 4
+          }
+        },
+        {
+          "type": "text",
+          "id": "s4-body-1",
+          "x": 94,
+          "y": 220,
+          "w": 1122,
+          "h": 44,
+          "role": "body",
+          "content": "平均耗时5天",
+          "style": {
+            "fontSize": 32,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s4-marker-2",
+          "x": 64,
+          "y": 314,
+          "w": 8,
+          "h": 8,
+          "shapeType": "roundRect",
+          "style": {
+            "fill": "#C7000A",
+            "radius": 4
+          }
+        },
+        {
+          "type": "text",
+          "id": "s4-body-2",
+          "x": 94,
+          "y": 296,
+          "w": 1122,
+          "h": 44,
+          "role": "body",
+          "content": "80%常规演示目标",
+          "style": {
+            "fontSize": 32,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s4-marker-3",
+          "x": 64,
+          "y": 390,
+          "w": 8,
+          "h": 8,
+          "shapeType": "roundRect",
+          "style": {
+            "fill": "#C7000A",
+            "radius": 4
+          }
+        },
+        {
+          "type": "text",
+          "id": "s4-body-3",
+          "x": 94,
+          "y": 372,
+          "w": 1122,
+          "h": 44,
+          "role": "body",
+          "content": "压缩到半小时",
+          "style": {
+            "fontSize": 32,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s4-marker-4",
+          "x": 64,
+          "y": 466,
+          "w": 8,
+          "h": 8,
+          "shapeType": "roundRect",
+          "style": {
+            "fill": "#C7000A",
+            "radius": 4
+          }
+        },
+        {
+          "type": "text",
+          "id": "s4-body-4",
+          "x": 94,
+          "y": 448,
+          "w": 1122,
+          "h": 44,
+          "role": "body",
+          "content": "20%精品留给设计师",
+          "style": {
+            "fontSize": 32,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s4-marker-5",
+          "x": 64,
+          "y": 542,
+          "w": 8,
+          "h": 8,
+          "shapeType": "roundRect",
+          "style": {
+            "fill": "#C7000A",
+            "radius": 4
+          }
+        },
+        {
+          "type": "text",
+          "id": "s4-body-5",
+          "x": 94,
+          "y": 524,
+          "w": 1122,
+          "h": 44,
+          "role": "body",
+          "content": "实测一句话10页",
+          "style": {
+            "fontSize": 32,
+            "color": "#1D1D1A"
+          }
+        }
+      ]
+    },
+    {
+      "slideId": "s5",
+      "title": "BrandDeck是Harness插件，输出原生可编辑pptx",
+      "kind": "diagram",
+      "background": "#FFFFFF",
+      "speakerNotes": "BrandDeck是装在DeepSeek Harness里的插件，产出.pptx原生可编辑。卡片DSL画布固定1280×720，颜色写令牌引用如$colors.primary；card.json是几何真相，outline.md是文字真相，元素用{#id}锚点；每次保存留修订快照，默认保留最近20版。",
+      "elements": [
+        {
+          "type": "text",
+          "id": "s5-title-1",
+          "x": 64,
+          "y": 64,
+          "w": 986,
+          "h": 54,
+          "role": "title",
+          "content": "BrandDeck是Harness插件，输出原生可编辑pptx",
+          "style": {
+            "fontSize": 40,
+            "bold": true,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s5-bar-1",
+          "x": 64,
+          "y": 132,
+          "w": 96,
+          "h": 6,
+          "shapeType": "rect",
+          "style": {
+            "fill": "#C7000A"
+          }
+        },
+        {
+          "type": "svg",
+          "id": "s5-figure-1",
+          "x": 64,
+          "y": 184,
+          "w": 1152,
+          "h": 339,
+          "description": "BrandDeck是Harness插件，输出原生可编辑pptx",
+          "svgCode": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1152\" height=\"339\" viewBox=\"0 0 1152 339\"><g transform=\"translate(66.1,103.4) scale(1.1395)\"><line x1=\"97\" y1=\"22\" x2=\"153\" y2=\"22\" stroke=\"#666666\" stroke-width=\"1.4\" /><polygon points=\"153,22 147.6,24.6 147.6,19.4\" fill=\"#666666\" /><line x1=\"298\" y1=\"22\" x2=\"354\" y2=\"22\" stroke=\"#666666\" stroke-width=\"1.4\" /><polygon points=\"354,22 348.6,24.6 348.6,19.4\" fill=\"#666666\" /><line x1=\"298\" y1=\"22\" x2=\"354\" y2=\"94\" stroke=\"#666666\" stroke-width=\"1.4\" /><polygon points=\"354,94 348.6,91.3 352.7,88.1\" fill=\"#666666\" /><line x1=\"452\" y1=\"22\" x2=\"641\" y2=\"22\" stroke=\"#666666\" stroke-width=\"1.4\" /><polygon points=\"641,22 635.6,24.6 635.6,19.4\" fill=\"#666666\" /><line x1=\"459\" y1=\"94\" x2=\"641\" y2=\"22\" stroke=\"#666666\" stroke-width=\"1.4\" /><polygon points=\"641,22 636.9,26.4 635,21.6\" fill=\"#666666\" /><line x1=\"743\" y1=\"22\" x2=\"799\" y2=\"22\" stroke=\"#666666\" stroke-width=\"1.4\" /><polygon points=\"799,22 793.6,24.6 793.6,19.4\" fill=\"#666666\" /><rect x=\"0\" y=\"0\" width=\"97\" height=\"44\" rx=\"6\" fill=\"#FFFFFF\" stroke=\"#1D1D1A\" stroke-width=\"1.4\" /><text x=\"48.5\" y=\"26.6\" text-anchor=\"middle\" font-family=\"inherit\" font-size=\"13\" fill=\"#1D1D1A\">一句话输入</text><rect x=\"153\" y=\"0\" width=\"145\" height=\"44\" rx=\"6\" fill=\"#FFFFFF\" stroke=\"#1D1D1A\" stroke-width=\"1.4\" /><text x=\"225.5\" y=\"26.6\" text-anchor=\"middle\" font-family=\"inherit\" font-size=\"13\" fill=\"#1D1D1A\">卡片DSL 1280×720</text><rect x=\"354\" y=\"0\" width=\"98\" height=\"44\" rx=\"6\" fill=\"#FFFFFF\" stroke=\"#1D1D1A\" stroke-width=\"1.4\" /><text x=\"403\" y=\"26.6\" text-anchor=\"middle\" font-family=\"inherit\" font-size=\"13\" fill=\"#1D1D1A\">card.json</text><rect x=\"354\" y=\"72\" width=\"105\" height=\"44\" rx=\"6\" fill=\"#FFFFFF\" stroke=\"#1D1D1A\" stroke-width=\"1.4\" /><text x=\"406.5\" y=\"98.6\" text-anchor=\"middle\" font-family=\"inherit\" font-size=\"13\" fill=\"#1D1D1A\">outline.md</text><rect x=\"641\" y=\"0\" width=\"102\" height=\"44\" rx=\"6\" fill=\"#FFFFFF\" stroke=\"#1D1D1A\" stroke-width=\"1.4\" /><text x=\"692\" y=\"26.6\" text-anchor=\"middle\" font-family=\"inherit\" font-size=\"13\" fill=\"#1D1D1A\">渲染 .pptx</text><rect x=\"799\" y=\"0\" width=\"96\" height=\"44\" rx=\"6\" fill=\"#FFFFFF\" stroke=\"#1D1D1A\" stroke-width=\"1.4\" /><text x=\"847\" y=\"26.6\" text-anchor=\"middle\" font-family=\"inherit\" font-size=\"13\" fill=\"#1D1D1A\">快照20版</text></g></svg>"
+        },
+        {
+          "type": "text",
+          "id": "s5-body-1",
+          "x": 64,
+          "y": 543,
+          "w": 1152,
+          "h": 27,
+          "role": "body",
+          "content": "插件装在 DeepSeek Harness",
+          "style": {
+            "fontSize": 20,
+            "color": "#666666"
+          }
+        },
+        {
+          "type": "text",
+          "id": "s5-body-2",
+          "x": 64,
+          "y": 586,
+          "w": 1152,
+          "h": 27,
+          "role": "body",
+          "content": "产出 .pptx 原生可编辑",
+          "style": {
+            "fontSize": 20,
+            "color": "#666666"
+          }
+        },
+        {
+          "type": "text",
+          "id": "s5-body-3",
+          "x": 64,
+          "y": 629,
+          "w": 1152,
+          "h": 27,
+          "role": "body",
+          "content": "双文件驱动几何与文字",
+          "style": {
+            "fontSize": 20,
+            "color": "#666666"
+          }
+        }
+      ]
+    },
+    {
+      "slideId": "s6",
+      "title": "生成链路",
+      "kind": "section",
+      "background": "#FFFFFF",
+      "elements": [
+        {
+          "type": "text",
+          "id": "s6-title-1",
+          "x": 64,
+          "y": 294,
+          "w": 1152,
+          "h": 71,
+          "role": "title",
+          "content": "生成链路",
+          "style": {
+            "fontSize": 52,
+            "bold": true,
+            "color": "#1D1D1A",
+            "align": "center",
+            "valign": "middle"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s6-rule-1",
+          "x": 580,
+          "y": 397,
+          "w": 120,
+          "h": 6,
+          "shapeType": "rect",
+          "style": {
+            "fill": "#C7000A"
+          }
+        }
+      ]
+    },
+    {
+      "slideId": "s7",
+      "title": "五步把一句话变成10页卡组",
+      "kind": "timeline",
+      "background": "#FFFFFF",
+      "speakerNotes": "输入 /branddeck deck <一句话描述> 可生成卡组，实测一句话产出10页卡组。生成时先产出卡片DSL，再写card.json与outline.md双文件，最后渲染为原生可编辑.pptx，并保留最近20版修订快照。",
+      "elements": [
+        {
+          "type": "text",
+          "id": "s7-title-1",
+          "x": 64,
+          "y": 64,
+          "w": 986,
+          "h": 54,
+          "role": "title",
+          "content": "五步把一句话变成10页卡组",
+          "style": {
+            "fontSize": 40,
+            "bold": true,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s7-bar-1",
+          "x": 64,
+          "y": 132,
+          "w": 96,
+          "h": 6,
+          "shapeType": "rect",
+          "style": {
+            "fill": "#C7000A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s7-node-1",
+          "x": 157,
+          "y": 374,
+          "w": 44,
+          "h": 44,
+          "shapeType": "ellipse",
+          "style": {
+            "fill": "#C7000A"
+          }
+        },
+        {
+          "type": "text",
+          "id": "s7-index-1",
+          "x": 163,
+          "y": 384,
+          "w": 32,
+          "h": 25,
+          "role": "body",
+          "content": "1",
+          "style": {
+            "fontSize": 18,
+            "bold": true,
+            "color": "#FFFFFF",
+            "align": "center",
+            "valign": "middle"
+          }
+        },
+        {
+          "type": "text",
+          "id": "s7-caption-1",
+          "x": 76,
+          "y": 432,
+          "w": 206,
+          "h": 22,
+          "role": "body",
+          "content": "输入一句话描述",
+          "style": {
+            "fontSize": 16,
+            "color": "#1D1D1A",
+            "align": "center"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s7-node-2",
+          "x": 388,
+          "y": 374,
+          "w": 44,
+          "h": 44,
+          "shapeType": "ellipse",
+          "style": {
+            "fill": "#C7000A"
+          }
+        },
+        {
+          "type": "text",
+          "id": "s7-index-2",
+          "x": 394,
+          "y": 384,
+          "w": 32,
+          "h": 25,
+          "role": "body",
+          "content": "2",
+          "style": {
+            "fontSize": 18,
+            "bold": true,
+            "color": "#FFFFFF",
+            "align": "center",
+            "valign": "middle"
+          }
+        },
+        {
+          "type": "text",
+          "id": "s7-caption-2",
+          "x": 307,
+          "y": 432,
+          "w": 206,
+          "h": 22,
+          "role": "body",
+          "content": "生成卡片DSL",
+          "style": {
+            "fontSize": 16,
+            "color": "#1D1D1A",
+            "align": "center"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s7-node-3",
+          "x": 618,
+          "y": 374,
+          "w": 44,
+          "h": 44,
+          "shapeType": "ellipse",
+          "style": {
+            "fill": "#C7000A"
+          }
+        },
+        {
+          "type": "text",
+          "id": "s7-index-3",
+          "x": 624,
+          "y": 384,
+          "w": 32,
+          "h": 25,
+          "role": "body",
+          "content": "3",
+          "style": {
+            "fontSize": 18,
+            "bold": true,
+            "color": "#FFFFFF",
+            "align": "center",
+            "valign": "middle"
+          }
+        },
+        {
+          "type": "text",
+          "id": "s7-caption-3",
+          "x": 537,
+          "y": 432,
+          "w": 206,
+          "h": 22,
+          "role": "body",
+          "content": "写几何与文字双文件",
+          "style": {
+            "fontSize": 16,
+            "color": "#1D1D1A",
+            "align": "center"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s7-node-4",
+          "x": 848,
+          "y": 374,
+          "w": 44,
+          "h": 44,
+          "shapeType": "ellipse",
+          "style": {
+            "fill": "#C7000A"
+          }
+        },
+        {
+          "type": "text",
+          "id": "s7-index-4",
+          "x": 854,
+          "y": 384,
+          "w": 32,
+          "h": 25,
+          "role": "body",
+          "content": "4",
+          "style": {
+            "fontSize": 18,
+            "bold": true,
+            "color": "#FFFFFF",
+            "align": "center",
+            "valign": "middle"
+          }
+        },
+        {
+          "type": "text",
+          "id": "s7-caption-4",
+          "x": 767,
+          "y": 432,
+          "w": 206,
+          "h": 22,
+          "role": "body",
+          "content": "渲染原生.pptx",
+          "style": {
+            "fontSize": 16,
+            "color": "#1D1D1A",
+            "align": "center"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s7-node-5",
+          "x": 1079,
+          "y": 374,
+          "w": 44,
+          "h": 44,
+          "shapeType": "ellipse",
+          "style": {
+            "fill": "#C7000A"
+          }
+        },
+        {
+          "type": "text",
+          "id": "s7-index-5",
+          "x": 1085,
+          "y": 384,
+          "w": 32,
+          "h": 25,
+          "role": "body",
+          "content": "5",
+          "style": {
+            "fontSize": 18,
+            "bold": true,
+            "color": "#FFFFFF",
+            "align": "center",
+            "valign": "middle"
+          }
+        },
+        {
+          "type": "text",
+          "id": "s7-caption-5",
+          "x": 998,
+          "y": 432,
+          "w": 206,
+          "h": 22,
+          "role": "body",
+          "content": "保存20版快照",
+          "style": {
+            "fontSize": 16,
+            "color": "#1D1D1A",
+            "align": "center"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s7-seg-1",
+          "x": 211,
+          "y": 395,
+          "w": 167,
+          "h": 3,
+          "shapeType": "rect",
+          "style": {
+            "fill": "#EBEBEB"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s7-seg-2",
+          "x": 442,
+          "y": 395,
+          "w": 166,
+          "h": 3,
+          "shapeType": "rect",
+          "style": {
+            "fill": "#EBEBEB"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s7-seg-3",
+          "x": 672,
+          "y": 395,
+          "w": 166,
+          "h": 3,
+          "shapeType": "rect",
+          "style": {
+            "fill": "#EBEBEB"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s7-seg-4",
+          "x": 902,
+          "y": 395,
+          "w": 167,
+          "h": 3,
+          "shapeType": "rect",
+          "style": {
+            "fill": "#EBEBEB"
+          }
+        }
+      ]
+    },
+    {
+      "slideId": "s8",
+      "title": "card.json与outline.md双真相用{#id}锚点对齐",
+      "kind": "compare",
+      "background": "#FFFFFF",
+      "speakerNotes": "card.json是几何真相，outline.md是文字真相，元素用{#id}锚点。这样文字与版式可独立修改再合并，避免改字破坏版式、调版式弄乱文字。",
+      "elements": [
+        {
+          "type": "text",
+          "id": "s8-title-1",
+          "x": 64,
+          "y": 64,
+          "w": 986,
+          "h": 54,
+          "role": "title",
+          "content": "card.json与outline.md双真相用{#id}锚点对齐",
+          "style": {
+            "fontSize": 40,
+            "bold": true,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s8-bar-1",
+          "x": 64,
+          "y": 132,
+          "w": 96,
+          "h": 6,
+          "shapeType": "rect",
+          "style": {
+            "fill": "#C7000A"
+          }
+        },
+        {
+          "type": "text",
+          "id": "s8-heading-1",
+          "x": 64,
+          "y": 172,
+          "w": 548,
+          "h": 36,
+          "role": "subtitle",
+          "content": "card.json",
+          "style": {
+            "fontSize": 26,
+            "bold": true,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "text",
+          "id": "s8-body-1",
+          "x": 64,
+          "y": 230,
+          "w": 548,
+          "h": 30,
+          "role": "body",
+          "content": "记录几何真相",
+          "style": {
+            "fontSize": 22,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "text",
+          "id": "s8-body-2",
+          "x": 64,
+          "y": 292,
+          "w": 548,
+          "h": 30,
+          "role": "body",
+          "content": "元素带{#id}锚点",
+          "style": {
+            "fontSize": 22,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "text",
+          "id": "s8-heading-2",
+          "x": 668,
+          "y": 172,
+          "w": 548,
+          "h": 36,
+          "role": "subtitle",
+          "content": "outline.md",
+          "style": {
+            "fontSize": 26,
+            "bold": true,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "text",
+          "id": "s8-body-3",
+          "x": 668,
+          "y": 230,
+          "w": 548,
+          "h": 30,
+          "role": "body",
+          "content": "记录文字真相",
+          "style": {
+            "fontSize": 22,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "text",
+          "id": "s8-body-4",
+          "x": 668,
+          "y": 292,
+          "w": 548,
+          "h": 30,
+          "role": "body",
+          "content": "同锚点对齐元素",
+          "style": {
+            "fontSize": 22,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s8-divider-1",
+          "x": 639,
+          "y": 172,
+          "w": 2,
+          "h": 150,
+          "shapeType": "rect",
+          "style": {
+            "fill": "#EBEBEB"
+          }
+        }
+      ]
+    },
+    {
+      "slideId": "s9",
+      "title": "数据与版式",
+      "kind": "section",
+      "background": "#FFFFFF",
+      "elements": [
+        {
+          "type": "text",
+          "id": "s9-title-1",
+          "x": 64,
+          "y": 294,
+          "w": 1152,
+          "h": 71,
+          "role": "title",
+          "content": "数据与版式",
+          "style": {
+            "fontSize": 52,
+            "bold": true,
+            "color": "#1D1D1A",
+            "align": "center",
+            "valign": "middle"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s9-rule-1",
+          "x": 580,
+          "y": 397,
+          "w": 120,
+          "h": 6,
+          "shapeType": "rect",
+          "style": {
+            "fill": "#C7000A"
+          }
+        }
+      ]
+    },
+    {
+      "slideId": "s10",
+      "title": "画布固定1280×720，颜色只写令牌引用",
+      "kind": "stats",
+      "background": "#FFFFFF",
+      "speakerNotes": "卡片DSL画布固定1280×720，颜色写令牌引用如$colors.primary。华为模板sldSz为12196763×6858000，比标准16:9宽4763 EMU；每次保存留修订快照，默认保留最近20版。",
+      "elements": [
+        {
+          "type": "text",
+          "id": "s10-title-1",
+          "x": 64,
+          "y": 64,
+          "w": 986,
+          "h": 54,
+          "role": "title",
+          "content": "画布固定1280×720，颜色只写令牌引用",
+          "style": {
+            "fontSize": 40,
+            "bold": true,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s10-bar-1",
+          "x": 64,
+          "y": 132,
+          "w": 96,
+          "h": 6,
+          "shapeType": "rect",
+          "style": {
+            "fill": "#C7000A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s10-marker-1",
+          "x": 64,
+          "y": 238,
+          "w": 8,
+          "h": 8,
+          "shapeType": "roundRect",
+          "style": {
+            "fill": "#C7000A",
+            "radius": 4
+          }
+        },
+        {
+          "type": "text",
+          "id": "s10-body-1",
+          "x": 94,
+          "y": 220,
+          "w": 1122,
+          "h": 44,
+          "role": "body",
+          "content": "画布1280×720",
+          "style": {
+            "fontSize": 32,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s10-marker-2",
+          "x": 64,
+          "y": 314,
+          "w": 8,
+          "h": 8,
+          "shapeType": "roundRect",
+          "style": {
+            "fill": "#C7000A",
+            "radius": 4
+          }
+        },
+        {
+          "type": "text",
+          "id": "s10-body-2",
+          "x": 94,
+          "y": 296,
+          "w": 1122,
+          "h": 44,
+          "role": "body",
+          "content": "华为模板12196763×6858000",
+          "style": {
+            "fontSize": 32,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s10-marker-3",
+          "x": 64,
+          "y": 390,
+          "w": 8,
+          "h": 8,
+          "shapeType": "roundRect",
+          "style": {
+            "fill": "#C7000A",
+            "radius": 4
+          }
+        },
+        {
+          "type": "text",
+          "id": "s10-body-3",
+          "x": 94,
+          "y": 372,
+          "w": 1122,
+          "h": 44,
+          "role": "body",
+          "content": "宽出标准16:9 4763 EMU",
+          "style": {
+            "fontSize": 32,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s10-marker-4",
+          "x": 64,
+          "y": 466,
+          "w": 8,
+          "h": 8,
+          "shapeType": "roundRect",
+          "style": {
+            "fill": "#C7000A",
+            "radius": 4
+          }
+        },
+        {
+          "type": "text",
+          "id": "s10-body-4",
+          "x": 94,
+          "y": 448,
+          "w": 1122,
+          "h": 44,
+          "role": "body",
+          "content": "默认留20版快照",
+          "style": {
+            "fontSize": 32,
+            "color": "#1D1D1A"
+          }
+        }
+      ]
+    },
+    {
+      "slideId": "s11",
+      "title": "每次保存留快照，默认保留最近20版",
+      "kind": "timeline",
+      "background": "#FFFFFF",
+      "speakerNotes": "每次保存留修订快照，默认保留最近20版，便于回滚；自动化测试用于校验生成链路与双文件一致性，降低改版风险。",
+      "elements": [
+        {
+          "type": "text",
+          "id": "s11-title-1",
+          "x": 64,
+          "y": 64,
+          "w": 986,
+          "h": 54,
+          "role": "title",
+          "content": "每次保存留快照，默认保留最近20版",
+          "style": {
+            "fontSize": 40,
+            "bold": true,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s11-bar-1",
+          "x": 64,
+          "y": 132,
+          "w": 96,
+          "h": 6,
+          "shapeType": "rect",
+          "style": {
+            "fill": "#C7000A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s11-node-1",
+          "x": 186,
+          "y": 374,
+          "w": 44,
+          "h": 44,
+          "shapeType": "ellipse",
+          "style": {
+            "fill": "#C7000A"
+          }
+        },
+        {
+          "type": "text",
+          "id": "s11-index-1",
+          "x": 192,
+          "y": 384,
+          "w": 32,
+          "h": 25,
+          "role": "body",
+          "content": "1",
+          "style": {
+            "fontSize": 18,
+            "bold": true,
+            "color": "#FFFFFF",
+            "align": "center",
+            "valign": "middle"
+          }
+        },
+        {
+          "type": "text",
+          "id": "s11-caption-1",
+          "x": 76,
+          "y": 432,
+          "w": 264,
+          "h": 22,
+          "role": "body",
+          "content": "保存触发快照",
+          "style": {
+            "fontSize": 16,
+            "color": "#1D1D1A",
+            "align": "center"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s11-node-2",
+          "x": 474,
+          "y": 374,
+          "w": 44,
+          "h": 44,
+          "shapeType": "ellipse",
+          "style": {
+            "fill": "#C7000A"
+          }
+        },
+        {
+          "type": "text",
+          "id": "s11-index-2",
+          "x": 480,
+          "y": 384,
+          "w": 32,
+          "h": 25,
+          "role": "body",
+          "content": "2",
+          "style": {
+            "fontSize": 18,
+            "bold": true,
+            "color": "#FFFFFF",
+            "align": "center",
+            "valign": "middle"
+          }
+        },
+        {
+          "type": "text",
+          "id": "s11-caption-2",
+          "x": 364,
+          "y": 432,
+          "w": 264,
+          "h": 22,
+          "role": "body",
+          "content": "保留最近20版",
+          "style": {
+            "fontSize": 16,
+            "color": "#1D1D1A",
+            "align": "center"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s11-node-3",
+          "x": 762,
+          "y": 374,
+          "w": 44,
+          "h": 44,
+          "shapeType": "ellipse",
+          "style": {
+            "fill": "#C7000A"
+          }
+        },
+        {
+          "type": "text",
+          "id": "s11-index-3",
+          "x": 768,
+          "y": 384,
+          "w": 32,
+          "h": 25,
+          "role": "body",
+          "content": "3",
+          "style": {
+            "fontSize": 18,
+            "bold": true,
+            "color": "#FFFFFF",
+            "align": "center",
+            "valign": "middle"
+          }
+        },
+        {
+          "type": "text",
+          "id": "s11-caption-3",
+          "x": 652,
+          "y": 432,
+          "w": 264,
+          "h": 22,
+          "role": "body",
+          "content": "自动化测试校验",
+          "style": {
+            "fontSize": 16,
+            "color": "#1D1D1A",
+            "align": "center"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s11-node-4",
+          "x": 1050,
+          "y": 374,
+          "w": 44,
+          "h": 44,
+          "shapeType": "ellipse",
+          "style": {
+            "fill": "#C7000A"
+          }
+        },
+        {
+          "type": "text",
+          "id": "s11-index-4",
+          "x": 1056,
+          "y": 384,
+          "w": 32,
+          "h": 25,
+          "role": "body",
+          "content": "4",
+          "style": {
+            "fontSize": 18,
+            "bold": true,
+            "color": "#FFFFFF",
+            "align": "center",
+            "valign": "middle"
+          }
+        },
+        {
+          "type": "text",
+          "id": "s11-caption-4",
+          "x": 940,
+          "y": 432,
+          "w": 264,
+          "h": 22,
+          "role": "body",
+          "content": "可回滚到旧版",
+          "style": {
+            "fontSize": 16,
+            "color": "#1D1D1A",
+            "align": "center"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s11-seg-1",
+          "x": 240,
+          "y": 395,
+          "w": 224,
+          "h": 3,
+          "shapeType": "rect",
+          "style": {
+            "fill": "#EBEBEB"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s11-seg-2",
+          "x": 528,
+          "y": 395,
+          "w": 224,
+          "h": 3,
+          "shapeType": "rect",
+          "style": {
+            "fill": "#EBEBEB"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s11-seg-3",
+          "x": 816,
+          "y": 395,
+          "w": 224,
+          "h": 3,
+          "shapeType": "rect",
+          "style": {
+            "fill": "#EBEBEB"
+          }
+        }
+      ]
+    },
+    {
+      "slideId": "s12",
+      "title": "边界与目标",
+      "kind": "section",
+      "background": "#FFFFFF",
+      "elements": [
+        {
+          "type": "text",
+          "id": "s12-title-1",
+          "x": 64,
+          "y": 294,
+          "w": 1152,
+          "h": 71,
+          "role": "title",
+          "content": "边界与目标",
+          "style": {
+            "fontSize": 52,
+            "bold": true,
+            "color": "#1D1D1A",
+            "align": "center",
+            "valign": "middle"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s12-rule-1",
+          "x": 580,
+          "y": 397,
+          "w": 120,
+          "h": 6,
+          "shapeType": "rect",
+          "style": {
+            "fill": "#C7000A"
+          }
+        }
+      ]
+    },
+    {
+      "slideId": "s13",
+      "title": "高频规范场景适合，一次性创意场景不适合",
+      "kind": "compare",
+      "background": "#FFFFFF",
+      "speakerNotes": "BrandDeck适合季度汇报、产品发布说明、对外提案、内部周会材料，这些场景高频、有固定品牌规范、内容反复修改。不适合一次性、追求极致视觉创意的场合；手绘插图、复杂动效编排、非常规版式构图，确定性生成器给不了。",
+      "elements": [
+        {
+          "type": "text",
+          "id": "s13-title-1",
+          "x": 64,
+          "y": 64,
+          "w": 986,
+          "h": 54,
+          "role": "title",
+          "content": "高频规范场景适合，一次性创意场景不适合",
+          "style": {
+            "fontSize": 40,
+            "bold": true,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s13-bar-1",
+          "x": 64,
+          "y": 132,
+          "w": 96,
+          "h": 6,
+          "shapeType": "rect",
+          "style": {
+            "fill": "#C7000A"
+          }
+        },
+        {
+          "type": "text",
+          "id": "s13-heading-1",
+          "x": 64,
+          "y": 172,
+          "w": 548,
+          "h": 36,
+          "role": "subtitle",
+          "content": "适合",
+          "style": {
+            "fontSize": 26,
+            "bold": true,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "text",
+          "id": "s13-body-1",
+          "x": 64,
+          "y": 230,
+          "w": 548,
+          "h": 30,
+          "role": "body",
+          "content": "季度汇报、产品发布",
+          "style": {
+            "fontSize": 22,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "text",
+          "id": "s13-body-2",
+          "x": 64,
+          "y": 292,
+          "w": 548,
+          "h": 30,
+          "role": "body",
+          "content": "对外提案、内部周会",
+          "style": {
+            "fontSize": 22,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "text",
+          "id": "s13-heading-2",
+          "x": 668,
+          "y": 172,
+          "w": 548,
+          "h": 36,
+          "role": "subtitle",
+          "content": "不适合",
+          "style": {
+            "fontSize": 26,
+            "bold": true,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "text",
+          "id": "s13-body-3",
+          "x": 668,
+          "y": 230,
+          "w": 548,
+          "h": 30,
+          "role": "body",
+          "content": "一次性视觉创意",
+          "style": {
+            "fontSize": 22,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "text",
+          "id": "s13-body-4",
+          "x": 668,
+          "y": 292,
+          "w": 548,
+          "h": 30,
+          "role": "body",
+          "content": "手绘插图、复杂动效",
+          "style": {
+            "fontSize": 22,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s13-divider-1",
+          "x": 639,
+          "y": 172,
+          "w": 2,
+          "h": 150,
+          "shapeType": "rect",
+          "style": {
+            "fill": "#EBEBEB"
+          }
+        }
+      ]
+    },
+    {
+      "slideId": "s14",
+      "title": "目标80%常规演示半小时完成，20%精品留给设计师",
+      "kind": "bullets",
+      "background": "#FFFFFF",
+      "speakerNotes": "BrandDeck的目标是让80%的常规演示从5天变成半小时，不取代设计师做那20%的精品。它用一句话实测产出10页卡组，并用默认20版快照支撑反复修改与回滚。",
+      "elements": [
+        {
+          "type": "text",
+          "id": "s14-title-1",
+          "x": 64,
+          "y": 64,
+          "w": 986,
+          "h": 54,
+          "role": "title",
+          "content": "目标80%常规演示半小时完成，20%精品留给设计师",
+          "style": {
+            "fontSize": 40,
+            "bold": true,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s14-bar-1",
+          "x": 64,
+          "y": 132,
+          "w": 96,
+          "h": 6,
+          "shapeType": "rect",
+          "style": {
+            "fill": "#C7000A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s14-marker-1",
+          "x": 64,
+          "y": 238,
+          "w": 8,
+          "h": 8,
+          "shapeType": "roundRect",
+          "style": {
+            "fill": "#C7000A",
+            "radius": 4
+          }
+        },
+        {
+          "type": "text",
+          "id": "s14-body-1",
+          "x": 94,
+          "y": 220,
+          "w": 1122,
+          "h": 44,
+          "role": "body",
+          "content": "覆盖80%常规演示",
+          "style": {
+            "fontSize": 32,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s14-marker-2",
+          "x": 64,
+          "y": 314,
+          "w": 8,
+          "h": 8,
+          "shapeType": "roundRect",
+          "style": {
+            "fill": "#C7000A",
+            "radius": 4
+          }
+        },
+        {
+          "type": "text",
+          "id": "s14-body-2",
+          "x": 94,
+          "y": 296,
+          "w": 1122,
+          "h": 44,
+          "role": "body",
+          "content": "从5天压到半小时",
+          "style": {
+            "fontSize": 32,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s14-marker-3",
+          "x": 64,
+          "y": 390,
+          "w": 8,
+          "h": 8,
+          "shapeType": "roundRect",
+          "style": {
+            "fill": "#C7000A",
+            "radius": 4
+          }
+        },
+        {
+          "type": "text",
+          "id": "s14-body-3",
+          "x": 94,
+          "y": 372,
+          "w": 1122,
+          "h": 44,
+          "role": "body",
+          "content": "20%精品不取代",
+          "style": {
+            "fontSize": 32,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s14-marker-4",
+          "x": 64,
+          "y": 466,
+          "w": 8,
+          "h": 8,
+          "shapeType": "roundRect",
+          "style": {
+            "fill": "#C7000A",
+            "radius": 4
+          }
+        },
+        {
+          "type": "text",
+          "id": "s14-body-4",
+          "x": 94,
+          "y": 448,
+          "w": 1122,
+          "h": 44,
+          "role": "body",
+          "content": "一句话10页实测",
+          "style": {
+            "fontSize": 32,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s14-marker-5",
+          "x": 64,
+          "y": 542,
+          "w": 8,
+          "h": 8,
+          "shapeType": "roundRect",
+          "style": {
+            "fill": "#C7000A",
+            "radius": 4
+          }
+        },
+        {
+          "type": "text",
+          "id": "s14-body-5",
+          "x": 94,
+          "y": 524,
+          "w": 1122,
+          "h": 44,
+          "role": "body",
+          "content": "默认20版快照",
+          "style": {
+            "fontSize": 32,
+            "color": "#1D1D1A"
+          }
+        }
+      ]
+    },
+    {
+      "slideId": "s15",
+      "title": "谢谢",
+      "kind": "cover",
+      "background": "#FFFFFF",
+      "elements": [
+        {
+          "type": "text",
+          "id": "s15-title-1",
+          "x": 64,
+          "y": 274,
+          "w": 1152,
+          "h": 87,
+          "role": "title",
+          "content": "谢谢",
+          "style": {
+            "fontSize": 64,
+            "bold": true,
+            "color": "#1D1D1A",
+            "align": "center"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s15-rule-1",
+          "x": 608,
+          "y": 389,
+          "w": 64,
+          "h": 6,
+          "shapeType": "rect",
+          "style": {
+            "fill": "#C7000A"
+          }
+        },
+        {
+          "type": "text",
+          "id": "s15-caption-1",
+          "x": 64,
+          "y": 419,
+          "w": 1152,
+          "h": 27,
+          "role": "caption",
+          "content": "结束",
+          "style": {
+            "fontSize": 20,
+            "color": "#666666",
+            "align": "center"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -123,7 +123,21 @@ SVG 仅允许纯矢量标签（禁 `foreignObject`/`script`）、流程图优先
         loadSystemFonts: true              # false 时仅用 fontFiles/fontDirs（容器推荐）
         logoSide: auto                     # auto | top-right | none
         defaultTemplateId: ppt-hw
+        commandMaxSlides: 10               # /branddeck 生成的页数上限
+        # —— 文案预算（影响生成结果，按自家规范调）——
+        slideCharBudget: 150               # 单页正文总字数（超出告警）
+        bulletCharBudget: 90               # 单条要点字数上限（超出则细节移入备注）
+        # —— 长材料分层提炼（见 src/mapreduce.js）——
+        materialThreshold: 6000            # 超过多少字改为 Map-Reduce
+        materialBlockChars: 4000           # 每个 Map 块的目标字数
+        materialMaxBlocks: 12              # Map 调用上限
+        materialConcurrency: 3             # 并发 Map 数
+        materialFactsPerBlock: 8           # 每块要求提炼的事实条数
 ```
+
+这四个「影响产出」的数字（`slideCharBudget`、`bulletCharBudget`、`materialThreshold`、
+`commandMaxSlides`）也接受**请求级覆盖**：`content.assist` 的 body 里写同名字段即可，
+适合"这批材料只有 900 字，别走分层"或"这次要更密的页面"。
 
 > 插件刻意**不导出 `Config`**：配置保持纯对象，避免依赖 `schemastery` 造成跨副本实例不兼容，
 > 用户写在 patch 层里的配置也不会因插件升级被覆盖。
