@@ -1,0 +1,11 @@
+# BrandDeck bundle: one Host plugin row. The Client half is served from `./client`
+# through the package's `dsh.client` manifest section, not as a Loader row.
+- insert:
+    - id: branddeck
+      name: '@local/dsh-branddeck'
+      config:
+        # Where decks, parsed templates and exports live.
+        # Defaults to $DSH_HOME/branddeck when omitted.
+        # dataDir: 'D:/dsh-data/branddeck'
+        promptSection: true
+        svgRasterScale: 3

@@ -1,0 +1,192 @@
+{
+  "slideSize": {
+    "cx": 12196763,
+    "cy": 6858000,
+    "widthIn": 13.3385,
+    "heightIn": 7.5,
+    "aspect": "16:9"
+  },
+  "colors": {
+    "background": "#FFFFFF",
+    "surface": "#EBEBEB",
+    "textPrimary": "#1D1D1A",
+    "textSecondary": "#666666",
+    "primary": "#C7000A",
+    "accent": "#E9002F",
+    "chartPalette": [
+      "#C7000A",
+      "#E9002F",
+      "#F4A100",
+      "#FFFF00",
+      "#232323",
+      "#666666"
+    ]
+  },
+  "colorsRaw": {
+    "dk1": {
+      "kind": "srgbClr",
+      "val": "1D1D1A",
+      "lastClr": null,
+      "effective": "#1D1D1A"
+    },
+    "lt1": {
+      "kind": "srgbClr",
+      "val": "1D1D1A",
+      "lastClr": null,
+      "effective": "#1D1D1A"
+    },
+    "dk2": {
+      "kind": "srgbClr",
+      "val": "FFFFFF",
+      "lastClr": null,
+      "effective": "#FFFFFF"
+    },
+    "lt2": {
+      "kind": "srgbClr",
+      "val": "FFFFFF",
+      "lastClr": null,
+      "effective": "#FFFFFF"
+    },
+    "accent1": {
+      "kind": "srgbClr",
+      "val": "C7000A",
+      "lastClr": null,
+      "effective": "#C7000A"
+    },
+    "accent2": {
+      "kind": "srgbClr",
+      "val": "E9002F",
+      "lastClr": null,
+      "effective": "#E9002F"
+    },
+    "accent3": {
+      "kind": "srgbClr",
+      "val": "F4A100",
+      "lastClr": null,
+      "effective": "#F4A100"
+    },
+    "accent4": {
+      "kind": "srgbClr",
+      "val": "FFFF00",
+      "lastClr": null,
+      "effective": "#FFFF00"
+    },
+    "accent5": {
+      "kind": "srgbClr",
+      "val": "232323",
+      "lastClr": null,
+      "effective": "#232323"
+    },
+    "accent6": {
+      "kind": "srgbClr",
+      "val": "666666",
+      "lastClr": null,
+      "effective": "#666666"
+    },
+    "hlink": {
+      "kind": "srgbClr",
+      "val": "919191",
+      "lastClr": null,
+      "effective": "#919191"
+    },
+    "folHlink": {
+      "kind": "srgbClr",
+      "val": "C4C4C4",
+      "lastClr": null,
+      "effective": "#C4C4C4"
+    }
+  },
+  "fonts": {
+    "title": "Microsoft YaHei",
+    "body": "Arial",
+    "latin": "Arial",
+    "cs": "Arial"
+  },
+  "logo": {
+    "partPath": "ppt/media/image1.png",
+    "bytes": 22308,
+    "widthPx": 529,
+    "heightPx": 116,
+    "emittedOnMaster": true,
+    "frameInches": {
+      "x": 10.0686,
+      "y": 6.5356,
+      "w": 2.4698,
+      "h": 0.5277
+    }
+  },
+  "mediaParts": [
+    {
+      "path": "ppt/media/image1.png",
+      "bytes": 22308,
+      "widthPx": 529,
+      "heightPx": 116,
+      "referencedBy": [
+        "ppt/slideMasters/_rels/slideMaster1.xml.rels",
+        "ppt/slideMasters/_rels/slideMaster4.xml.rels"
+      ],
+      "classification": "logo"
+    },
+    {
+      "path": "ppt/media/image2.png",
+      "bytes": 1284697,
+      "widthPx": 1949,
+      "heightPx": 917,
+      "referencedBy": [
+        "ppt/slideLayouts/_rels/slideLayout1.xml.rels"
+      ],
+      "classification": "background/photo"
+    },
+    {
+      "path": "ppt/media/image3.jpeg",
+      "bytes": 76774,
+      "widthPx": 1949,
+      "heightPx": 917,
+      "referencedBy": [
+        "ppt/slideLayouts/_rels/slideLayout2.xml.rels"
+      ],
+      "classification": "background/photo"
+    },
+    {
+      "path": "ppt/media/image4.jpg",
+      "bytes": 639346,
+      "widthPx": 1949,
+      "heightPx": 1122,
+      "referencedBy": [
+        "ppt/slideLayouts/_rels/slideLayout3.xml.rels"
+      ],
+      "classification": "background/photo"
+    },
+    {
+      "path": "ppt/media/image5.jpeg",
+      "bytes": 383121,
+      "widthPx": 2982,
+      "heightPx": 1657,
+      "referencedBy": [
+        "ppt/slideLayouts/_rels/slideLayout4.xml.rels"
+      ],
+      "classification": "background/photo"
+    },
+    {
+      "path": "ppt/media/image6.png",
+      "bytes": 6492,
+      "widthPx": 242,
+      "heightPx": 53,
+      "referencedBy": [
+        "ppt/slideMasters/_rels/slideMaster3.xml.rels"
+      ],
+      "classification": "logo-variant"
+    }
+  ],
+  "masters": 4,
+  "layouts": 7,
+  "layoutNames": [
+    "探索",
+    "智能",
+    "攀登",
+    "灯塔",
+    "1_Contents page",
+    "1_Chinese text page",
+    "End page"
+  ]
+}

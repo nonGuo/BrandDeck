@@ -1,0 +1,11 @@
+{
+  "meta": {
+    "title": "BrandDeck",
+    "description": "Extracts brand design tokens from a corporate .pptx template, lets you compose decks on a 1280x720 card canvas with drag/edit preview, and compiles them into native, fully editable PowerPoint files."
+  },
+  "panel": "BrandDeck",
+  "tool": {
+    "templateParse": "Parse a PPT template into brand tokens",
+    "deckExport": "Export a native .pptx"
+  }
+}

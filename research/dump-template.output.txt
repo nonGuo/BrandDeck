@@ -1,0 +1,308 @@
+###############################################################################
+# PPTX TEMPLATE DUMP
+###############################################################################
+file            : D:\Projects\ai\BrandDeck\PPT模板-HW.pptx
+file size       : 2387726 bytes (on disk)
+parts           : 66   uncompressed total: 2799493 bytes
+masters         : 4
+layouts         : 7
+slides          : 5
+themes          : 6  -> ['theme1.xml', 'theme2.xml', 'theme3.xml', 'theme4.xml', 'theme5.xml', 'theme6.xml']
+media parts     : 6
+themeOverride   : none
+charts          : ['ppt/charts/chart1.xml', 'ppt/charts/colors1.xml', 'ppt/charts/style1.xml']
+embedded pkgs   : ['ppt/embeddings/Microsoft_Excel____1.xlsx']
+notesMasters    : ['ppt/notesMasters/notesMaster1.xml']
+handoutMasters  : ['ppt/handoutMasters/handoutMaster1.xml']
+
+=== SLIDE SIZE  (ppt/presentation.xml <p:sldSz>) ===
+<p:sldSz cx="12196763" cy="6858000"/>
+  width  : 12196763 EMU = 13.3385 in = 960.38 pt = 1280.50 px @96dpi
+  height : 6858000 EMU = 7.5000 in = 540.00 pt = 720.00 px @96dpi
+  aspect : 1.778472  (16:9 = 1.777778)  -> 16:9
+  TRAP   : cx is NOT the canonical 16:9 value 12192000 (13.3333 in).
+           delta = +4763 EMU (+0.00521 in). Do not hardcode 12192000.
+
+=== THEME INVENTORY ===
+ppt/theme/theme1.xml : theme@name='1_Title Slide'  clrScheme@name='2210'  fontScheme@name='Arial Black-Arial'
+ppt/theme/theme2.xml : theme@name='Chart page'  clrScheme@name='updated'  fontScheme@name='Office'
+ppt/theme/theme3.xml : theme@name='4_Chart page'  clrScheme@name='Custom 29'  fontScheme@name='Office'
+ppt/theme/theme4.xml : theme@name='End page'  clrScheme@name='2210'  fontScheme@name='Arial'
+ppt/theme/theme5.xml : theme@name='Office Theme'  clrScheme@name='Office'  fontScheme@name='Office'
+ppt/theme/theme6.xml : theme@name='Office Theme'  clrScheme@name='Office'  fontScheme@name='Office'
+
+presentation-level theme (ppt/_rels/presentation.xml.rels) : ppt/theme/theme1.xml
+
+=== <a:clrScheme> of ppt/theme/theme1.xml ===
+clrScheme name attribute: '2210'
+slot      kind     raw XML form                       val       effective
+dk1       srgbClr  <a:srgbClr val="1D1D1A"/>          1D1D1A    #1D1D1A  
+lt1       srgbClr  <a:srgbClr val="1D1D1A"/>          1D1D1A    #1D1D1A  
+dk2       srgbClr  <a:srgbClr val="FFFFFF"/>          FFFFFF    #FFFFFF  
+lt2       srgbClr  <a:srgbClr val="FFFFFF"/>          FFFFFF    #FFFFFF  
+accent1   srgbClr  <a:srgbClr val="C7000A"/>          C7000A    #C7000A  
+accent2   srgbClr  <a:srgbClr val="E9002F"/>          E9002F    #E9002F  
+accent3   srgbClr  <a:srgbClr val="F4A100"/>          F4A100    #F4A100  
+accent4   srgbClr  <a:srgbClr val="FFFF00"/>          FFFF00    #FFFF00  
+accent5   srgbClr  <a:srgbClr val="232323"/>          232323    #232323  
+accent6   srgbClr  <a:srgbClr val="666666"/>          666666    #666666  
+hlink     srgbClr  <a:srgbClr val="919191"/>          919191    #919191  
+folHlink  srgbClr  <a:srgbClr val="C4C4C4"/>          C4C4C4    #C4C4C4  
+
+  NOTE: dk1 == lt1 (#1D1D1A) and dk2 == lt2 (#FFFFFF) in this theme.
+        The light/dark pairs are duplicated, so bg1==tx1 and bg2==tx2. A parser that
+        assumes lt1==#FFFFFF (bg1) and dk1==#000000 (tx1) will invert this deck.
+
+=== other themes: clrScheme (compact; only differences matter) ===
+ppt/theme/theme2.xml ('Chart page'): dk1=#1D1D1A lt1=#1D1D1A dk2=#FFFFFF lt2=#FFFFFF accent1=#C7000A accent2=#C8102E accent3=#EA594F accent4=#F8B53C accent5=#231815 accent6=#595757 hlink=#898989 folHlink=#B5B5B5
+ppt/theme/theme3.xml ('4_Chart page'): dk1=#1D1D1A lt1=#666666 dk2=#FFFFFF lt2=#EBEBEB accent1=#C7000A accent2=#E9002F accent3=#F4A100 accent4=#FFFF00 accent5=#232323 accent6=#666666 hlink=#919191 folHlink=#C4C4C4
+ppt/theme/theme4.xml ('End page'): dk1=#1D1D1A lt1=#1D1D1A dk2=#FFFFFF lt2=#FFFFFF accent1=#C7000A accent2=#E9002F accent3=#F4A100 accent4=#FFFF00 accent5=#232323 accent6=#666666 hlink=#919191 folHlink=#C4C4C4
+ppt/theme/theme5.xml ('Office Theme'): dk1=#000000 lt1=#FFFFFF dk2=#44546A lt2=#E7E6E6 accent1=#4472C4 accent2=#ED7D31 accent3=#A5A5A5 accent4=#FFC000 accent5=#5B9BD5 accent6=#70AD47 hlink=#0563C1 folHlink=#954F72
+    sysClr slots: ['dk1', 'lt1']
+      dk1 raw=<a:sysClr val="windowText" lastClr="000000"/> lastClr=000000 effective=#000000
+      lt1 raw=<a:sysClr val="window" lastClr="FFFFFF"/> lastClr=FFFFFF effective=#FFFFFF
+ppt/theme/theme6.xml ('Office Theme'): dk1=#000000 lt1=#FFFFFF dk2=#44546A lt2=#E7E6E6 accent1=#4472C4 accent2=#ED7D31 accent3=#A5A5A5 accent4=#FFC000 accent5=#5B9BD5 accent6=#70AD47 hlink=#0563C1 folHlink=#954F72
+    sysClr slots: ['dk1', 'lt1']
+      dk1 raw=<a:sysClr val="windowText" lastClr="000000"/> lastClr=000000 effective=#000000
+      lt1 raw=<a:sysClr val="window" lastClr="FFFFFF"/> lastClr=FFFFFF effective=#FFFFFF
+
+=== <a:fontScheme> of ppt/theme/theme1.xml ===
+fontScheme name: 'Arial Black-Arial'
+  majorFont: latin='Arial Black'  ea=''  cs=''
+        Hans(zh-CN) script face = '微软雅黑' ; Hant = '微軟正黑體'
+  minorFont: latin='Arial'  ea=''  cs=''
+        Hans(zh-CN) script face = '黑体' ; Hant = '微軟正黑體'
+  TRAP: <a:ea typeface=""/> is an EMPTY STRING, not absent. It means "use the
+        per-script face" (Hans -> '微软雅黑' for majorFont). Reporting ea as "" is
+        technically correct but useless downstream.
+
+=== MASTER txStyles overrides (these beat the theme fontScheme) ===
+ppt/slideMasters/slideMaster1.xml
+   titleStyle  lvl1: sz=3200 (32.0 pt)  color=schemeClr:tx1  latin='Microsoft YaHei' ea='Microsoft YaHei' cs=''
+   bodyStyle   lvl1: sz=1000 (10.0 pt)  color=srgbClr:1D1D1B  latin='Arial' ea='Microsoft YaHei' cs='Arial'
+   <p:hf hdr='0' ftr='0' dt='0'>
+ppt/slideMasters/slideMaster2.xml
+   titleStyle  lvl1: sz=5716 (57.16 pt)  color=schemeClr:tx1  latin='Arial Black' ea='' cs=''
+   bodyStyle   lvl1: sz=3636 (36.36 pt)  color=schemeClr:tx1  latin='Arial' ea='' cs=''
+   <p:hf hdr='0' ftr='0' dt='0'>
+ppt/slideMasters/slideMaster3.xml
+   titleStyle  lvl1: sz=5716 (57.16 pt)  color=schemeClr:tx1  latin='Arial Black' ea='' cs=''
+   bodyStyle   lvl1: sz=3636 (36.36 pt)  color=schemeClr:tx1  latin='Arial' ea='' cs=''
+   <p:hf hdr='0' ftr='0' dt='0'>
+ppt/slideMasters/slideMaster4.xml
+   titleStyle  lvl1: sz=5000 (50.0 pt)  color=schemeClr:tx1  latin='Arial' ea='Microsoft YaHei' cs='Arial'
+   bodyStyle   lvl1: sz=1819 (18.19 pt)  color=srgbClr:FFFFFF  latin='Microsoft YaHei' ea='Microsoft YaHei' cs=''
+   <p:hf hdr='0' ftr='0' dt='0'>
+
+=== ppt/presentation.xml <p:defaultTextStyle> lvl1 ===
+   sz=1800 (18.0 pt)  color=schemeClr:tx1
+
+=== MEDIA INVENTORY (ppt/media/) ===
+part                       bytes         px fmt    referenced by
+ppt/media/image1.png       22308    529x116 png    ppt/slideMasters/_rels/slideMaster1.xml.rels(rId6), ppt/slideMasters/_rels/slideMaster4.xml.rels(rId3)
+ppt/media/image2.png     1284697   1949x917 png    ppt/slideLayouts/_rels/slideLayout1.xml.rels(rId2)
+ppt/media/image3.jpeg      76774   1949x917 jpeg   ppt/slideLayouts/_rels/slideLayout2.xml.rels(rId2)
+ppt/media/image4.jpg      639346  1949x1122 jpeg   ppt/slideLayouts/_rels/slideLayout3.xml.rels(rId2)
+ppt/media/image5.jpeg     383121  2982x1657 jpeg   ppt/slideLayouts/_rels/slideLayout4.xml.rels(rId2)
+ppt/media/image6.png        6492     242x53 png    ppt/slideMasters/_rels/slideMaster3.xml.rels(rId3)
+
+  -> LOGO judgement: ppt/media/image1.png (529x116, 22308 bytes). Largest/least-compressed master-only small image.
+     also logo-like: ppt/media/image6.png (242x53, 6492 bytes) - same artwork, lower resolution
+
+=== MASTER / LAYOUT INVENTORY ===
+masters: 4   layouts: 7
+
+ppt/slideMasters/slideMaster1.xml  name=None  theme=ppt/theme/theme1.xml  layouts=4
+   bg     : solidFill srgbClr(FFFFFF)   [raw: <p:bg xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:bgPr><a:solidFill><a:srgbClr val="FFFFFF" /></a:solidFill><a:effectLst /></p:bgPr></p:bg>]
+   clrMap : bg1=lt1 tx1=dk1 bg2=lt2 tx2=dk2
+   shapes : 2
+     sp      'Text Placeholder 14'      ph={'type': 'body', 'idx': '1'}     own_geom=[x 0.9944 y 6.8577 w 2.1679 h 0.1680]
+     pic     '图片 37'                    ph=None                             own_geom=[x 10.0686 y 6.5356 w 2.4698 h 0.5277] image=ppt/media/image1.png
+
+ppt/slideMasters/slideMaster2.xml  name=None  theme=ppt/theme/theme2.xml  layouts=1
+   bg     : solidFill srgbClr(FFFFFF)   [raw: <p:bg xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:bgPr><a:solidFill><a:srgbClr val="FFFFFF" /></a:solidFill><a:effectLst /></p:bgPr></p:bg>]
+   clrMap : bg1=lt1 tx1=dk1 bg2=lt2 tx2=dk2
+   shapes : 0
+
+ppt/slideMasters/slideMaster3.xml  name=None  theme=ppt/theme/theme3.xml  layouts=1
+   bg     : solidFill srgbClr(FFFFFF)   [raw: <p:bg xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:bgPr><a:solidFill><a:srgbClr val="FFFFFF" /></a:solidFill><a:effectLst /></p:bgPr></p:bg>]
+   clrMap : bg1=lt1 tx1=dk1 bg2=lt2 tx2=dk2
+   shapes : 4
+     sp      'TextBox 2'                ph=None                             own_geom=[x 1.1980 y 6.9520 w 1.6005 h 0.2656]
+     sp      'TextBox 3'                ph=None                             own_geom=[x 0.8029 y 7.0022 w 0.5465 h 0.1644]
+     pic     '图片 40'                    ph=None                             own_geom=[x 11.1505 y 6.9115 w 1.3879 h 0.2965] image=ppt/media/image6.png
+     grpSp   '组合 24'                    ph=None                             own_geom=[x 13.3599 y 3.2064 w 2.1685 h 4.3030]
+
+ppt/slideMasters/slideMaster4.xml  name=None  theme=ppt/theme/theme4.xml  layouts=1
+   bg     : solidFill srgbClr(FFFFFF)   [raw: <p:bg xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:bgPr><a:solidFill><a:srgbClr val="FFFFFF" /></a:solidFill><a:effectLst /></p:bgPr></p:bg>]
+   clrMap : bg1=lt1 tx1=dk1 bg2=lt2 tx2=dk2
+   shapes : 5
+     sp      'Title Placeholder 1'      ph={'type': 'title', 'idx': None}   own_geom=[x 0.6743 y 1.6123 w 4.3572 h 3.0797]
+     sp      'Text Placeholder 1'       ph=None                             own_geom=[x 8.7263 y 3.0566 w 3.5271 h 2.2200]
+     sp      'Subtitle 6'               ph=None                             own_geom=[x 8.7350 y 1.7846 w 3.8033 h 0.5371]
+     sp      'Subtitle 6'               ph=None                             own_geom=[x 8.7245 y 2.3033 w 3.8078 h 0.6374]
+     pic     '图片 98'                    ph=None                             own_geom=[x 8.7221 y 5.7427 w 2.0446 h 0.4369] image=ppt/media/image1.png
+
+ppt/slideLayouts/slideLayout1.xml  [#1]  name='探索'  type=None  master=ppt/slideMasters/slideMaster1.xml  theme=ppt/theme/theme1.xml
+     TRAP: no @type attribute on <p:sldLayout> -> the layout has no standard
+           type (title/obj/...). Infer role from cSld/@name instead.
+     bg    : (none -> inherits master #FFFFFF)
+     clrMapOvr: masterClrMapping (inherit master clrMap)
+     pic     '图片 3'                 ph=None                           geom(x 0.0000 y 0.0000 w 13.3385 h 6.1267) from=own image=ppt/media/image2.png
+     sp      'L 形 6'                ph=None                           geom(x 8.5892 y 2.3300 w 0.7667 h 0.7851) from=own
+     sp      'Title 1'              ph={'type': 'ctrTitle', 'idx': None} geom(x 0.9832 y 0.9920 w 7.1739 h 0.7549) from=own
+     sp      'Text Placeholder 5'   ph={'type': 'body', 'idx': '10'}  geom(x 1.0163 y 2.1319 w 7.1477 h 0.7042) from=own
+ppt/slideLayouts/slideLayout2.xml  [#2]  name='智能'  type=None  master=ppt/slideMasters/slideMaster1.xml  theme=ppt/theme/theme1.xml
+     TRAP: no @type attribute on <p:sldLayout> -> the layout has no standard
+           type (title/obj/...). Infer role from cSld/@name instead.
+     bg    : (none -> inherits master #FFFFFF)
+     clrMapOvr: masterClrMapping (inherit master clrMap)
+     pic     '图片 13'                ph=None                           geom(x 0.0000 y 0.0000 w 13.3385 h 6.1267) from=own image=ppt/media/image3.jpeg
+     sp      'L 形 17'               ph=None                           geom(x 6.3692 y 2.8091 w 0.7667 h 0.7851) from=own
+     sp      'Title 1'              ph={'type': 'ctrTitle', 'idx': None} geom(x 0.9832 y 0.9920 w 7.1739 h 0.7549) from=own
+     sp      'Text Placeholder 5'   ph={'type': 'body', 'idx': '10'}  geom(x 1.0163 y 2.1319 w 7.1477 h 0.7042) from=own
+ppt/slideLayouts/slideLayout3.xml  [#3]  name='攀登'  type=None  master=ppt/slideMasters/slideMaster1.xml  theme=ppt/theme/theme1.xml
+     TRAP: no @type attribute on <p:sldLayout> -> the layout has no standard
+           type (title/obj/...). Infer role from cSld/@name instead.
+     bg    : (none -> inherits master #FFFFFF)
+     clrMapOvr: masterClrMapping (inherit master clrMap)
+     pic     '图片 3'                 ph=None                           geom(x 0.0000 y -0.0396 w 13.3385 h 6.1663) from=own image=ppt/media/image4.jpg
+     sp      'Title 1'              ph={'type': 'ctrTitle', 'idx': None} geom(x 0.9832 y 0.9920 w 7.1739 h 0.7549) from=own
+     sp      'L 形 7'                ph=None                           geom(x 8.6723 y 1.8127 w 0.7667 h 0.7851) from=own
+     sp      'Text Placeholder 5'   ph={'type': 'body', 'idx': '10'}  geom(x 1.0163 y 2.1319 w 7.1477 h 0.7042) from=own
+ppt/slideLayouts/slideLayout4.xml  [#4]  name='灯塔'  type=None  master=ppt/slideMasters/slideMaster1.xml  theme=ppt/theme/theme1.xml
+     TRAP: no @type attribute on <p:sldLayout> -> the layout has no standard
+           type (title/obj/...). Infer role from cSld/@name instead.
+     bg    : (none -> inherits master #FFFFFF)
+     clrMapOvr: masterClrMapping (inherit master clrMap)
+     pic     '图片 2'                 ph=None                           geom(x 0.0000 y 0.0000 w 13.3385 h 6.1267) from=own image=ppt/media/image5.jpeg
+     sp      'L 形 12'               ph=None                           geom(x 6.5021 y 2.5410 w 0.7667 h 0.7851) from=own
+     sp      'Title 1'              ph={'type': 'ctrTitle', 'idx': None} geom(x 0.9832 y 0.9920 w 7.1739 h 0.7549) from=own
+     sp      'Text Placeholder 5'   ph={'type': 'body', 'idx': '10'}  geom(x 1.0163 y 2.1319 w 7.1477 h 0.7042) from=own
+ppt/slideLayouts/slideLayout5.xml  [#5]  name='1_Contents page'  type=None  master=ppt/slideMasters/slideMaster2.xml  theme=ppt/theme/theme2.xml
+     TRAP: no @type attribute on <p:sldLayout> -> the layout has no standard
+           type (title/obj/...). Infer role from cSld/@name instead.
+     bg    : solidFill srgbClr(EBEBEB)   [raw: <p:bg xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:bgPr><a:solidFill><a:srgbClr val="EBEBEB" /></a:solidFill><a:effectLst /></p:bgPr></p:bg>]
+     clrMapOvr: masterClrMapping (inherit master clrMap)
+     sp      'Text Placeholder 7'   ph={'type': 'body', 'idx': '10'}  geom(x 1.1304 y 2.0156 w 11.0696 h 3.2958) from=own
+     cxnSp   '直线连接符 14'             ph=None                           geom(x 1.1263 y 1.4756 w 0.9689 h 0.0000) from=own
+     sp      '文本框 16'               ph=None                           geom(x 1.0049 y 0.6894 w 1.2549 h 0.7147) from=own
+ppt/slideLayouts/slideLayout6.xml  [#6]  name='1_Chinese text page'  type=None  master=ppt/slideMasters/slideMaster3.xml  theme=ppt/theme/theme3.xml
+     TRAP: no @type attribute on <p:sldLayout> -> the layout has no standard
+           type (title/obj/...). Infer role from cSld/@name instead.
+     bg    : (none -> inherits master #FFFFFF)
+     clrMapOvr: masterClrMapping (inherit master clrMap)
+     sp      'Subtitle 2'           ph={'type': 'subTitle', 'idx': '1'} geom(x 0.7974 y 0.4988 w 11.7461 h 1.0864) from=own
+     sp      'Content Placeholder 2' ph={'type': None, 'idx': '10'}    geom(x 0.8059 y 1.6426 w 11.7384 h 5.1295) from=own
+ppt/slideLayouts/slideLayout7.xml  [#7]  name='End page'  type=None  master=ppt/slideMasters/slideMaster4.xml  theme=ppt/theme/theme4.xml
+     TRAP: no @type attribute on <p:sldLayout> -> the layout has no standard
+           type (title/obj/...). Infer role from cSld/@name instead.
+     bg    : solidFill srgbClr(FFFFFF)   [raw: <p:bg xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:bgPr><a:solidFill><a:srgbClr val="FFFFFF" /></a:solidFill><a:effectLst /></p:bgPr></p:bg>]
+     clrMapOvr: masterClrMapping (inherit master clrMap)
+     sp      'TextBox 3'            ph=None                           geom(x 0.6644 y 1.5333 w 4.2881 h 0.9347) from=own
+
+=== SLIDES (geometry resolved slide -> layout -> master) ===
+slide                      layout                           master                           theme
+ppt/slides/slide1.xml      ppt/slideLayouts/slideLayout1.xml ppt/slideMasters/slideMaster1.xml ppt/theme/theme1.xml
+ppt/slides/slide2.xml      ppt/slideLayouts/slideLayout5.xml ppt/slideMasters/slideMaster2.xml ppt/theme/theme2.xml
+ppt/slides/slide3.xml      ppt/slideLayouts/slideLayout6.xml ppt/slideMasters/slideMaster3.xml ppt/theme/theme3.xml
+ppt/slides/slide4.xml      ppt/slideLayouts/slideLayout6.xml ppt/slideMasters/slideMaster3.xml ppt/theme/theme3.xml
+ppt/slides/slide5.xml      ppt/slideLayouts/slideLayout7.xml ppt/slideMasters/slideMaster4.xml ppt/theme/theme4.xml
+
+ppt/slides/slide1.xml  layout=ppt/slideLayouts/slideLayout1.xml
+     sp           '标题 2'                 ph={'type': 'ctrTitle', 'idx': None} geom(x 0.9832 y 0.9920 w 7.1739 h 0.7549) from=layout
+     sp           'Text Placeholder 7'   ph={'type': 'body', 'idx': '10'}  geom(x 1.0163 y 2.1319 w 7.1477 h 0.7042) from=layout
+     sp           'Text Placeholder 3'   ph=None                           geom(x 1.0376 y 6.8505 w 2.8509 h 0.1495) from=own
+ppt/slides/slide2.xml  layout=ppt/slideLayouts/slideLayout5.xml
+     sp           'Text Placeholder 1'   ph={'type': 'body', 'idx': '10'}  geom(x 1.1304 y 2.0156 w 10.9861 h 3.2958) from=own
+ppt/slides/slide3.xml  layout=ppt/slideLayouts/slideLayout6.xml
+     sp           'Subtitle 1'           ph={'type': 'subTitle', 'idx': '1'} geom(x 0.7974 y 0.4988 w 11.7461 h 1.0864) from=layout
+     sp           'Content Placeholder 2' ph={'type': None, 'idx': '10'}    geom(x 0.8059 y 1.6426 w 11.7384 h 5.1295) from=layout
+     sp           'TextBox 7'            ph=None                           geom(x 6.1903 y -1.3000 w 0.2020 h 0.5778) from=own
+ppt/slides/slide4.xml  layout=ppt/slideLayouts/slideLayout6.xml
+     sp           'Subtitle 11'          ph={'type': 'subTitle', 'idx': '1'} geom(x 0.7974 y 0.5159 w 11.7461 h 1.0864) from=own
+     graphicFrame 'Table 4'              ph=None                           geom(x 5.4171 y 2.4981 w 7.0081 h 4.0527) from=own
+     graphicFrame 'Chart 5'              ph=None                           geom(x 0.8498 y 2.8515 w 4.2127 h 3.1224) from=own
+     sp           'Text Box 22'          ph=None                           geom(x 7.4120 y 5.5531 w 5.8526 h 0.4941) from=own
+ppt/slides/slide5.xml  layout=ppt/slideLayouts/slideLayout7.xml
+     (empty spTree)
+
+=== PERSISTENT DECORATIONS ON MASTERS (logo, footer text, page number) ===
+ppt/slideMasters/slideMaster1.xml
+   text 'Text Placeholder 14' geom(x 0.9944 y 6.8577 w 2.1679 h 0.1680) text='Security Level:'
+   pic  '图片 37'            geom(x 10.0686 y 6.5356 w 2.4698 h 0.5277) image=ppt/media/image1.png
+ppt/slideMasters/slideMaster2.xml
+ppt/slideMasters/slideMaster3.xml
+   text 'TextBox 2'        geom(x 1.1980 y 6.9520 w 1.6005 h 0.2656) text='Huawei Confidential'
+   text 'TextBox 3'        geom(x 0.8029 y 7.0022 w 0.5465 h 0.1644) text='‹#›'  field=[('slidenum', '‹#›')]
+   pic  '图片 40'            geom(x 11.1505 y 6.9115 w 1.3879 h 0.2965) image=ppt/media/image6.png
+ppt/slideMasters/slideMaster4.xml
+   text 'Title Placeholder 1' geom(x 0.6743 y 1.6123 w 4.3572 h 3.0797) text='Click to edit Master title style'
+   text 'Text Placeholder 1' geom(x 8.7263 y 3.0566 w 3.5271 h 2.2200) text='Copyright©2021  Huawei Technologies Co., Ltd. All Rights Res'
+   text 'Subtitle 6'       geom(x 8.7350 y 1.7846 w 3.8033 h 0.5371) text='把数字世界带入每个人、每个家庭、 每个组织，构建万物互联的智能世界。'
+   text 'Subtitle 6'       geom(x 8.7245 y 2.3033 w 3.8078 h 0.6374) text='Bring digital to every person, home, and  organization for a'
+   pic  '图片 98'            geom(x 8.7221 y 5.7427 w 2.0446 h 0.4369) image=ppt/media/image1.png
+
+=== EFFECTIVE TOKENS (what expected-tokens.json asserts) ===
+colors.background  : #FFFFFF   (master <p:bg> solidFill)
+colors.surface     : #EBEBEB   (only non-white bg in the package: slideLayout5)
+colors.textPrimary : #1D1D1A   (tx1 -> dk1)
+colors.textSecondary: #666666  (accent6, the grey used for de-emphasised text)
+colors.primary     : #C7000A   (accent1)
+colors.accent      : #E9002F   (accent2)
+chartPalette       : #C7000A #E9002F #F4A100 #FFFF00 #232323 #666666
+fonts.title        : Microsoft YaHei  (master1 titleStyle latin+ea)
+fonts.body         : Arial  (master1 bodyStyle latin)
+fonts.latin        : Arial  (theme1 minorFont latin)
+fonts.cs           : Arial  (master1 bodyStyle cs; theme cs is "")
+logo               : ppt/media/image1.png 529x116 22308 bytes emittedOnMaster=True frame=(x 10.0686, y 6.5356, w 2.4698, h 0.5277) in
+masters            : 4
+layouts            : 7
+   layout 1: '探索'
+   layout 2: '智能'
+   layout 3: '攀登'
+   layout 4: '灯塔'
+   layout 5: '1_Contents page'
+   layout 6: '1_Chinese text page'
+   layout 7: 'End page'
+
+=== PARSING TRAPS FOUND IN THIS FILE ===
+ - dk1 == lt1 == #1D1D1A and dk2 == lt2 == #FFFFFF: the light/dark pairs are duplicated, so bg1 (lt1)
+   and tx1 (dk1) are the SAME colour, and so are bg2 (lt2) and tx2 (dk2). A parser that
+   assumes lt1=#FFFFFF / dk1=#000000 will invert every text and background colour here.
+ - sldSz cx=12196763, not the canonical 12192000 -> width is 13.3385 in, not 13.3333 in (+0.00521 in).
+ - There are 4 slide masters and 6 themes. "The" theme is theme1 only because ppt/_rels/presentation.xml.rels
+   rId14 points at it. theme2 (master2) really differs in accent2..accent6 and hlink/folHlink:
+   C8102E / EA594F / F8B53C / 231815 / 595757, hlink 898989, folHlink B5B5B5.
+ - theme3 (master3, used by the real content pages) differs in lt1=#666666 and lt2=#EBEBEB.
+ - theme5/theme6 (notes/handout masters) use <a:sysClr val="windowText" lastClr="000000"/> and
+   <a:sysClr val="window" lastClr="FFFFFF"/> - a parser must read lastClr, not @val; and lastClr
+   is OPTIONAL in the schema, so the code path that reads it can be missing it.
+ - <a:ea typeface=""/> and <a:cs typeface=""/> are EMPTY STRINGS in both majorFont and minorFont;
+   the real CJK face lives in <a:font script="Hans"> (majorFont 微软雅黑, minorFont 黑体).
+ - Master txStyles override the theme: master1 title = Microsoft YaHei (NOT the theme face "Arial Black").
+ - image1.png is referenced by TWO masters (slideMaster1 rId6 and slideMaster4 rId3), so "media part
+   referenced by exactly one master" is not a valid logo heuristic here.
+ - The logo is a userDrawn <p:pic> on the master with no <p:ph>, placed BOTTOM-right, not top-left.
+ - Layouts 1-4 have NO <p:bg>: the background comes from the master. Layout5 bg=#EBEBEB, layout7 bg=#FFFFFF.
+ - No <p:sldLayout> carries a @type attribute; identify layouts by cSld/@name (Chinese names present).
+ - Most slide placeholders carry NO <a:xfrm> -> geometry must be resolved slide -> layout -> master by
+   (type, idx); <p:ph> @idx is absent on some placeholders (defaults to 0) and @type is absent on others.
+ - slideMaster2 has an EMPTY spTree (no placeholders at all) - a master with zero shapes is legal.
+ - slideMaster3 holds group shapes (<p:grpSp>, nested 3 deep) pushed off-canvas at x=13.3599 in
+   (slide is 13.3385 in wide): a brand colour-swatch board. Naive bbox walks report out-of-page shapes.
+ - Group shapes have chOff/chExt != off/ext, so child coordinates need the affine transform.
+ - Near-miss hex values: theme accent1=C7000A but the layouts paint C7000B; master1 body text uses
+   1D1D1B while theme dk1 is 1D1D1A; master3 swatch board uses C8102E. Do not "normalise" these.
+ - slide4 mixes an <a:tbl> graphicFrame, a <p:graphicFrame> chart and a text box rotated -20 deg.
+ - slide3 has a text box at y=-1.3000 in (off the top edge); slide4 chart sits on an embedded xlsx.
+ - Deck is not single-theme in practice: slide3/slide4 use layout6 -> master3 -> theme3; slide1 uses
+   layout1 -> master1 -> theme1; slide2 layout5 -> master2 -> theme2; slide5 layout7 -> master4.
+ - docProps/app.xml <Template> says "MWC 19-PPT模板-白底 16比9" (white background, 16:9).
+ - No themeOverride*.xml parts exist (checked); docProps/custom.xml holds opaque DRM-looking strings.
+ - Handout/notes masters exist and each pull their own theme, so "walk all *.xml and merge colours" over-counts.
+
+=== CROSS-CHECK (python-pptx, if importable) ===
+  python-pptx 1.0.2 : slide_width=12196763 EMU  slide_height=6858000 EMU  masters=4  layouts=7  slides=5
+  agrees with raw XML: True
+

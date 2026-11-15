@@ -1,0 +1,76 @@
+# Verbatim XML fragments extracted from PPT模板-HW.pptx
+# Encoding: UTF-8. No reformatting: fragments are byte-for-byte substrings of the part XML.
+# Method: python zipfile + regex on the raw part text (read-only on the .pptx), so these are
+# literal substrings of the part XML, never a re-serialisation. See research/dump-template.mjs
+# for the same facts presented structurally.
+
+====================================================================================================
+PPTX:  PPT模板-HW.pptx
+PART:  ppt/theme/theme1.xml    (presentation-level theme, referenced by ppt/_rels/presentation.xml.rels rId14)
+NOTE:  This is the theme whose clrScheme/fontScheme define the deck tokens.
+====================================================================================================
+
+--- <a:theme ...> opening tag (verbatim) ---
+<a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" name="1_Title Slide">
+
+--- <a:clrScheme> (verbatim, complete) ---
+<a:clrScheme name="2210"><a:dk1><a:srgbClr val="1D1D1A"/></a:dk1><a:lt1><a:srgbClr val="1D1D1A"/></a:lt1><a:dk2><a:srgbClr val="FFFFFF"/></a:dk2><a:lt2><a:srgbClr val="FFFFFF"/></a:lt2><a:accent1><a:srgbClr val="C7000A"/></a:accent1><a:accent2><a:srgbClr val="E9002F"/></a:accent2><a:accent3><a:srgbClr val="F4A100"/></a:accent3><a:accent4><a:srgbClr val="FFFF00"/></a:accent4><a:accent5><a:srgbClr val="232323"/></a:accent5><a:accent6><a:srgbClr val="666666"/></a:accent6><a:hlink><a:srgbClr val="919191"/></a:hlink><a:folHlink><a:srgbClr val="C4C4C4"/></a:folHlink></a:clrScheme>
+
+--- <a:fontScheme> (verbatim, complete) ---
+<a:fontScheme name="Arial Black-Arial"><a:majorFont><a:latin typeface="Arial Black" panose="020B0A04020102020204"/><a:ea typeface=""/><a:cs typeface=""/><a:font script="Jpan" typeface="ＭＳ ゴシック"/><a:font script="Hang" typeface="굴림"/><a:font script="Hans" typeface="微软雅黑"/><a:font script="Hant" typeface="微軟正黑體"/><a:font script="Arab" typeface="Tahoma"/><a:font script="Hebr" typeface="Tahoma"/><a:font script="Thai" typeface="FreesiaUPC"/><a:font script="Ethi" typeface="Nyala"/><a:font script="Beng" typeface="Vrinda"/><a:font script="Gujr" typeface="Shruti"/><a:font script="Khmr" typeface="DaunPenh"/><a:font script="Knda" typeface="Tunga"/><a:font script="Guru" typeface="Raavi"/><a:font script="Cans" typeface="Euphemia"/><a:font script="Cher" typeface="Plantagenet Cherokee"/><a:font script="Yiii" typeface="Microsoft Yi Baiti"/><a:font script="Tibt" typeface="Microsoft Himalaya"/><a:font script="Thaa" typeface="MV Boli"/><a:font script="Deva" typeface="Mangal"/><a:font script="Telu" typeface="Gautami"/><a:font script="Taml" typeface="Latha"/><a:font script="Syrc" typeface="Estrangelo Edessa"/><a:font script="Orya" typeface="Kalinga"/><a:font script="Mlym" typeface="Kartika"/><a:font script="Laoo" typeface="DokChampa"/><a:font script="Sinh" typeface="Iskoola Pota"/><a:font script="Mong" typeface="Mongolian Baiti"/><a:font script="Viet" typeface="Verdana"/><a:font script="Uigh" typeface="Microsoft Uighur"/><a:font script="Geor" typeface="Sylfaen"/></a:majorFont><a:minorFont><a:latin typeface="Arial" panose="020B0604020202020204"/><a:ea typeface=""/><a:cs typeface=""/><a:font script="Jpan" typeface="ＭＳ Ｐゴシック"/><a:font script="Hang" typeface="굴림"/><a:font script="Hans" typeface="黑体"/><a:font script="Hant" typeface="微軟正黑體"/><a:font script="Arab" typeface="Arial"/><a:font script="Hebr" typeface="Arial"/><a:font script="Thai" typeface="Cordia New"/><a:font script="Ethi" typeface="Nyala"/><a:font script="Beng" typeface="Vrinda"/><a:font script="Gujr" typeface="Shruti"/><a:font script="Khmr" typeface="DaunPenh"/><a:font script="Knda" typeface="Tunga"/><a:font script="Guru" typeface="Raavi"/><a:font script="Cans" typeface="Euphemia"/><a:font script="Cher" typeface="Plantagenet Cherokee"/><a:font script="Yiii" typeface="Microsoft Yi Baiti"/><a:font script="Tibt" typeface="Microsoft Himalaya"/><a:font script="Thaa" typeface="MV Boli"/><a:font script="Deva" typeface="Mangal"/><a:font script="Telu" typeface="Gautami"/><a:font script="Taml" typeface="Latha"/><a:font script="Syrc" typeface="Estrangelo Edessa"/><a:font script="Orya" typeface="Kalinga"/><a:font script="Mlym" typeface="Kartika"/><a:font script="Laoo" typeface="DokChampa"/><a:font script="Sinh" typeface="Iskoola Pota"/><a:font script="Mong" typeface="Mongolian Baiti"/><a:font script="Viet" typeface="Arial"/><a:font script="Uigh" typeface="Microsoft Uighur"/><a:font script="Geor" typeface="Sylfaen"/></a:minorFont></a:fontScheme>
+
+--- <a:fmtScheme> opening tag only (verbatim) ---
+<a:fmtScheme name="Office">
+
+--- <a:extraClrSchemeLst> (verbatim, may be empty element) ---
+<a:extraClrSchemeLst/>
+
+====================================================================================================
+PART:  ppt/presentation.xml
+====================================================================================================
+
+--- <p:sldSz> (verbatim) ---
+<p:sldSz cx="12196763" cy="6858000"/>
+
+--- <p:notesSz> (verbatim) ---
+<p:notesSz cx="6858000" cy="9144000"/>
+
+--- <p:sldMasterIdLst> (verbatim) ---
+<p:sldMasterIdLst><p:sldMasterId id="2147483818" r:id="rId1"/><p:sldMasterId id="2147483797" r:id="rId2"/><p:sldMasterId id="2147483816" r:id="rId3"/><p:sldMasterId id="2147483683" r:id="rId4"/></p:sldMasterIdLst>
+
+--- <p:defaultTextStyle> lvl1 only (verbatim) ---
+<a:lvl1pPr marL="0" algn="l" defTabSz="914478" rtl="0" eaLnBrk="1" latinLnBrk="0" hangingPunct="1"><a:defRPr sz="1800" kern="1200"><a:solidFill><a:schemeClr val="tx1"/></a:solidFill><a:latin typeface="+mn-lt"/><a:ea typeface="+mn-ea"/><a:cs typeface="+mn-cs"/></a:defRPr></a:lvl1pPr>
+
+====================================================================================================
+PART:  ppt/slideMasters/slideMaster1.xml
+====================================================================================================
+
+--- <p:bg> (verbatim) ---
+<p:bg><p:bgPr><a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill><a:effectLst/></p:bgPr></p:bg>
+
+--- <p:clrMap> (verbatim) ---
+<p:clrMap bg1="lt1" tx1="dk1" bg2="lt2" tx2="dk2" accent1="accent1" accent2="accent2" accent3="accent3" accent4="accent4" accent5="accent5" accent6="accent6" hlink="hlink" folHlink="folHlink"/>
+
+--- titleStyle lvl1pPr (verbatim) ---
+<a:lvl1pPr algn="l" defTabSz="914400" rtl="0" eaLnBrk="1" latinLnBrk="0" hangingPunct="1"><a:lnSpc><a:spcPts val="3440"/></a:lnSpc><a:spcBef><a:spcPct val="0"/></a:spcBef><a:buNone/><a:defRPr sz="3200" kern="1200"><a:solidFill><a:schemeClr val="tx1"/></a:solidFill><a:latin typeface="Microsoft YaHei" panose="020B0503020204020204" pitchFamily="34" charset="-122"/><a:ea typeface="Microsoft YaHei" panose="020B0503020204020204" pitchFamily="34" charset="-122"/><a:cs typeface="+mj-cs"/></a:defRPr></a:lvl1pPr>
+
+--- bodyStyle lvl1pPr (verbatim) ---
+<a:lvl1pPr marL="0" indent="0" algn="l" defTabSz="914400" rtl="0" eaLnBrk="1" latinLnBrk="0" hangingPunct="1"><a:lnSpc><a:spcPct val="100000"/></a:lnSpc><a:spcBef><a:spcPts val="0"/></a:spcBef><a:buFontTx/><a:buNone/><a:defRPr sz="1000" kern="1200"><a:solidFill><a:srgbClr val="1D1D1B"/></a:solidFill><a:latin typeface="Arial" panose="020B0604020202020204" pitchFamily="34" charset="0"/><a:ea typeface="Microsoft YaHei" panose="020B0503020204020204" pitchFamily="34" charset="-122"/><a:cs typeface="Arial" panose="020B0604020202020204" pitchFamily="34" charset="0"/></a:defRPr></a:lvl1pPr>
+
+--- logo picture shape (verbatim <p:pic> on the master) ---
+<p:pic><p:nvPicPr><p:cNvPr id="38" name="图片 37"/><p:cNvPicPr><a:picLocks noChangeAspect="1"/></p:cNvPicPr><p:nvPr userDrawn="1"/></p:nvPicPr><p:blipFill><a:blip r:embed="rId6" cstate="print"><a:extLst><a:ext uri="{28A0092B-C50C-407E-A947-70E740481C1C}"><a14:useLocalDpi xmlns:a14="http://schemas.microsoft.com/office/drawing/2010/main" val="0"/></a:ext></a:extLst></a:blip><a:stretch><a:fillRect/></a:stretch></p:blipFill><p:spPr><a:xfrm><a:off x="9206684" y="5976168"/><a:ext cx="2258389" cy="482533"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr></p:pic>
+
+--- footer/body placeholder shape holding "Security Level:" (verbatim) ---
+<p:sp><p:nvSpPr><p:cNvPr id="15" name="Text Placeholder 14"><a:extLst><a:ext uri="{FF2B5EF4-FFF2-40B4-BE49-F238E27FC236}"><a16:creationId xmlns="" xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" id="{AF72FAD7-C8C3-754A-A498-D3A7EC29AB73}"/></a:ext></a:extLst></p:cNvPr><p:cNvSpPr><a:spLocks noGrp="1"/></p:cNvSpPr><p:nvPr><p:ph type="body" idx="1"/></p:nvPr></p:nvSpPr><p:spPr><a:xfrm><a:off x="909309" y="6270651"/><a:ext cx="1982316" cy="153611"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr><p:txBody><a:bodyPr vert="horz" lIns="0" tIns="0" rIns="0" bIns="0" rtlCol="0"><a:noAutofit/></a:bodyPr><a:lstStyle/><a:p><a:pPr><a:lnSpc><a:spcPct val="100000"/></a:lnSpc></a:pPr><a:r><a:rPr kumimoji="1" lang="en-US" altLang="zh-CN" sz="1000" dirty="0"/><a:t>Security Level:</a:t></a:r><a:endParaRPr lang="en-US" altLang="zh-CN" sz="1000" dirty="0"/></a:p></p:txBody></p:sp>
+
+====================================================================================================
+PART:  ppt/theme/theme5.xml   (notes master theme; theme6.xml is byte-identical in its clrScheme)
+NOTE:  THIS is where <a:sysClr lastClr="..."> appears. theme1-4 contain no sysClr at all.
+====================================================================================================
+
+--- <a:clrScheme> (verbatim, complete) ---
+<a:clrScheme name="Office"><a:dk1><a:sysClr val="windowText" lastClr="000000"/></a:dk1><a:lt1><a:sysClr val="window" lastClr="FFFFFF"/></a:lt1><a:dk2><a:srgbClr val="44546A"/></a:dk2><a:lt2><a:srgbClr val="E7E6E6"/></a:lt2><a:accent1><a:srgbClr val="4472C4"/></a:accent1><a:accent2><a:srgbClr val="ED7D31"/></a:accent2><a:accent3><a:srgbClr val="A5A5A5"/></a:accent3><a:accent4><a:srgbClr val="FFC000"/></a:accent4><a:accent5><a:srgbClr val="5B9BD5"/></a:accent5><a:accent6><a:srgbClr val="70AD47"/></a:accent6><a:hlink><a:srgbClr val="0563C1"/></a:hlink><a:folHlink><a:srgbClr val="954F72"/></a:folHlink></a:clrScheme>
+
+--- <a:dk1>/<a:lt1> of theme6.xml (verbatim) ---
+<a:dk1><a:sysClr val="windowText" lastClr="000000"/></a:dk1><a:lt1><a:sysClr val="window" lastClr="FFFFFF"/></a:lt1>
+

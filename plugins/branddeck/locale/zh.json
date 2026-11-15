@@ -1,0 +1,11 @@
+{
+  "meta": {
+    "title": "BrandDeck 品牌演示",
+    "description": "从企业 .pptx 模板提取品牌设计令牌，用 1280×720 卡片 DSL 编排内容，在面板中拖拽/改字预览，并编译为原生可编辑的 PowerPoint 文件。"
+  },
+  "panel": "BrandDeck",
+  "tool": {
+    "templateParse": "解析 PPT 模板并提取品牌令牌",
+    "deckExport": "导出为原生 .pptx"
+  }
+}
