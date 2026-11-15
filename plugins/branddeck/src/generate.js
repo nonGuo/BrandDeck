@@ -372,14 +372,24 @@ export function parseSourceToOutline(text, options = {}) {
       })
     })
   } else if (preamble.length > 0) {
-    // Text before the first slide heading: keep it as a lead slide rather than
-    // dropping user content.
-    const derived = deriveTitle(preamble[0], maxTitleChars)
-    const lead = chunk(preamble, perSlide).map((bullets, chunkIndex) => ({
-      title: chunkIndex === 0 ? derived : `${derived}（${chunkIndex + 1}）`,
-      bullets,
-    }))
-    slides.unshift(...lead)
+    if (deckTitle !== null && deckTitle !== '') {
+      // A `#` title already names the deck, so text before the first `##` is framing
+      // copy, not a page. Turning it into a lead slide invents a heading out of the
+      // first bullet (models like to write a one-line thesis there) and produces a
+      // page whose only content is that thesis. Use it as the cover subtitle instead.
+      // This function is pure and returns no warnings channel, so the mapping is
+      // simply the sensible one: thesis line → subtitle, remaining framing dropped.
+      if (subtitle === null) subtitle = preamble[0]
+    } else {
+      // No deck title at all: this is the "plain prose" case, where the first
+      // paragraph legitimately becomes the title and the rest chunk into slides.
+      const derived = deriveTitle(preamble[0], maxTitleChars)
+      const lead = chunk(preamble, perSlide).map((bullets, chunkIndex) => ({
+        title: chunkIndex === 0 ? derived : `${derived}（${chunkIndex + 1}）`,
+        bullets,
+      }))
+      slides.unshift(...lead)
+    }
   }
 
   const title =

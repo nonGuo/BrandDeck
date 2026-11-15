@@ -729,6 +729,109 @@ async function firstTemplateId(storeConfig) {
 }
 
 /**
+ * Load the conversation helpers lazily, for the same reason as the generator: a
+ * missing module must degrade one endpoint, not the plugin's activation.
+ */
+async function loadAssist() {
+  try {
+    return await import('./src/assist.js')
+  } catch (error) {
+    const failure = fail(
+      'assist_unavailable',
+      `conversation helpers unavailable: ${error instanceof Error ? error.message : String(error)}`,
+    )
+    const wrapper = new Error(failure.error.message)
+    wrapper.code = failure.error.code
+    throw wrapper
+  }
+}
+
+/**
+ * "Say a sentence, get a style": ask the model to translate the description into a
+ * style profile, validate it against the same schema the tool uses, and return a
+ * *draft* (the panel shows it for review before saving).
+ *
+ * @param {{description: string, theme: any}} input
+ * @param {{ctx: any, storeConfig: {root?: string}}} deps
+ */
+async function assistStyle(input, deps) {
+  const assist = await loadAssist()
+  const prompt = assist.buildStylePrompt({
+    description: input.description,
+    theme: input.theme,
+    styleIds: styles.listStyles(deps.storeConfig).map((entry) => entry.styleId),
+  })
+  const answer = await assist.callModel(deps.ctx, { ...prompt, maxTokens: 900 })
+  const parsed = assist.extractJsonObject(answer)
+  if (parsed === null) {
+    return {
+      ok: false,
+      error: { code: 'style_unparsable', message: '模型没有返回可解析的风格 JSON' },
+      raw: String(answer).slice(0, 1200),
+    }
+  }
+  // Validate through the same normaliser the manual path uses, so a conversational
+  // style cannot smuggle in fields the schema rejects.
+  let style
+  try {
+    style = styles.normalizeStyle(
+      { ...parsed, styleId: undefined, templateId: input.theme?.templateId, source: 'chat' },
+      {},
+    )
+  } catch (error) {
+    return {
+      ok: false,
+      error: { code: 'style_invalid', message: error instanceof Error ? error.message : String(error) },
+      raw: String(answer).slice(0, 1200),
+    }
+  }
+  style.description = typeof parsed.description === 'string' && parsed.description.trim() !== ''
+    ? parsed.description.trim()
+    : input.description
+  return { ok: true, style, raw: String(answer).slice(0, 1200) }
+}
+
+/**
+ * "Say a sentence, get slides": the model writes a Markdown outline in our own
+ * convention, and the deterministic generator lays it out. Layout stays code-owned,
+ * so a bad answer can never produce an unrenderable deck.
+ *
+ * @param {{description: string, templateId: string | null, styleId?: string, maxSlides?: number}} input
+ * @param {{ctx: any, config: any, storeConfig: {root?: string}}} deps
+ */
+async function assistContent(input, deps) {
+  const assist = await loadAssist()
+  const templateId = input.templateId ?? (await firstTemplateId(deps.storeConfig))
+  const baseTheme = templateId === undefined ? DEFAULT_THEME : await themeFor({ templateId }, deps.config, deps.storeConfig)
+  const style = input.styleId === undefined || input.styleId === '' ? null : styles.readStyleOrNull(input.styleId, deps.storeConfig)
+  const effective = style ?? styles.DEFAULT_STYLE
+  const theme = styles.applyStyleToTheme(baseTheme, effective)
+  theme.templateId = baseTheme.templateId
+  theme.templateName = baseTheme.templateName
+
+  const prompt = assist.buildContentPrompt({
+    description: input.description,
+    maxSlides: input.maxSlides ?? effective.maxSlides,
+  })
+  const answer = await assist.callModel(deps.ctx, { ...prompt, maxTokens: 1600 })
+  const markdown = assist.extractMarkdown(answer)
+  if (markdown.trim() === '') {
+    return { ok: false, error: { code: 'outline_unparsable', message: '模型没有返回可用的大纲' }, raw: String(answer).slice(0, 1200) }
+  }
+
+  const generated = await generateDeckFrom({
+    text: markdown,
+    templateId: templateId ?? undefined,
+    styleId: effective.styleId,
+    maxSlides: input.maxSlides ?? effective.maxSlides,
+    config: deps.config,
+    storeConfig: deps.storeConfig,
+  })
+  if (generated.ok !== true) return generated
+  return { ...generated, markdown, raw: String(answer).slice(0, 1200) }
+}
+
+/**
  * One generation pipeline shared by the tool and the panel endpoint.
  *
  * `src/generate.js` is imported lazily: it is the only module whose absence used
@@ -977,7 +1080,7 @@ function registerPanelApi(ctx, config, storeConfig) {
           kind: 'prefix',
           path: API_PREFIX,
           handler: (req, res) => {
-            handleApiRequest(req, res, { config, storeConfig }).catch((error) => {
+            handleApiRequest(req, res, { config, storeConfig, ctx }).catch((error) => {
               const envelope = failureOf(error)
               if (!res.headersSent) writeJson(res, 500, envelope)
               else res.destroy()
@@ -1077,6 +1180,7 @@ function writeJson(res, status, payload) {
  */
 async function dispatchEndpoint(endpoint, payload, deps) {
   const { config, storeConfig } = deps
+  const ctx = deps.ctx ?? null
   const body = payload ?? {}
 
   switch (endpoint) {
@@ -1222,6 +1326,68 @@ async function dispatchEndpoint(endpoint, payload, deps) {
         cwd: typeof body.cwd === 'string' ? body.cwd : process.cwd(),
       })
       return generated.ok === true ? ok(generated) : generated
+    }
+
+    case 'assist.providers': {
+      // Diagnostics: which model routes this profile offers and which one the panel
+      // would use. Makes "why did the sentence-to-style call fail" answerable without
+      // reading Harness logs.
+      const llm = ctx?.get?.('llm') ?? null
+      const selection = (() => {
+        try {
+          return ctx?.get?.('agentDefaultModel')?.currentSelection?.() ?? null
+        } catch {
+          return null
+        }
+      })()
+      let providers = []
+      try {
+        providers = typeof llm?.listProviders === 'function' ? llm.listProviders() : []
+      } catch {
+        providers = []
+      }
+      return ok({
+        hasLlm: llm !== null && typeof llm?.stream === 'function',
+        selection,
+        providers,
+        note: 'The panel authors styles/decks with the default selection above; a provider that requires extra routing headers may reject plugin-initiated calls.',
+      })
+    }
+
+    case 'style.assist': {
+      const description = typeof body.description === 'string' ? body.description.trim() : ''
+      if (description === '') return fail('invalid_body', 'Expected { description }')
+      const templates = await store.listTemplates(storeConfig)
+      const requested = typeof body.templateId === 'string' && body.templateId !== '' ? body.templateId : null
+      const templateId = requested ?? config.defaultTemplateId ?? templates[0]?.templateId ?? null
+      const theme = templateId === null ? DEFAULT_THEME : await themeFor({ templateId }, config, storeConfig)
+      try {
+        return ok(await assistStyle({ description, theme }, { ctx, storeConfig }))
+      } catch (error) {
+        return failureOf(error)
+      }
+    }
+
+    case 'content.assist': {
+      const description = typeof body.description === 'string' ? body.description.trim() : ''
+      if (description === '') return fail('invalid_body', 'Expected { description }')
+      const templates = await store.listTemplates(storeConfig)
+      const requested = typeof body.templateId === 'string' && body.templateId !== '' ? body.templateId : null
+      const templateId = requested ?? config.defaultTemplateId ?? templates[0]?.templateId ?? null
+      try {
+        const result = await assistContent(
+          {
+            description,
+            templateId,
+            styleId: typeof body.styleId === 'string' ? body.styleId : undefined,
+            maxSlides: Number.isFinite(body.maxSlides) ? Number(body.maxSlides) : undefined,
+          },
+          { ctx, config, storeConfig },
+        )
+        return result.ok === true ? ok(result) : result
+      } catch (error) {
+        return failureOf(error)
+      }
     }
 
     case 'decks.save': {

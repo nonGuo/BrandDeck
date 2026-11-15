@@ -409,6 +409,36 @@ const DENSITIES = ['airy', 'standard', 'dense']
 const LAYOUTS = ['list', 'cards']
 const TONES = ['formal', 'bold', 'minimal']
 
+check('2c · framing bullets before the first ## become the cover subtitle, not a phantom slide', () => {
+  // Real model output shape (seen live): a thesis line written under the deck title
+  // before any section heading. It must NOT become a page whose heading is that
+  // sentence — that produced a one-bullet "（续）" slide in a rendered deck.
+  const md = [
+    '# BrandDeck 上手三步走',
+    '',
+    '- 三步完成一份符合品牌规范的演示物料',
+    '- 全程不需要设计基础',
+    '',
+    '## 第一步：导入模板',
+    '',
+    '- 打开 BrandDeck',
+    '- 上传现有 PPT',
+  ].join('\n')
+  const outline = parseSourceToOutline(md)
+  assert(outline.title === 'BrandDeck 上手三步走', `title: ${outline.title}`)
+  assert(outline.subtitle === '三步完成一份符合品牌规范的演示物料', `subtitle: ${outline.subtitle}`)
+  assert(outline.slides.length === 1, `phantom lead slide: ${outline.slides.length} slides`)
+  assert(outline.slides[0].title === '第一步：导入模板', `first slide: ${outline.slides[0].title}`)
+  assert(outline.slides[0].bullets.length === 2, `first slide bullets: ${outline.slides[0].bullets.length}`)
+
+  // Without a `#` title the old prose behaviour must survive: first paragraph is
+  // the title and the rest chunk into slides.
+  const prose = parseSourceToOutline('第一段是标题\n\n第二段\n\n第三段')
+  assert(prose.title.startsWith('第一段'), `prose title: ${prose.title}`)
+  assert(prose.slides.length >= 1, 'prose input produced no slides')
+  return `subtitle="${outline.subtitle}", ${outline.slides.length} slide, prose kept`
+})
+
 check('3a · composeDeck: 18 combinations are schema-valid and repair-clean', () => {
   let combinations = 0
   for (const density of DENSITIES) {
