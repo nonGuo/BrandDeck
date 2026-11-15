@@ -1,0 +1,10 @@
+{
+  "deckId": "branddeck",
+  "title": "BrandDeck 工程实现详解",
+  "templateId": "ppt-hw",
+  "slideCount": 10,
+  "revision": 5,
+  "updatedAt": "2026-11-15T20:27:05.455Z",
+  "materializedAt": "2026-11-15T20:28:21.386Z",
+  "note": "card.json 是几何真相，outline.md 是文字真相；用 branddeck_outline_save 回写。"
+}
