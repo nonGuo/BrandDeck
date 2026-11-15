@@ -959,12 +959,38 @@ check('8d · stats extracts numbers (2/3/4 cards) and timeline handles 2 and 6 b
     const numberCount = textElements(slide).filter((element) => element.id.includes('-stat-')).length
     cardWidths.push(`${bullets.length}:${cards[0].w}px/${numberCount} numbers`)
     if (index === 2) {
-      assert(numberCount === 3, `4-card slide should have 3 numbers (one bullet has none), got ${numberCount}`)
-      const labelOnly = textElements(slide).find((element) => element.id === 's2-label-4')
-      assert(labelOnly !== undefined && labelOnly.content === '成本降至三分之一', 'label-only card lost its copy')
+      // `成本降至三分之一` carries a Chinese-numeral quantity, so it does have a
+      // headline: 4 bullets → 4 numbers. Arabic-digit-only extraction used to miss it
+      // and leave a tall empty card beside the figures.
+      assert(numberCount === 4, `4-card slide should have 4 numbers (三分之一 is a quantity), got ${numberCount}`)
+      const fourth = textElements(slide).find((element) => element.id === 's2-stat-4')
+      assert(fourth !== undefined && fourth.content === '三分之一', `4th number was ${fourth?.content}`)
+      // The label must not keep the dangling connective: `成本降至` is half a sentence.
+      const fourthLabel = textElements(slide).find((element) => element.id === 's2-label-4')
+      assert(fourthLabel !== undefined && fourthLabel.content === '成本', `4th label was ${fourthLabel?.content}`)
     }
   })
   console.log(`    stats card widths: ${cardWidths.join(', ')}`)
+
+  // The case that *does* degrade: a card with no quantity at all. A stat row reads as
+  // data, so one missing number turns the page into a list rather than a tall empty card.
+  const degrade = composeDeck({
+    outline: {
+      title: '指标',
+      slides: [{ title: '指标页', kind: 'stats', bullets: ['内容交付量同比增长 138%', '人工返工工时下降 74%', '交付节奏更稳'] }],
+    },
+    theme: HW_THEME,
+    style: {},
+  })
+  const degradeSlide = degrade.deck.slides[1]
+  const degradeStats = textElements(degradeSlide).filter((element) => element.id.includes('-stat-') || element.id.includes('-label-'))
+  assert(degradeStats.length === 0, `number-less stats page should degrade to a list, got ${degradeStats.length} stat elements`)
+  assert(
+    degrade.warnings.some((warning) => warning.includes('改为列表')),
+    `no degrade warning in ${stable(degrade.warnings)}`,
+  )
+  const degradeCopy = textElements(degradeSlide).map((element) => element.content)
+  assert(degradeCopy.includes('交付节奏更稳'), `degraded page lost copy: ${stable(degradeCopy)}`)
 
   // --- timeline: 2 nodes and 6 → +1 collapse ------------------------------
   const two = composeDeck({
@@ -1074,9 +1100,108 @@ check('8e · two-track: a long bullet moves its detail into speakerNotes', () =>
 })
 
 /* ------------------------------------------------------------------ *
- * Summary
+ * Spill handling and sparse-page composition
  * ------------------------------------------------------------------ */
 
+check('8g · a page never spills a single trailing bullet onto a 续 page', () => {
+  // Regression: 5 bullets with a `standard` list cap of 4 used to become 4+1, so the
+  // second page held one bullet and looked like a mistake. Two rules now hold:
+  // short copy that fits one page is not split at all, and when a split is genuinely
+  // needed the planner stretches the cap rather than emitting a thin tail page.
+  const short = ['第一条要点', '第二条要点', '第三条要点', '第四条要点', '第五条要点']
+  const one = composeDeck({
+    outline: { title: '溢出', slides: [{ title: '五条', bullets: short }] },
+    theme: HW_THEME,
+    style: { bulletLayout: 'list', density: 'standard' },
+  })
+  const onePages = one.deck.slides.filter((slide) => slide.kind === 'bullets')
+  const oneCounts = onePages.map((slide) => textElements(slide).filter((element) => element.id.includes('-body-')).length)
+  assert(oneCounts.length === 1 && oneCounts[0] === 5, `5 short bullets should stay on one page, got ${stable(oneCounts)}`)
+  assert(one.warnings.length === 0, `unexpected warnings: ${stable(one.warnings)}`)
+
+  // Copy long enough to force a height split: every page must still carry >= 2 bullets.
+  const long = Array.from({ length: 10 }, (_, index) => `第 ${index + 1} 条要点写得比较长，用来强制按高度切分页面，确认真实溢出的页不会只剩一条。`)
+  const many = composeDeck({
+    outline: { title: '溢出', slides: [{ title: '十条长要点', bullets: long }] },
+    theme: HW_THEME,
+    style: { bulletLayout: 'list', density: 'dense' },
+  })
+  const pages = many.deck.slides.filter((slide) => slide.kind === 'bullets')
+  const counts = pages.map((slide) => textElements(slide).filter((element) => element.id.includes('-body-')).length)
+  assert(pages.length > 1, `expected a continuation page, got ${pages.length} page(s)`)
+  assert(Math.min(...counts) >= 2, `a page kept only ${Math.min(...counts)} bullet(s) — ${stable(counts)}`)
+  const copy = pages.flatMap((slide) => textElements(slide).map((element) => element.content))
+  for (const bullet of long) {
+    assert(copy.some((text) => bullet.startsWith(text.slice(0, 10))), `lost "${bullet.slice(0, 12)}" while splitting`)
+  }
+  return `1 page for 5 short bullets; ${counts.join('+')} for 10 long ones`
+})
+
+check('8h · an over-full stats/compare page degrades to a list, not a 续 page', () => {
+  // A `stats` row is a row of at most 4 cards. Five bullets is not a stat row, and
+  // spilling the fifth onto its own page produces a nearly empty slide.
+  const statsBullets = [
+    '交付量增长 138%', '返工下降 74%', '效率提升 3.2 倍',
+    '成本降至三分之一', '覆盖 12 个事业部', '上线 5 个模板',
+  ]
+  const { deck, warnings } = composeDeck({
+    outline: { title: '指标', slides: [{ title: '指标页', kind: 'stats', bullets: statsBullets }] },
+    theme: HW_THEME,
+    style: { density: 'dense' },
+  })
+  const titles = deck.slides.map((slide) => slide.title)
+  assert(!titles.some((title) => title.includes('（续）')), `a 续 page survived: ${stable(titles)}`)
+  assert(
+    warnings.some((warning) => warning.includes('已改为列表呈现')),
+    `no degrade warning in ${stable(warnings)}`,
+  )
+  const kind = deck.slides[1].kind
+  assert(kind === 'bullets', `degraded page should be bullets, got ${kind}`)
+  return `${titles.length} pages, no 续 page`
+})
+
+check('8i · a sparse page steps the body size up instead of hugging the title', () => {
+  // Four short bullets at 22px fill barely half of a 720px canvas. The copy is short
+  // enough to carry the page, so it is set larger and centred within a bounded shift.
+  const bullets = ['画布固定 1280×720', '安全边距 64 像素', 'Logo 位 150×48', '坐标基于同一基准']
+  const { deck } = composeDeck({
+    outline: { title: '稀疏', slides: [{ title: '四条短要点', bullets }] },
+    theme: HW_THEME,
+    style: { density: 'standard', bulletLayout: 'list' },
+  })
+  const slide = deck.slides[1]
+  const body = textElements(slide).filter((element) => element.id.includes('-body-'))
+  const size = body[0].style.fontSize
+  assert(size > 22, `sparse page kept the dense size (${size}px)`)
+  const bottom = Math.max(...body.map((element) => element.y + element.h))
+  // Centred by at most BLOCK_CENTER_MAX, so it must stay in the upper two thirds…
+  assert(bottom < 640, `body ran past the safe box (bottom ${bottom})`)
+  // …and no longer sit right under the title bar.
+  assert(body[0].y > 172, `body still hugs the title (y=${body[0].y})`)
+  return `${size}px, first bullet y=${body[0].y}, bottom=${bottom}`
+})
+
+check('8j · a role label in the slide title is stripped, a real title is not', () => {
+  // Models label the slide's role: `封面：…` / `第 3 页：…` / `Slide 4: …`. The deck has
+  // its own cover, so the label is noise on screen — but `封面设计的三条原则` is a title.
+  const cases = [
+    ['封面：把合规演示从 5 天压到半小时', '把合规演示从 5 天压到半小时'],
+    ['第 3 页：模板解析', '模板解析'],
+    ['第三张、整体架构', '整体架构'],
+    ['Slide 4: Export pipeline', 'Export pipeline'],
+    ['封面设计的三条原则', '封面设计的三条原则'],
+    ['目录页与结束页的关系', '目录页与结束页的关系'],
+  ]
+  for (const [input, expected] of cases) {
+    const outline = parseSourceToOutline(`# 卡组\n\n## ${input}\n- 要点`)
+    assert(outline.slides[0].title === expected, `"${input}" → "${outline.slides[0].title}" (expected "${expected}")`)
+  }
+  return `${cases.length} titles normalised`
+})
+
+/* ------------------------------------------------------------------ *
+ * Summary
+ * ------------------------------------------------------------------ */
 const failed = results.filter((result) => !result.ok)
 console.log('')
 console.log(`${results.length} checks, ${results.length - failed.length} passed, ${failed.length} failed`)

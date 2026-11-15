@@ -272,6 +272,25 @@ const FRAME = Object.freeze({
   titleRight: CANVAS.width - SAFE_AREA.right - LOGO_RESERVE.width - LOGO_RESERVE.gap,
 })
 
+/**
+ * Body sizes a *sparse* list may step up to. A four-bullet page at 22px leaves the
+ * bottom half of a 720px canvas empty; the same copy at 28px reads as a composed page.
+ * Ordered large → small and only ever tried upward from `TYPE.body[0]`, so a dense page
+ * is untouched.
+ */
+const SPARSE_BODY_SIZES = Object.freeze([32, 30, 28, 26, 24])
+
+/** How far a sparse list may be pushed down while centring (keeps it near its title). */
+const BLOCK_CENTER_MAX = 48
+
+/**
+ * A trailing list page with fewer bullets than this reads as an empty slide. The planner
+ * stretches the density cap to avoid one (see `planListChunks`), never past `LIST_HARD_MAX`
+ * — beyond that the page has stopped being a list you can read at a glance.
+ */
+const LIST_MIN_PAGE = 3
+const LIST_HARD_MAX = 8
+
 /** Hard-coded last-resort hex values, used only when the theme is unusable. */
 const FALLBACK_COLORS = Object.freeze({
   background: '#FFFFFF',
@@ -359,8 +378,9 @@ export function parseSourceToOutline(text, options = {}) {
   /** @param {string} title */
   const startSlide = (title) => {
     flushParagraph()
+    const named = cleanSlideTitle(title)
     /** @type {{title: string, bullets: string[], notes?: string, kind?: SlideKind}} */
-    const slide = { title: title === '' ? '未命名页面' : title, bullets: /** @type {string[]} */ ([]) }
+    const slide = { title: named === '' ? '未命名页面' : named, bullets: /** @type {string[]} */ ([]) }
     slides.push(slide)
     current = slide
   }
@@ -590,8 +610,14 @@ const LABEL_COLON = /[：:]/
  * headline at all.
  */
 const STAT_UNIT = '天|小时|分钟|周|月|年|人|次|页|个|条|项|家|台|套|万|亿|元|美元|块|个百分点|倍|%|％|k|K|M|B'
+/**
+ * Chinese numerals used as quantities: 三分之一 / 三倍 / 两成 / 四分之三.
+ * A "statistics" page in a Chinese deck says 成本降至三分之一 far more often than 33%,
+ * so the extractor has to understand it or the card silently loses its headline.
+ */
+const STAT_CN_NUMERAL = '(?:[一二三四五六七八九十百千万亿两半]+分之[一二三四五六七八九十百千]+|[一二三四五六七八九十百千万亿两]+(?:倍|成|成多|个百分点))'
 const STAT_NUMBER = new RegExp(
-  `([$¥￥]\\s*\\d+(?:[.,]\\d+)?\\s*(?:${STAT_UNIT})?|\\d+(?:[.,]\\d+)?\\s*(?:${STAT_UNIT}))`,
+  `([$¥￥]\\s*\\d+(?:[.,]\\d+)?\\s*(?:${STAT_UNIT})?|\\d+(?:[.,]\\d+)?\\s*(?:${STAT_UNIT})|${STAT_CN_NUMERAL})`,
 )
 /**
  * A change expressed as two numbers: `从 5 天降到 4 小时` / `450ms → 18ms` / `5→2`.
@@ -854,7 +880,7 @@ function buildContentSlides(outline, style, ctx, warnings) {
     // Two-track text: long bullets either keep today's split, or — when there is no
     // notes track yet — hand their overflow detail to the speaker notes.
     const track = planTwoTrack(slide.bullets, slide.notes, label, warnings)
-    const kind = slide.kind
+    let kind = slide.kind
 
     if (kind === 'timeline') {
       const folded = foldTimeline(track, label, warnings)
@@ -866,15 +892,18 @@ function buildContentSlides(outline, style, ctx, warnings) {
     }
 
     // `compare` / `stats` are bound by their column/card width, not by the density
-    // cap: `LAYOUT_BULLET_CAP` is what keeps a row readable, and the remainder spills
-    // onto a `（续）` page instead of shrinking the cards into illegibility.
+    // cap: `LAYOUT_BULLET_CAP` is what keeps a row readable. More bullets than that and
+    // the page is no longer a row/two-column page at all — so it degrades to a list
+    // instead of spilling the remainder onto a nearly empty `（续）` slide.
+    if ((kind === 'compare' || kind === 'stats') && track.bullets.length > LAYOUT_BULLET_CAP[kind]) {
+      warnings.push(
+        `${label} · ${KIND_LABEL[kind]}版式单页最多 ${LAYOUT_BULLET_CAP[kind]} 条，已改为列表呈现`,
+      )
+      kind = 'bullets'
+    }
+
     if (kind === 'compare' || kind === 'stats') {
       const chunks = chunk(track.bullets, LAYOUT_BULLET_CAP[kind])
-      if (chunks.length > 1) {
-        warnings.push(
-          `${label} · ${KIND_LABEL[kind]}版式单页最多 ${LAYOUT_BULLET_CAP[kind]} 条，已溢出到 ${chunks.length - 1} 页「（续）」`,
-        )
-      }
       chunks.forEach((bullets, chunkIndex) => {
         /** @type {{kind: SlideKind, title: string, bullets: string[], notes?: string}} */
         const item = {
@@ -891,10 +920,10 @@ function buildContentSlides(outline, style, ctx, warnings) {
     const chunks =
       style.bulletLayout === 'cards'
         ? planCardChunks(track.bullets, cap, ctx, slide.title)
-        : chunk(track.bullets, cap)
+        : planListChunks(track.bullets, cap, ctx, slide.title)
     const countChunks = Math.ceil(track.bullets.length / Math.max(1, cap))
     if (chunks.length > countChunks) {
-      warnings.push(`${label} · 卡片按内容高度排布，已溢出到 ${chunks.length - countChunks} 页「（续）」`)
+      warnings.push(`${label} · 要点按高度排布，已溢出到 ${chunks.length - countChunks} 页「（续）」`)
     }
 
     chunks.forEach((bullets, chunkIndex) => {
@@ -1443,7 +1472,13 @@ function prepareCompareColumn(bullets, fallback) {
   const first = bullets.length > 0 ? oneLine(bullets[0]) : ''
   const labelled = LABEL_PREFIX.exec(first)
   if (labelled === null) {
-    return { heading: fallback, label: null, bullets: bullets.map((bullet) => oneLine(bullet)) }
+    // `fallback === ''` means the caller decided this page should not carry column
+    // headings at all (the author wrote no labels, so any heading would be invented).
+    return {
+      heading: fallback,
+      label: null,
+      bullets: bullets.map((bullet) => oneLine(bullet)),
+    }
   }
   const label = oneLine(labelled[1])
   return {
@@ -1486,15 +1521,18 @@ function buildCompareSlide(slideId, ctx, item) {
 
   /** @type {Array<{heading: string, label: string | null, bullets: string[]}>} */
   const columns = []
-  if (left.length > 0) columns.push(prepareCompareColumn(left, '现状'))
-  if (right.length > 0) columns.push(prepareCompareColumn(right, '目标'))
+  // No author-written label means no column heading: the renderer must not invent
+  // 现状 / 目标. An applicability list ("适合季度汇报 / 不适合一次性创意") under those
+  // headings reads as a before/after the author never wrote.
+  if (left.length > 0) columns.push(prepareCompareColumn(left, ''))
+  if (right.length > 0) columns.push(prepareCompareColumn(right, ''))
   if (columns.length === 0) {
     return buildSectionSlide(slideId, ctx, { title: header.text, notes: item.notes })
   }
   // Both halves of a halved list can carry the SAME `标签：` prefix (e.g. the author
   // wrote `现状：…` on every bullet). Two identical column headings would read as a
-  // bug, so fall back to 现状 / 目标 — still stripping the shared label from the
-  // copy, so the page does not say it twice.
+  // bug, so drop the headings — still stripping the shared label from the copy, so the
+  // page does not say it twice.
   if (
     columns.length === 2 &&
     columns[0].label !== null &&
@@ -1502,14 +1540,19 @@ function buildCompareSlide(slideId, ctx, item) {
   ) {
     const shared = columns[0].label
     const strip = (bullet) => stripLabel(oneLine(bullet), shared)
-    columns[0] = { heading: '现状', label: null, bullets: left.map(strip) }
-    columns[1] = { heading: '目标', label: null, bullets: right.map(strip) }
+    columns[0] = { heading: '', label: null, bullets: left.map(strip) }
+    columns[1] = { heading: '', label: null, bullets: right.map(strip) }
   }
 
   const twoColumns = columns.length > 1
   const colW = twoColumns ? Math.round((box.w - COMPARE.gapX) / 2) : box.w
-  const headingH = Math.max(...columns.map((column) => textHeight(column.heading, colW, COMPARE.headingSize)))
-  const bodyTop = header.top + headingH + COMPARE.headingGap
+  // Headings only exist when the author labelled the columns (`X：` prefix). Without a
+  // label the page is two balanced columns and no invented 现状/目标 row.
+  const anyHeading = columns.some((column) => oneLine(column.heading) !== '')
+  const headingH = anyHeading
+    ? Math.max(...columns.map((column) => textHeight(column.heading, colW, COMPARE.headingSize)))
+    : 0
+  const bodyTop = header.top + (anyHeading ? headingH + COMPARE.headingGap : 0)
   const available = box.y + box.h - bodyTop
   const baseGap = DENSITY[style.density].gap
 
@@ -1577,11 +1620,13 @@ function buildCompareSlide(slideId, ctx, item) {
   let dividerBottom = header.top
   columns.forEach((column, columnIndex) => {
     const x = twoColumns ? box.x + columnIndex * (colW + COMPARE.gapX) : box.x
-    builder.text('subtitle', column.heading, { x, y: header.top, w: colW, h: headingH }, textStyle(
-      COMPARE.headingSize,
-      palette[toneSpec.sectionTitle],
-      { bold: true },
-    ), 'heading')
+    if (anyHeading && oneLine(column.heading) !== '') {
+      builder.text('subtitle', column.heading, { x, y: header.top, w: colW, h: headingH }, textStyle(
+        COMPARE.headingSize,
+        palette[toneSpec.sectionTitle],
+        { bold: true },
+      ), 'heading')
+    }
     let y = bodyTop
     column.bullets.forEach((bullet, bulletIndex) => {
       const height = plan[columnIndex].heights[bulletIndex]
@@ -1671,10 +1716,40 @@ function extractStat(bullet) {
   const match = STAT_NUMBER.exec(flat)
   if (match === null) return { label: flat }
   const number = oneLine(match[0]).replace(/\s+/g, '')
-  const label = oneLine(`${flat.slice(0, match.index)} ${flat.slice(match.index + match[0].length)}`)
-    .replace(/^[，,。；;：:、\s]+/, '')
-    .replace(/[，,。；;：:、\s]+$/, '')
+  const label = trimDanglingConnective(
+    oneLine(`${flat.slice(0, match.index)} ${flat.slice(match.index + match[0].length)}`)
+      .replace(/^[，,。；;：:、\s]+/, '')
+      .replace(/[，,。；;：:、\s]+$/, ''),
+  )
   return { number, label: label === '' ? flat : label }
+}
+
+/**
+ * A number is often glued to a connective: `成本降至三分之一` leaves the label `成本降至`,
+ * which is half a sentence. Strip a dangling connective so the card reads `三分之一 /
+ * 成本`. Only trailing particles are removed, never a word that carries meaning, and an
+ * empty result is rejected by the caller (which then keeps the whole bullet).
+ *
+ * @param {string} label
+ */
+function trimDanglingConnective(label) {
+  let text = label
+  const particles = ['个百分点', '降低到', '下降到', '减少到', '压缩到', '提升到', '增长到', '缩短到', '降至', '降到', '减至', '提至', '达至', '达到', '降至', '至', '到', '从', '为', '是', '达', '约', '近', '超', '过', '等于']
+  let changed = true
+  while (changed) {
+    changed = false
+    for (const particle of particles) {
+      if (!text.endsWith(particle)) continue
+      const next = text.slice(0, text.length - particle.length).trim()
+      // Never strip the label down to nothing: `达到` alone is still copy.
+      if (next !== '') {
+        text = next
+        changed = true
+        break
+      }
+    }
+  }
+  return text
 }
 
 /**
@@ -1783,6 +1858,21 @@ function buildStatsSlide(slideId, ctx, item) {
       card.labelH = textHeight(card.label, textW, STATS.labelSize)
     }
     cardH = measure()
+  }
+
+  // Degrade honestly: a stat row reads as data, so every card must carry a number. If
+  // some bullet has none, the page is really a list — render it as one instead of
+  // leaving a tall empty card beside the figures.
+  const noNumberCards = cards.filter((card) => card.number === undefined)
+  if (noNumberCards.length > 0) {
+    warnings.push(
+      `${header.label} · 指标页需要每张卡都有数字，已改为列表呈现（缺数字：${clampChars(noNumberCards[0].label, 12)}）`,
+    )
+    return buildBulletSlide(slideId, ctx, {
+      title: item.title,
+      bullets: item.bullets,
+      ...(item.notes === undefined ? {} : { notes: item.notes }),
+    })
   }
 
   // Centre the band under the title (never above it).
@@ -1992,6 +2082,10 @@ function slideShell(slideId, builder, palette, title, notes) {
  * else 20; the 18/16 step exists only to keep pathological input inside the safe
  * area (documented judgement call: containment beats the 20px minimum).
  *
+ * A page that would otherwise be half empty steps *up* through `SPARSE_BODY_SIZES`,
+ * spreads its leftover height into the gaps, and is finally centred by at most
+ * `BLOCK_CENTER_MAX` — sparse copy should carry the page, not hug the title.
+ *
  * @param {ReturnType<typeof makeSlideBuilder>} builder
  * @param {LocalContext} ctx
  * @param {string[]} bullets
@@ -2005,6 +2099,7 @@ function placeList(builder, ctx, bullets, top, label) {
   const width = FRAME.right - textX
   const available = box.y + box.h - top
   const baseGap = DENSITY[style.density].gap
+  let blockTop = top
 
   let fontSize = TYPE.body[0]
   let gap = baseGap
@@ -2034,15 +2129,31 @@ function placeList(builder, ctx, bullets, top, label) {
     heights = heights.map((height) => Math.max(8, Math.floor(height * scale)))
     gap = Math.max(4, Math.floor(gap * scale))
     warnings.push(`${label} · 要点过多，已压缩行高以适应页面`)
-  } else if (bullets.length > 1) {
-    // Leftover vertical space is spread into the gap (bounded by `gapMax`) so an
-    // `airy` 3-bullet slide fills the page instead of hugging the title.
+  } else if (bullets.length > 0) {
     const spec = DENSITY[style.density]
-    const slack = available - total
-    gap = Math.min(spec.gapMax, gap + Math.floor(slack / (bullets.length - 1)))
+    // Sparse page: four short bullets at 22px hug the title and leave the bottom 40%
+    // of the slide empty, which reads as an unfinished page. Step the body size up
+    // first (the copy is short, so it can carry the page), then spread the leftover
+    // into the gap up to `gapMax`, and finally centre the block so what remains is
+    // split above and below instead of pooling at the bottom.
+    for (const size of SPARSE_BODY_SIZES) {
+      if (size <= fontSize) break
+      const candidateHeights = bullets.map((bullet) => textHeight(bullet, width, size))
+      if (totalHeight(candidateHeights, spec.gapMax) > available) continue
+      fontSize = size
+      heights = candidateHeights
+    }
+    total = totalHeight(heights, gap)
+    if (bullets.length > 1) {
+      gap = Math.min(spec.gapMax, gap + Math.floor((available - total) / (bullets.length - 1)))
+      total = totalHeight(heights, gap)
+    }
+    // Centring is bounded: a sparse page should breathe, not float away from its title.
+    const offset = Math.min(BLOCK_CENTER_MAX, Math.max(0, Math.floor((available - total) / 2)))
+    blockTop = top + offset
   }
 
-  let y = top
+  let y = blockTop
   bullets.forEach((bullet, index) => {
     const height = heights[index]
     if (marker) {
@@ -2187,6 +2298,65 @@ function planCardChunks(bullets, cap, ctx, title) {
   }
   if (current.length > 0) chunks.push(current)
   return chunks.length === 0 ? [[]] : chunks
+}
+
+/**
+ * Split a title's bullets into list slides.
+ *
+ * The density cap is a *preference*, not a hard limit: six short bullets at 22px fit a
+ * 720px page with room to spare, and splitting them into 4+2 produces a second page
+ * whose void is the most visible defect a reader notices. So the cap is stretched (by
+ * one at a time, never past `LIST_HARD_MAX`) until every page carries at least
+ * `LIST_MIN_PAGE` bullets — while still refusing any page that would not fit its height.
+ *
+ * @param {string[]} bullets
+ * @param {number} cap
+ * @param {LocalContext} ctx
+ * @param {string} title
+ * @returns {string[][]}
+ */
+function planListChunks(bullets, cap, ctx, title) {
+  const { box } = ctx
+  const width = FRAME.right - (ctx.toneSpec.marker ? box.x + 30 : box.x)
+  const gap = DENSITY[ctx.style.density].gap
+  const bottom = box.y + box.h
+  /** @param {number} count already-built pages */
+  const topFor = (count) => bulletContentTop(ctx, count === 0 ? title : `${title}（续）`)
+  const fits = (list, count) => topFor(count) + totalHeight(list.map((bullet) => textHeight(bullet, width, TYPE.body[0])), gap) <= bottom
+
+  /** @param {number} width cap for one page */
+  const plan = (limit) => {
+    /** @type {string[][]} */
+    const pages = []
+    /** @type {string[]} */
+    let current = []
+    for (const bullet of bullets) {
+      const next = [...current, bullet]
+      if (current.length > 0 && (current.length >= limit || !fits(next, pages.length))) {
+        pages.push(current)
+        current = [bullet]
+      } else {
+        current = next
+      }
+    }
+    if (current.length > 0) pages.push(current)
+    return pages
+  }
+
+  let best = plan(cap)
+  // Only a thin *tail* justifies stretching the cap: 40 bullets at a cap of 4 are ten
+  // full pages and must stay ten pages. Six bullets (4+2) and five (4+1) should not
+  // split at all when the copy fits one page.
+  if (best.length > 1 && best.some((page) => page.length < LIST_MIN_PAGE)) {
+    for (let limit = cap + 1; limit <= LIST_HARD_MAX; limit += 1) {
+      const candidate = plan(limit)
+      if (candidate.every((page) => page.length >= LIST_MIN_PAGE)) {
+        best = candidate
+        break
+      }
+    }
+  }
+  return best.length === 0 ? [[]] : best
 }
 
 /**
@@ -2682,6 +2852,14 @@ function chunk(value, size) {
   /** @type {any[][]} */
   const out = []
   for (let index = 0; index < items.length; index += width) out.push(items.slice(index, index + width))
+  // A tail of one is the only split worth disturbing: the last page would carry a
+  // single bullet and read as an empty slide. Case-by-case rebalancing (not an even
+  // redistribution) keeps every other page's grouping intact.
+  if (out.length > 1 && out[out.length - 1].length === 1) {
+    const tail = out[out.length - 1]
+    const previous = out[out.length - 2]
+    tail.unshift(previous.pop())
+  }
   return out
 }
 
@@ -2736,6 +2914,25 @@ function cleanInline(text) {
     .replace(/(^|[\s(（])\*([^*\s][^*]*)\*(?=$|[\s)）,.，。;；])/g, '$1$2')
     .replace(/~~([^~]+)~~/g, '$1')
     .trim()
+}
+
+/**
+ * A model writing an outline often labels the slide's *role* instead of its content —
+ * `封面：把合规演示从 5 天压到半小时`, `第 3 页：模板解析`, `Slide 4: Export`. The deck
+ * already has a cover, so that prefix is noise on screen and, worse, it makes the page
+ * claim to be something it is not. Strip the label (it must be followed by a separator,
+ * so `封面设计的三条原则` is left alone).
+ *
+ * @param {string} title
+ */
+function cleanSlideTitle(title) {
+  const text = String(title ?? '').trim()
+  const stripped = text
+    .replace(/^(?:封面|扉页|目录|首页|结束页|封底)\s*[:：、]\s*/, '')
+    .replace(/^第\s*[0-9一二三四五六七八九十]+\s*(?:页|张|屏)\s*[:：、]\s*/, '')
+    .replace(/^(?:slide|page|p)\s*[0-9]+\s*[:：、]\s*/i, '')
+    .trim()
+  return stripped === '' ? text : stripped
 }
 
 /**
