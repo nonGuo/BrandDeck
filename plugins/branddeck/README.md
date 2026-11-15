@@ -37,7 +37,31 @@ plugin_manager install_bundle { "target": "D:\\Projects\\ai\\BrandDeck\\plugins\
 > 安装完成后**刷新一次页面**：已安装的 bundle 行会即时生效，但浏览器需要重新加载
 > 客户端模块（`/plugins/…/client.js`）才能在侧栏出现 BrandDeck 图标。
 
-## 3. 面板（Web Client）
+## 3. 面板（Web Client）—— 三个视图
+
+顶栏右上角切换：
+
+| 视图 | 作用 |
+| --- | --- |
+| **生成**（入口） | 三步向导：① 选/导入模板 → ② 选或派生「风格配置」→ ③ 粘贴文本或填 .md/.txt 路径 → 生成卡组 |
+| **卡片视图** | 16:9 画布编辑：拖拽/缩放/改字/缩略图排序/溢出预警，自动保存 |
+| **文字视图** | Markdown 大纲编辑，保存后按 `{#id}` 回写卡片，位置与样式不变 |
+
+「生成」里的风格块：可从模板派生、改密度/强调/正文排布/页数上限、保存为可复用风格；
+面板还会给出**一段可直接粘给 Agent 的指令**，让对话变成 `branddeck_style_save` 风格文件。
+
+## 4. 入口一览：三种用法
+
+1. **对话生成**（无需打开面板）
+   ```
+   branddeck_template_parse { path: "D:\...\PPT模板-HW.pptx" }
+   branddeck_style_save     { name: "华为红·紧凑", description: "华为红、密度高、卡片正文", density: "dense", bulletLayout: "cards" }
+   branddeck_generate       { text: "<粘大纲>", templateId: "ppt-hw", styleId: "<风格id>", outputPath: "out.pptx" }
+   ```
+2. **面板生成**：BrandDeck 图标 → 生成 → 三步 → 生成（结果直接进卡片视图继续调）
+3. **在已有卡组上迭代**：`branddeck_outline_get` / `branddeck_outline_save`，或面板文字视图
+
+## 5. 面板（细节）—— 卡片视图
 
 - **顶栏**：Deck 选择、模板徽标、保存状态（保存中/已保存/未保存/保存失败）、刷新、导出 `.pptx`。
 - **左栏**：每页缩略图（按相同 DSL 等比缩小渲染）、上移/下移/删除/复制页、`+ 复制页`。

@@ -106,6 +106,56 @@ window.__ModuleLoader__.load({
       'view.switch': '切换视图',
       'view.cards': '卡片视图',
       'view.text': '文字视图',
+      'view.gen': '生成',
+      'gen.stepTemplate': '模板',
+      'gen.stepStyle': '风格',
+      'gen.stepContent': '内容',
+      'gen.noTemplate': '还没有解析过模板',
+      'gen.importPlaceholder': '导入 .pptx：粘贴绝对路径',
+      'gen.import': '导入模板',
+      'gen.importing': '解析中…',
+      'gen.importFailed': '导入失败',
+      'gen.imported': '模板已导入',
+      'gen.needPath': '请先填写 .pptx 的路径',
+      'gen.noSpec': '选择或导入模板后，这里会显示色板、字体与版式数量。',
+      'gen.fonts': '字体',
+      'gen.layouts': '版式',
+      'gen.fromChat': '来自对话',
+      'gen.derive': '从模板派生风格',
+      'gen.derived': '派生风格',
+      'gen.derivedDesc': '从模板令牌派生：沿用色板与字体，标准信息密度。',
+      'gen.saveStyle': '保存风格',
+      'gen.saving': '保存中…',
+      'gen.styleFailed': '风格保存失败',
+      'gen.styleSaved': '风格已保存',
+      'gen.deleteStyle': '删除风格',
+      'gen.density': '信息密度',
+      'gen.density.airy': '疏（每页 3 条）',
+      'gen.density.standard': '标准（每页 4 条）',
+      'gen.density.dense': '密（每页 6 条）',
+      'gen.tone': '强调用量',
+      'gen.tone.formal': '克制',
+      'gen.tone.bold': '强烈',
+      'gen.tone.minimal': '极简',
+      'gen.bullets': '正文排布',
+      'gen.bullets.list': '列表',
+      'gen.bullets.cards': '卡片',
+      'gen.maxSlides': '页数上限',
+      'gen.maxSlidesShort': '页数上限',
+      'gen.describe': '风格说明',
+      'gen.describePlaceholder': '例如：华为红、信息密度高、卡片式正文',
+      'gen.askAgentTitle': '用对话生成风格配置（复制给 Agent）',
+      'gen.askAgent': '请把下面的描述整理成一个 BrandDeck 风格配置，调用：',
+      'gen.copy': '复制指令',
+      'gen.agentExample': 'branddeck_style_save { name: "风格名", description: "刚才那段描述", density: "dense", tone: "bold", bulletLayout: "cards", templateId: "{templateId}" }',
+      'gen.textPlaceholder': '粘贴会议纪要、文档或一段描述；支持 Markdown：# 标题 为卡组名，## 小节 为每页，-  为要点，备注： 为演讲者备注。',
+      'gen.filePlaceholder': '或填一个 .md/.txt 路径',
+      'gen.titlePlaceholder': '覆盖卡组标题（可选）',
+      'gen.generate': '生成卡组',
+      'gen.generating': '生成中…',
+      'gen.failed': '生成失败',
+      'gen.done': '已生成',
+      'gen.slides': '页',
       'text.hint': '直接改文字即可；保存后按元素 id 回写，卡片里的位置与样式保持不变。',
       'text.ariaLabel': '卡组文字版（Markdown）',
       'text.loading': '读取文字版…',
@@ -182,6 +232,56 @@ window.__ModuleLoader__.load({
       'view.switch': 'Switch view',
       'view.cards': 'Cards',
       'view.text': 'Text',
+      'view.gen': 'Generate',
+      'gen.stepTemplate': 'Template',
+      'gen.stepStyle': 'Style',
+      'gen.stepContent': 'Content',
+      'gen.noTemplate': 'No template parsed yet',
+      'gen.importPlaceholder': 'Import a .pptx: paste its absolute path',
+      'gen.import': 'Import',
+      'gen.importing': 'Parsing…',
+      'gen.importFailed': 'Import failed',
+      'gen.imported': 'Template imported',
+      'gen.needPath': 'Enter the .pptx path first',
+      'gen.noSpec': 'Pick or bring in a template to see its palette, fonts and layout count.',
+      'gen.fonts': 'Fonts',
+      'gen.layouts': 'Layouts',
+      'gen.fromChat': 'from chat',
+      'gen.derive': 'Derive from template',
+      'gen.derived': 'derived style',
+      'gen.derivedDesc': 'Derived from the template tokens: same palette and fonts, standard density.',
+      'gen.saveStyle': 'Save style',
+      'gen.saving': 'Saving…',
+      'gen.styleFailed': 'Style save failed',
+      'gen.styleSaved': 'Style saved',
+      'gen.deleteStyle': 'Delete style',
+      'gen.density': 'Density',
+      'gen.density.airy': 'Airy (3 bullets)',
+      'gen.density.standard': 'Standard (4 bullets)',
+      'gen.density.dense': 'Dense (6 bullets)',
+      'gen.tone': 'Accent usage',
+      'gen.tone.formal': 'Formal',
+      'gen.tone.bold': 'Bold',
+      'gen.tone.minimal': 'Minimal',
+      'gen.bullets': 'Bullet layout',
+      'gen.bullets.list': 'List',
+      'gen.bullets.cards': 'Cards',
+      'gen.maxSlides': 'Page cap',
+      'gen.maxSlidesShort': 'Max pages',
+      'gen.describe': 'Style note',
+      'gen.describePlaceholder': 'e.g. brand red, dense, card-style body text',
+      'gen.askAgentTitle': 'Author a style by conversation (copy for the Agent)',
+      'gen.askAgent': 'Turn the description below into a BrandDeck style profile and call:',
+      'gen.copy': 'Copy instruction',
+      'gen.agentExample': 'branddeck_style_save { name: "style name", description: "the description above", density: "dense", tone: "bold", bulletLayout: "cards", templateId: "{templateId}" }',
+      'gen.textPlaceholder': 'Paste notes, a document or a description. Markdown works: # title = deck, ## section = slide, -  = bullet, a notes prefix = speaker notes.',
+      'gen.filePlaceholder': 'or a .md/.txt path',
+      'gen.titlePlaceholder': 'Override deck title (optional)',
+      'gen.generate': 'Generate deck',
+      'gen.generating': 'Generating…',
+      'gen.failed': 'Generation failed',
+      'gen.done': 'Generated',
+      'gen.slides': 'slides',
       'text.hint': 'Edit the copy directly; saving maps it back by element id and keeps every card position and style.',
       'text.ariaLabel': 'Deck text outline (Markdown)',
       'text.loading': 'Loading text…',
@@ -1125,6 +1225,26 @@ window.__ModuleLoader__.load({
 .branddeck-textarea{flex:1 1 auto;min-height:240px;width:100%;resize:none;box-sizing:border-box;padding:12px 14px;border-radius:var(--branddeck-radius-md,12px);border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);font-family:var(--branddeck-font-mono);font-size:12.5px;line-height:1.65;tab-size:2;white-space:pre-wrap}
 .branddeck-textarea:focus{outline:2px solid var(--dsw-alias-button-primary-fill);outline-offset:-1px}
 .branddeck-banner-ok{border-color:var(--dsw-alias-state-success-primary)}
+.branddeck-gen{display:flex;flex-direction:column;gap:12px;flex:1 1 auto;min-height:0;overflow:auto;padding:14px}
+.branddeck-gen-block{display:flex;flex-direction:column;gap:10px;padding:12px 14px;border:1px solid var(--dsw-alias-border-l2);border-radius:var(--branddeck-radius-md,12px);background:var(--dsw-alias-bg-layer-1)}
+.branddeck-gen-head{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--dsw-alias-label-primary)}
+.branddeck-gen-step{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:var(--dsw-alias-button-primary-fill);color:var(--dsw-alias-label-primary-inverted);font-size:11px;font-weight:700}
+.branddeck-gen-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.branddeck-gen-row .branddeck-input,.branddeck-gen-row .branddeck-select{flex:1 1 160px;min-width:0}
+.branddeck-input{appearance:none;box-sizing:border-box;padding:6px 9px;border-radius:var(--branddeck-radius-sm,8px);border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit;font-size:12.5px;line-height:1.2}
+.branddeck-input:focus{outline:2px solid var(--dsw-alias-button-primary-fill);outline-offset:-1px}
+.branddeck-input-num{flex:0 0 96px;width:96px;text-align:right}
+.branddeck-gen-hint{font-size:12px;color:var(--dsw-alias-label-tertiary)}
+.branddeck-gen-spec{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.branddeck-swatches{display:inline-flex;gap:4px}
+.branddeck-swatch{width:18px;height:18px;border-radius:4px;border:1px solid var(--dsw-alias-border-l2)}
+.branddeck-gen-meta{font-size:12px;color:var(--dsw-alias-label-secondary)}
+.branddeck-gen-form{display:flex;gap:10px;flex-wrap:wrap}
+.branddeck-field-wide{flex:1 1 100%}
+.branddeck-gen-details{font-size:12px;color:var(--dsw-alias-label-secondary)}
+.branddeck-gen-details summary{cursor:pointer;padding:2px 0}
+.branddeck-gen-code{margin:6px 0;padding:10px;border-radius:var(--branddeck-radius-sm,8px);border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary);font-family:var(--branddeck-font-mono);font-size:11.5px;line-height:1.6;white-space:pre-wrap;word-break:break-word}
+.branddeck-gen-textarea{min-height:160px;flex:0 0 auto}
 .branddeck-field{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--dsw-alias-label-secondary,#5B6470);white-space:nowrap}
 .branddeck-select{height:26px;max-width:220px;padding:0 6px;border-radius:6px;font-family:inherit;font-size:12px;color:var(--dsw-alias-label-primary,#1B1F24);background:var(--dsw-alias-bg-layer-2,#FFFFFF);border:.5px solid var(--dsw-alias-border-l3,#CFD4DA);outline:none}
 .branddeck-select:focus-visible{border-color:var(--dsw-alias-brand-primary,#247BBF)}
@@ -2275,6 +2395,454 @@ window.__ModuleLoader__.load({
       )
     }
 
+    /**
+     * The GENERATE entry point (「生成」视图) — the panel's front door.
+     *
+     * Three blocks, in the order a person actually thinks:
+     *   1. 模板 — pick a parsed template or bring in a new .pptx by path (parsed once,
+     *      then reusable forever); shows the palette/font/layout summary.
+     *   2. 风格 — pick a reusable style profile («风格配置文件»), derive one from the
+     *      template, tweak density/tone/layout, save it, and copy a ready-made
+     *      instruction for the Agent to distil a style from a conversation.
+     *   3. 内容 — paste text or point at a .md/.txt file, then 生成.
+     */
+    /* Label helpers use literal t() keys so every dictionary entry stays discoverable. */
+    const densityLabel = (value, t) =>
+      value === 'airy' ? t('gen.density.airy') : value === 'dense' ? t('gen.density.dense') : t('gen.density.standard')
+    const toneLabel = (value, t) =>
+      value === 'bold' ? t('gen.tone.bold') : value === 'minimal' ? t('gen.tone.minimal') : t('gen.tone.formal')
+    const bulletLabel = (value, t) => (value === 'cards' ? t('gen.bullets.cards') : t('gen.bullets.list'))
+
+    function GenerateView(props) {
+      const { t, onGenerated, disabled } = props
+      const [templates, setTemplates] = React.useState([])
+      const [styles, setStyles] = React.useState([])
+      const [templateId, setTemplateId] = React.useState('')
+      const [styleId, setStyleId] = React.useState('default')
+      const [spec, setSpec] = React.useState(null)
+      const [importPath, setImportPath] = React.useState('')
+      const [busy, setBusy] = React.useState(null)
+      const [error, setError] = React.useState(null)
+      const [result, setResult] = React.useState(null)
+
+      const [text, setText] = React.useState('')
+      const [sourcePath, setSourcePath] = React.useState('')
+      const [title, setTitle] = React.useState('')
+      const [maxSlides, setMaxSlides] = React.useState('')
+
+      /* style form: a working copy of the selected style */
+      const [draft, setDraft] = React.useState(null)
+
+      const reload = React.useCallback(() => {
+        let alive = true
+        callRpc('styles.list', {}).then((response) => {
+          if (!alive || !response.ok) return
+          const list = Array.isArray(response.value.styles) ? response.value.styles : []
+          setStyles(list)
+          setStyleId((current) => (list.some((entry) => entry.styleId === current) ? current : list[0]?.styleId ?? 'default'))
+        })
+        callRpc('state', {}).then((response) => {
+          if (!alive || !response.ok) return
+          const list = Array.isArray(response.value.templates) ? response.value.templates : []
+          setTemplates(list)
+          setTemplateId((current) => (current !== '' && list.some((entry) => entry.templateId === current) ? current : list[0]?.templateId ?? ''))
+        })
+        return () => {
+          alive = false
+        }
+      }, [])
+
+      React.useEffect(() => reload(), [reload])
+
+      /* keep the working copy in sync with the selection */
+      React.useEffect(() => {
+        const selected = styles.find((entry) => entry.styleId === styleId) ?? null
+        setDraft(selected === null ? null : JSON.parse(JSON.stringify(selected)))
+      }, [styleId, styles])
+
+      /* template spec (palette/fonts/layouts) for the picker */
+      React.useEffect(() => {
+        if (templateId === '') {
+          setSpec(null)
+          return undefined
+        }
+        let alive = true
+        callRpc('templates.spec', { templateId }).then((response) => {
+          if (!alive) return
+          setSpec(response.ok ? response.value : null)
+        })
+        return () => {
+          alive = false
+        }
+      }, [templateId])
+
+      async function importTemplate() {
+        const path = importPath.trim()
+        if (path === '') {
+          setError(t('gen.needPath'))
+          return
+        }
+        setBusy('import')
+        setError(null)
+        const response = await callRpc('templates.parse', { path }, 120000)
+        setBusy(null)
+        if (!response.ok) {
+          setError(`${t('gen.importFailed')}: ${response.error.message || response.error.code}`)
+          return
+        }
+        const parsed = response.value?.template ?? {}
+        setImportPath('')
+        setResult({ kind: 'import', templateId: parsed.templateId, name: parsed.templateName })
+        if (typeof parsed.templateId === 'string') setTemplateId(parsed.templateId)
+        reload()
+      }
+
+      async function saveStyle() {
+        if (draft === null) return
+        setBusy('style')
+        setError(null)
+        const response = await callRpc('styles.save', { style: draft, styleId: draft.styleId })
+        setBusy(null)
+        if (!response.ok) {
+          setError(`${t('gen.styleFailed')}: ${response.error.message || response.error.code}`)
+          return
+        }
+        setResult({ kind: 'style', name: response.value.style.name })
+        reload()
+      }
+
+      /** Derive a new style from the selected template's tokens. */
+      async function deriveStyle() {
+        if (templateId === '') return
+        const base = styles.find((entry) => entry.styleId === styleId) ?? {}
+        const nextId = `${templateId}-${Date.now().toString(36).slice(-4)}`
+        const payload = {
+          ...base,
+          styleId: nextId,
+          name: `${templateId} · ${t('gen.derived')}`,
+          description: t('gen.derivedDesc'),
+          templateId,
+          source: 'template',
+        }
+        setBusy('derive')
+        const response = await callRpc('styles.save', { style: payload, styleId: nextId })
+        setBusy(null)
+        if (!response.ok) {
+          setError(response.error.message || response.error.code)
+          return
+        }
+        setResult({ kind: 'style', name: response.value.style.name })
+        reload()
+        setStyleId(nextId)
+      }
+
+      async function removeStyle() {
+        if (styleId === 'default') return
+        setBusy('delete')
+        const response = await callRpc('styles.delete', { styleId })
+        setBusy(null)
+        if (!response.ok) {
+          setError(response.error.message || response.error.code)
+          return
+        }
+        setStyleId('default')
+        reload()
+      }
+
+      async function generate() {
+        setBusy('generate')
+        setError(null)
+        setResult(null)
+        const payload = { templateId, styleId }
+        if (text.trim() !== '') payload.text = text
+        if (sourcePath.trim() !== '') payload.path = sourcePath.trim()
+        if (title.trim() !== '') payload.title = title.trim()
+        if (maxSlides.trim() !== '' && Number.isFinite(Number(maxSlides))) payload.maxSlides = Number(maxSlides)
+        const response = await callRpc('generate', payload, 120000)
+        setBusy(null)
+        if (!response.ok) {
+          setError(`${t('gen.failed')}: ${response.error.message || response.error.code}`)
+          return
+        }
+        setResult({
+          kind: 'deck',
+          deckId: response.value.deckId,
+          slides: response.value.slideCount,
+          warnings: Array.isArray(response.value.warnings) ? response.value.warnings : [],
+        })
+        if (typeof onGenerated === 'function') onGenerated(response.value.deckId)
+      }
+
+      /** Ready-made instruction to paste into the chat so the Agent writes a style. */
+      const styleInstruction =
+        `${t('gen.askAgent')}\n` + t('gen.agentExample', { templateId: templateId || 'templateId' })
+
+      const canGenerate = !disabled && (text.trim() !== '' || sourcePath.trim() !== '') && busy === null
+
+      return h(
+        'div',
+        { className: 'branddeck-gen' },
+        error === null
+          ? null
+          : h(
+              'div',
+              { className: 'branddeck-banner branddeck-banner-error' },
+              h('span', { className: 'branddeck-banner-text' }, error),
+            ),
+
+        /* ---- 1. 模板 ---- */
+        h(
+          'section',
+          { className: 'branddeck-gen-block' },
+          h('div', { className: 'branddeck-gen-head' }, h('span', { className: 'branddeck-gen-step' }, '1'), t('gen.stepTemplate')),
+          h(
+            'div',
+            { className: 'branddeck-gen-row' },
+            h(
+              'select',
+              {
+                className: 'branddeck-select',
+                value: templateId,
+                'aria-label': t('gen.stepTemplate'),
+                onChange: (event) => setTemplateId(event.target.value),
+              },
+              templates.length === 0
+                ? h('option', { value: '' }, t('gen.noTemplate'))
+                : templates.map((entry) => h('option', { key: entry.templateId, value: entry.templateId }, entry.templateName)),
+            ),
+            h('input', {
+              className: 'branddeck-input',
+              type: 'text',
+              value: importPath,
+              placeholder: t('gen.importPlaceholder'),
+              'aria-label': t('gen.importPlaceholder'),
+              onChange: (event) => setImportPath(event.target.value),
+            }),
+            h(
+              'button',
+              { type: 'button', className: 'branddeck-btn', disabled: busy !== null, onClick: () => void importTemplate() },
+              busy === 'import' ? t('gen.importing') : t('gen.import'),
+            ),
+          ),
+          spec === null
+            ? h('div', { className: 'branddeck-gen-hint' }, t('gen.noSpec'))
+            : h(
+                'div',
+                { className: 'branddeck-gen-spec' },
+                h(
+                  'div',
+                  { className: 'branddeck-swatches' },
+                  ['primary', 'accent', 'textPrimary', 'surface', 'background'].map((key) =>
+                    h('span', {
+                      key,
+                      className: 'branddeck-swatch',
+                      title: `${key} ${spec.theme?.colors?.[key] ?? ''}`,
+                      style: { background: spec.theme?.colors?.[key] ?? 'transparent' },
+                    }),
+                  ),
+                ),
+                h(
+                  'span',
+                  { className: 'branddeck-gen-meta' },
+                  `${t('gen.fonts')}: ${spec.theme?.fonts?.title ?? '—'} / ${spec.theme?.fonts?.body ?? '—'}`,
+                ),
+                h('span', { className: 'branddeck-gen-meta' }, `${t('gen.layouts')}: ${spec.layouts?.counts?.layouts ?? 0}`),
+              ),
+        ),
+
+        /* ---- 2. 风格 ---- */
+        h(
+          'section',
+          { className: 'branddeck-gen-block' },
+          h('div', { className: 'branddeck-gen-head' }, h('span', { className: 'branddeck-gen-step' }, '2'), t('gen.stepStyle')),
+          h(
+            'div',
+            { className: 'branddeck-gen-row' },
+            h(
+              'select',
+              {
+                className: 'branddeck-select',
+                value: styleId,
+                'aria-label': t('gen.stepStyle'),
+                onChange: (event) => setStyleId(event.target.value),
+              },
+              styles.map((entry) =>
+                h(
+                  'option',
+                  { key: entry.styleId, value: entry.styleId },
+                  `${entry.name}${entry.source === 'chat' ? ` · ${t('gen.fromChat')}` : ''}`,
+                ),
+              ),
+            ),
+            h(
+              'button',
+              { type: 'button', className: 'branddeck-btn', disabled: busy !== null || templateId === '', onClick: () => void deriveStyle() },
+              t('gen.derive'),
+            ),
+            h(
+              'button',
+              { type: 'button', className: 'branddeck-btn', disabled: busy !== null || draft === null, onClick: () => void saveStyle() },
+              busy === 'style' ? t('gen.saving') : t('gen.saveStyle'),
+            ),
+            h(
+              'button',
+              { type: 'button', className: 'branddeck-btn', disabled: busy !== null || styleId === 'default', onClick: () => void removeStyle() },
+              t('gen.deleteStyle'),
+            ),
+          ),
+          draft === null
+            ? null
+            : h(
+                'div',
+                { className: 'branddeck-gen-form' },
+                h(
+                  'label',
+                  { className: 'branddeck-field' },
+                  h('span', null, t('gen.density')),
+                  h(
+                    'select',
+                    { className: 'branddeck-select', value: draft.density, onChange: (event) => setDraft({ ...draft, density: event.target.value }) },
+                    ['airy', 'standard', 'dense'].map((value) => h('option', { key: value, value }, densityLabel(value, t))),
+                  ),
+                ),
+                h(
+                  'label',
+                  { className: 'branddeck-field' },
+                  h('span', null, t('gen.tone')),
+                  h(
+                    'select',
+                    { className: 'branddeck-select', value: draft.tone, onChange: (event) => setDraft({ ...draft, tone: event.target.value }) },
+                    ['formal', 'bold', 'minimal'].map((value) => h('option', { key: value, value }, toneLabel(value, t))),
+                  ),
+                ),
+                h(
+                  'label',
+                  { className: 'branddeck-field' },
+                  h('span', null, t('gen.bullets')),
+                  h(
+                    'select',
+                    { className: 'branddeck-select', value: draft.bulletLayout, onChange: (event) => setDraft({ ...draft, bulletLayout: event.target.value }) },
+                    ['list', 'cards'].map((value) => h('option', { key: value, value }, bulletLabel(value, t))),
+                  ),
+                ),
+                h(
+                  'label',
+                  { className: 'branddeck-field' },
+                  h('span', null, t('gen.maxSlides')),
+                  h('input', {
+                    className: 'branddeck-input branddeck-input-num',
+                    type: 'number',
+                    min: 1,
+                    max: 60,
+                    value: draft.maxSlides,
+                    onChange: (event) =>
+                      setDraft({ ...draft, maxSlides: Math.max(1, Math.min(60, Number(event.target.value) || 1)) }),
+                  }),
+                ),
+                h(
+                  'label',
+                  { className: 'branddeck-field branddeck-field-wide' },
+                  h('span', null, t('gen.describe')),
+                  h('input', {
+                    className: 'branddeck-input',
+                    type: 'text',
+                    value: draft.description ?? '',
+                    placeholder: t('gen.describePlaceholder'),
+                    onChange: (event) => setDraft({ ...draft, description: event.target.value }),
+                  }),
+                ),
+              ),
+          h(
+            'details',
+            { className: 'branddeck-gen-details' },
+            h('summary', null, t('gen.askAgentTitle')),
+            h('pre', { className: 'branddeck-gen-code' }, styleInstruction),
+            h(
+              'button',
+              {
+                type: 'button',
+                className: 'branddeck-btn',
+                onClick: () => {
+                  if (typeof navigator !== 'undefined' && navigator.clipboard !== undefined) {
+                    navigator.clipboard.writeText(styleInstruction).catch(() => {})
+                  }
+                },
+              },
+              t('gen.copy'),
+            ),
+          ),
+        ),
+
+        /* ---- 3. 内容 ---- */
+        h(
+          'section',
+          { className: 'branddeck-gen-block' },
+          h('div', { className: 'branddeck-gen-head' }, h('span', { className: 'branddeck-gen-step' }, '3'), t('gen.stepContent')),
+          h('textarea', {
+            className: 'branddeck-textarea branddeck-gen-textarea',
+            spellCheck: false,
+            value: text,
+            placeholder: t('gen.textPlaceholder'),
+            'aria-label': t('gen.textPlaceholder'),
+            onChange: (event) => setText(event.target.value),
+          }),
+          h(
+            'div',
+            { className: 'branddeck-gen-row' },
+            h('input', {
+              className: 'branddeck-input',
+              type: 'text',
+              value: sourcePath,
+              placeholder: t('gen.filePlaceholder'),
+              'aria-label': t('gen.filePlaceholder'),
+              onChange: (event) => setSourcePath(event.target.value),
+            }),
+            h('input', {
+              className: 'branddeck-input',
+              type: 'text',
+              value: title,
+              placeholder: t('gen.titlePlaceholder'),
+              'aria-label': t('gen.titlePlaceholder'),
+              onChange: (event) => setTitle(event.target.value),
+            }),
+            h('input', {
+              className: 'branddeck-input branddeck-input-num',
+              type: 'number',
+              min: 1,
+              max: 60,
+              value: maxSlides,
+              placeholder: t('gen.maxSlidesShort'),
+              'aria-label': t('gen.maxSlides'),
+              onChange: (event) => setMaxSlides(event.target.value),
+            }),
+            h(
+              'button',
+              { type: 'button', className: 'branddeck-btn branddeck-btn-primary', disabled: !canGenerate, onClick: () => void generate() },
+              busy === 'generate' ? t('gen.generating') : t('gen.generate'),
+            ),
+          ),
+        ),
+
+        result === null
+          ? null
+          : h(
+              'div',
+              { className: 'branddeck-banner branddeck-banner-ok' },
+              h(
+                'span',
+                { className: 'branddeck-banner-text' },
+                result.kind === 'deck'
+                  ? `${t('gen.done')}: ${result.deckId} · ${result.slides} ${t('gen.slides')}${
+                      result.warnings.length > 0 ? ` · ${result.warnings.slice(0, 3).join(' / ')}` : ''
+                    }`
+                  : result.kind === 'import'
+                    ? `${t('gen.imported')}: ${result.name}`
+                    : `${t('gen.styleSaved')}: ${result.name}`,
+              ),
+            ),
+      )
+    }
+
     function DeckPanelBody() {
       const [state, dispatch] = React.useReducer(reducer, undefined, createInitialState)
       const [scale, setScale] = React.useState(computeScale(CANVAS.width))
@@ -2669,6 +3237,16 @@ window.__ModuleLoader__.load({
             },
             t('view.text'),
           ),
+          h(
+            'button',
+            {
+              type: 'button',
+              className: `branddeck-viewtoggle-btn${view === 'gen' ? ' branddeck-viewtoggle-on' : ''}`,
+              'aria-pressed': view === 'gen',
+              onClick: () => setView('gen'),
+            },
+            t('view.gen'),
+          ),
         ),
         h(
           'button',
@@ -2830,7 +3408,17 @@ window.__ModuleLoader__.load({
       }
 
       const body =
-        view === 'text'
+        view === 'gen'
+          ? h(GenerateView, {
+              t,
+              disabled: false,
+              onGenerated: (deckId) => {
+                /* Fresh deck: reload the panel data, then show it as cards. */
+                setReloadToken((token) => token + 1)
+                setView('cards')
+              },
+            })
+          : view === 'text'
           ? h(TextView, {
               deckId: state.deck === null ? '' : state.deck.deckId,
               t,

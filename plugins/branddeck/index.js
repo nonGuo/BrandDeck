@@ -24,6 +24,7 @@ import {
   estimateTextOverflow,
 } from './src/schema.js'
 import * as store from './src/store.js'
+import * as styles from './src/styles.js'
 import { parsePptxTemplate } from './src/template.js'
 import { compileDeckToFile } from './src/compile.js'
 
@@ -44,6 +45,9 @@ export const TOOL_NAMES = Object.freeze({
   outlineGet: 'branddeck_outline_get',
   outlineSave: 'branddeck_outline_save',
   deckMaterialize: 'branddeck_deck_materialize',
+  styleList: 'branddeck_style_list',
+  styleSave: 'branddeck_style_save',
+  generate: 'branddeck_generate',
 })
 
 const PROMPT_ORDER = 2650
@@ -616,11 +620,190 @@ function registerTools(ctx, config, storeConfig) {
       return { value: { ok: true, dir: result.dir, files: result.files, deckId: deck.deckId } }
     },
   )
+
+  register(
+    TOOL_NAMES.styleList,
+    'List the reusable style profiles (「风格配置文件」): density, tone, bullet layout, colour/font overrides on a template. Styles are what the panel and branddeck_generate offer as "make it look like this".',
+    { type: 'object', additionalProperties: false, properties: {} },
+    async () => ({ value: { ok: true, styles: styles.listStyles(storeConfig) } }),
+  )
+
+  register(
+    TOOL_NAMES.styleSave,
+    'Create or update a style profile from a user description — this is how a conversation becomes a reusable 「风格配置文件」. Describe the intent in `description` (e.g.「华为红、信息密度高、卡片式正文」) and set density/tone/bulletLayout/colours; the result is stored and instantly selectable in the panel.',
+    {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        styleId: { type: 'string', description: 'Existing style id to update; omit to create one (derived from name).' },
+        name: { type: 'string', description: 'Human-readable style name.' },
+        description: { type: 'string', description: 'The user intent this style encodes.' },
+        templateId: { type: 'string', description: 'Template the style is tuned for.' },
+        density: { type: 'string', enum: ['airy', 'standard', 'dense'], description: 'Information density (bullets per slide).' },
+        tone: { type: 'string', enum: ['formal', 'bold', 'minimal'], description: 'Accent usage.' },
+        bulletLayout: { type: 'string', enum: ['list', 'cards'], description: 'How bullet slides are drawn.' },
+        coverVariant: { type: 'string', enum: ['left', 'centered'] },
+        accentBar: { type: 'boolean', description: 'Draw the brand accent bar.' },
+        closingSlide: { type: 'boolean', description: 'Append a closing slide.' },
+        maxSlides: { type: 'number', description: 'Hard page cap including cover and closing.' },
+        colors: {
+          type: 'object',
+          additionalProperties: true,
+          description: 'Token overrides on the template palette: background/surface/textPrimary/textSecondary/primary/accent.',
+        },
+        fonts: {
+          type: 'object',
+          additionalProperties: true,
+          description: 'Font overrides: title/body.',
+        },
+        source: { type: 'string', enum: ['manual', 'chat', 'template'], description: 'Where this style came from.' },
+      },
+      required: ['name'],
+    },
+    async (args) => {
+      const payload = { ...args }
+      delete payload.styleId
+      const saved = styles.writeStyle(payload, storeConfig, { styleId: args.styleId })
+      return { value: { ok: true, style: saved, styles: styles.listStyles(storeConfig) } }
+    },
+  )
+
+  register(
+    TOOL_NAMES.generate,
+    `Generate a deck from user input + a chosen style (no LLM): parses pasted text or a Markdown/plain-text file into an outline, lays it out on the 1280x720 canvas, then stores it so the panel can refine it. This is the "describe it and get slides" entry point.`,
+    {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        text: { type: 'string', description: 'Pasted content or a description of the deck to build.' },
+        path: { type: 'string', description: 'A .md/.txt file to read instead of `text` (workspace-relative or absolute).' },
+        templateId: { type: 'string', description: 'Template for brand tokens; omit for the default/most recent template.' },
+        styleId: { type: 'string', description: 'Style profile id; omit for the neutral default style.' },
+        deckId: { type: 'string', description: 'Deck id to create/overwrite.' },
+        title: { type: 'string', description: 'Override the deck title (defaults to the first heading).' },
+        maxSlides: { type: 'number', description: 'Page cap override for this generation.' },
+        outputPath: {
+          type: 'string',
+          description: 'When given, also compile the .pptx here (relative paths resolve against the session cwd).',
+        },
+      },
+    },
+    async (args, exec) => {
+      const generated = await generateDeckFrom({
+        text: args.text,
+        path: args.path,
+        templateId: args.templateId,
+        styleId: args.styleId,
+        deckId: args.deckId,
+        title: args.title,
+        maxSlides: args.maxSlides,
+        config,
+        storeConfig,
+        cwd: workspaceOf(exec),
+      })
+      if (generated.ok !== true) return { value: generated }
+      if (typeof args.outputPath === 'string' && args.outputPath.trim() !== '') {
+        const outputPath = resolvePath(workspaceOf(exec), args.outputPath)
+        const compiled = await compileDeckToFile(
+          {
+            deck: generated.deck,
+            theme: generated.theme,
+            logoBytes: await readLogoBytes(generated.theme),
+            assets: await resolveIconAssets(generated.theme),
+            options: compileOptions(config),
+          },
+          outputPath,
+        )
+        return {
+          value: { ...generated, path: outputPath, slideCount: compiled.slideCount, warnings: [...generated.warnings, ...(compiled.warnings ?? [])] },
+        }
+      }
+      return { value: generated }
+    },
+  )
 }
 
 async function firstTemplateId(storeConfig) {
   const templates = await store.listTemplates(storeConfig)
   return templates[0]?.templateId
+}
+
+/**
+ * One generation pipeline shared by the tool and the panel endpoint.
+ *
+ * `src/generate.js` is imported lazily: it is the only module whose absence used
+ * to be able to break plugin activation, and generation is a feature — not a
+ * reason for the whole plugin to fail to load.
+ *
+ * @param {{text?: string, path?: string, templateId?: string, styleId?: string, deckId?: string,
+ *          title?: string, maxSlides?: number, config: any, storeConfig: {root?: string}, cwd?: string}} input
+ */
+async function generateDeckFrom(input) {
+  const { config, storeConfig } = input
+  const cwd = input.cwd ?? process.cwd()
+
+  let source = typeof input.text === 'string' ? input.text : ''
+  if (source.trim() === '' && typeof input.path === 'string' && input.path.trim() !== '') {
+    const file = resolvePath(cwd, input.path)
+    try {
+      source = await readFile(file, 'utf8')
+    } catch {
+      return fail('source_not_found', `cannot read source file ${file}`)
+    }
+  }
+  if (source.trim() === '') {
+    return fail('invalid_body', 'Expected `text` or a readable `path` as the content source')
+  }
+
+  const templateId = input.templateId ?? config.defaultTemplateId ?? (await firstTemplateId(storeConfig))
+  const baseTheme = templateId === undefined ? DEFAULT_THEME : await themeFor({ templateId }, config, storeConfig)
+  const style = input.styleId === undefined || input.styleId === '' ? null : styles.readStyleOrNull(input.styleId, storeConfig)
+  if (input.styleId !== undefined && input.styleId !== '' && style === null && input.styleId !== 'default') {
+    return fail('style_not_found', `style "${input.styleId}" not found`)
+  }
+  const effective = style ?? styles.DEFAULT_STYLE
+  const theme = styles.applyStyleToTheme(baseTheme, effective)
+  // The template id must follow the theme (a style may be applied over another template).
+  theme.templateId = baseTheme.templateId
+  theme.templateName = baseTheme.templateName
+
+  let generator
+  try {
+    generator = await import('./src/generate.js')
+  } catch (error) {
+    return fail('generator_unavailable', `deck generator unavailable: ${error instanceof Error ? error.message : String(error)}`)
+  }
+
+  const outline = generator.parseSourceToOutline(source)
+  if (typeof input.title === 'string' && input.title.trim() !== '') outline.title = input.title.trim()
+  if (outline.slides.length === 0) {
+    return fail('empty_source', 'The source produced no slides — give it headings or at least a few paragraphs')
+  }
+
+  const composed = generator.composeDeck({
+    outline,
+    theme,
+    style: effective,
+    deckId: input.deckId,
+    maxSlides: Number.isFinite(input.maxSlides) ? input.maxSlides : effective.maxSlides,
+  })
+
+  const repaired = parseAndRepairDeck(composed.deck, theme)
+  if (!repaired.ok) {
+    return fail('invalid_deck', 'Generated deck failed validation', repaired.issues)
+  }
+  await store.writeDeck(repaired.deck, storeConfig, { theme })
+  return {
+    ok: true,
+    deckId: repaired.deck.deckId,
+    deck: repaired.deck,
+    theme,
+    styleId: effective.styleId,
+    templateId: theme.templateId,
+    slideCount: repaired.deck.slides.length,
+    outline: { title: outline.title, slides: outline.slides.length },
+    warnings: [...(composed.warnings ?? []), ...repaired.warnings],
+  }
 }
 
 /**
@@ -991,8 +1174,7 @@ async function dispatchEndpoint(endpoint, payload, deps) {
       return ok({ dir: result.dir, files: result.files, deckId: deck.deckId })
     }
 
-    case 'templates.spec': {
-      const templates = await store.listTemplates(storeConfig)
+    case 'templates.spec': {      const templates = await store.listTemplates(storeConfig)
       const requested = typeof body.templateId === 'string' && body.templateId !== '' ? body.templateId : null
       const templateId = requested ?? config.defaultTemplateId ?? templates[0]?.templateId ?? null
       if (templateId === null) return fail('template_not_found', 'No template has been parsed yet')
@@ -1004,6 +1186,42 @@ async function dispatchEndpoint(endpoint, payload, deps) {
         markdown: resolved.markdown,
         layouts: resolved.layouts,
       })
+    }
+
+    case 'styles.list': {
+      return ok({ styles: styles.listStyles(storeConfig), defaultStyleId: styles.DEFAULT_STYLE.styleId })
+    }
+
+    case 'styles.save': {
+      const payload = body.style !== null && typeof body.style === 'object' ? { ...body.style } : { ...body }
+      delete payload.styleId
+      const styleId = typeof body.styleId === 'string' && body.styleId !== '' ? body.styleId : undefined
+      const saved = styles.writeStyle(payload, storeConfig, { styleId })
+      return ok({ style: saved, styles: styles.listStyles(storeConfig) })
+    }
+
+    case 'styles.delete': {
+      const styleId = typeof body.styleId === 'string' ? body.styleId : ''
+      if (styleId === '') return fail('invalid_body', 'Expected { styleId }')
+      const removed = styles.deleteStyle(styleId, storeConfig)
+      if (!removed) return fail('style_not_found', `style "${styleId}" not found`)
+      return ok({ removed: styleId, styles: styles.listStyles(storeConfig) })
+    }
+
+    case 'generate': {
+      const generated = await generateDeckFrom({
+        text: typeof body.text === 'string' ? body.text : undefined,
+        path: typeof body.path === 'string' ? body.path : undefined,
+        templateId: typeof body.templateId === 'string' ? body.templateId : undefined,
+        styleId: typeof body.styleId === 'string' ? body.styleId : undefined,
+        deckId: typeof body.deckId === 'string' ? body.deckId : undefined,
+        title: typeof body.title === 'string' ? body.title : undefined,
+        maxSlides: typeof body.maxSlides === 'number' ? body.maxSlides : undefined,
+        config,
+        storeConfig,
+        cwd: typeof body.cwd === 'string' ? body.cwd : process.cwd(),
+      })
+      return generated.ok === true ? ok(generated) : generated
     }
 
     case 'decks.save': {
