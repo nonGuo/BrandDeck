@@ -35,6 +35,11 @@ export const StyleSchema = z
     coverVariant: z.enum(COVER_VARIANTS).default('left'),
     accentBar: z.boolean().default(true),
     closingSlide: z.boolean().default(true),
+    /** Break up a run of identical layouts with a neutral re-render (default on). */
+    varyLayout: z.boolean().default(true),
+    /** Insert a sparse "density contrast" page every `breatherEvery` content slides. */
+    breather: z.boolean().default(false),
+    breatherEvery: z.number().int().min(3).max(12).default(5),
     maxSlides: z.number().int().min(1).max(60).default(12),
     colors: z
       .object({
@@ -69,6 +74,9 @@ export const DEFAULT_STYLE = Object.freeze({
   coverVariant: 'left',
   accentBar: true,
   closingSlide: true,
+  varyLayout: true,
+  breather: false,
+  breatherEvery: 5,
   maxSlides: 12,
   colors: {},
   fonts: {},
@@ -110,6 +118,11 @@ function stylesDir(config = {}) {
 export function normalizeStyle(input, hints = {}) {
   const raw = input !== null && typeof input === 'object' ? { ...input } : {}
   const existing = hints.existing ?? null
+  // Clamp numeric ranges before validation: a style authored by hand (or by a model)
+  // should not fail to save because one number drifted out of range.
+  if (Number.isFinite(raw.breatherEvery)) {
+    raw.breatherEvery = Math.min(12, Math.max(3, Math.floor(Number(raw.breatherEvery))))
+  }
   const candidate = {
     ...DEFAULT_STYLE,
     ...(existing ?? {}),

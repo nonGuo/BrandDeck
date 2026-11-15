@@ -135,6 +135,8 @@ export const SlideKindSchema = z.enum([
   'compare',
   'timeline',
   'stats',
+  /** Generator-only pacing page: one oversized statement, no title, no bullets. */
+  'breather',
 ])
 
 export const CardSlideSchema = z.object({

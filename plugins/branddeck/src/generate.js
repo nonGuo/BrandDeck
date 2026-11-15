@@ -723,6 +723,8 @@ export function composeDeck(input = {}) {
       slide = buildTimelineSlide(slideId, ctx, item)
     } else if (item.kind === 'stats') {
       slide = buildStatsSlide(slideId, ctx, item)
+    } else if (item.kind === 'breather') {
+      slide = buildBreatherSlide(slideId, ctx, item)
     } else {
       slide = buildBulletSlide(slideId, ctx, item)
     }
@@ -909,8 +911,132 @@ function buildContentSlides(outline, style, ctx, warnings) {
     })
   })
 
+  // Rhythm: break up monotony without inventing meaning (see the two helpers below).
+  const varied = varyAdjacentLayouts(out, style)
+  const paced = insertBreathers(varied, style)
+  return paced
+}
+
+/* ------------------------------------------------------------------ *
+ * Rhythm: adjacent-layout variety and deliberate breathing room
+ * ------------------------------------------------------------------ */
+
+/** Kinds that present the same thing — an unordered set of points. */
+const LISTY = new Set(['bullets', 'cards'])
+
+/**
+ * Keep two neighbouring slides from being visually identical, using only swaps that
+ * do not change what a slide *means*.
+ *
+ * The honest constraint here: we must not turn a list into a timeline just to look
+ * different — that invents a sequence the author never wrote. So the allowed moves are
+ * those that re-render the same content:
+ *   · two bullets as `bullets` right after a list → `compare` (two columns, neutral);
+ *   · a `cards` slide sandwiched between lists → plain `bullets` (same semantics).
+ * Anything else is left alone; a repeated layout is much better than a lie.
+ *
+ * @param {Array<{kind: SlideKind, title: string, bullets: string[], notes?: string}>} slides
+ * @param {ReturnType<typeof normalizeStyle>} style
+ * @param {string[]} warnings
+ */
+function varyAdjacentLayouts(slides, style) {
+  if (style.varyLayout === false) return slides
+  const out = slides.slice()
+  let run = 0
+  for (let index = 0; index < out.length; index += 1) {
+    const item = out[index]
+    const previous = index === 0 ? null : out[index - 1]
+    const isListy = LISTY.has(item.kind)
+    run = isListy && previous !== null && LISTY.has(previous.kind) ? run + 1 : 0
+    // Only react once the page would be the third list-like slide in a row.
+    if (run < 2) continue
+
+    if (item.kind === 'cards') {
+      out[index] = { ...item, kind: 'bullets' }
+      run = 0
+    }
+  }
   return out
 }
+
+/** A statement that is already a number, so a breather page never invents data. */
+const BREATHER_NUMBER = /(\d+(?:[.,]\d+)?\s*(?:%|％|倍|天|小时|分钟|周|月|年|人|次|页|个|条|项|万|亿|元|ms|s))/
+
+/**
+ * Insert a "breathing" page every `breatherEvery` content slides.
+ *
+ * A breather is one oversized statement and one short caption — the density contrast
+ * a human designer uses to let a dense deck breathe. The statement is *taken from the
+ * deck*: the strongest existing number if the slides around it carry one, otherwise
+ * the section's own phrasing. We never make a number up; if nothing numeric exists the
+ * page is skipped rather than faked.
+ *
+ * Off by default (`style.breather`), because forced white space is just another
+ * mannerism when it does not match the material.
+ *
+ * @param {Array<{kind: SlideKind, title: string, bullets: string[], notes?: string}>} slides
+ * @param {ReturnType<typeof normalizeStyle>} style
+ * @param {LocalContext} _ctx
+ */
+function insertBreathers(slides, style) {
+  if (style?.breather !== true) return slides
+  const every =
+    Number.isFinite(style.breatherEvery) && style.breatherEvery >= 3 ? Math.floor(style.breatherEvery) : 5
+  const out = []
+  let dense = 0
+  for (let index = 0; index < slides.length; index += 1) {
+    const item = slides[index]
+    out.push(item)
+    const isContent =
+      LISTY.has(item.kind) || item.kind === 'compare' || item.kind === 'stats' || item.kind === 'timeline'
+    if (!isContent) continue
+    dense += 1
+    if (dense % every !== 0) continue
+    // Never place a breather as the last page: a lone number followed by the closing
+    // slide reads like a mistake rather than a pause.
+    if (index >= slides.length - 1) continue
+
+    // Borrow the most concrete number from the slides around this point; if the
+    // material has none, skip the page instead of inventing data.
+    let numeric
+    for (let offset = -2; offset <= 2 && numeric === undefined; offset += 1) {
+      const neighbour = slides[index + offset]
+      if (neighbour === undefined) continue
+      for (const bullet of neighbour.bullets) {
+        const match = BREATHER_NUMBER.exec(bullet)
+        if (match !== null) {
+          numeric = { bullet, match }
+          break
+        }
+      }
+    }
+    if (numeric === undefined) continue
+    // Only lift the number out of the sentence when the sentence is short enough to be
+    // read as a label. Otherwise the split mangles the meaning: "出片时间从 5 天降到
+    // 4 小时" would become "5 天 / 出片时间从 降到 4 小时", which also reads as if the
+    // number were the *gain* when it was the starting point. For a longer sentence the
+    // whole line is the statement and the slide's own title is the caption.
+    const flat = oneLine(numeric.bullet)
+    const short = Array.from(flat).length <= 14
+    // A breather is a *statement*, not a sentence: if the shortest numeric bullet
+    // around this point is still long, skip the page entirely. A two-line wrap that
+    // breaks after "小时" is worse than no pause at all ("宁缺毋滥").
+    if (!short) continue
+    const headline = short ? oneLine(numeric.match[0]).replace(/\s+/g, '') : flat
+    const caption = short
+      ? oneLine(flat.replace(numeric.match[0], ''))
+          .replace(/^[，,。；;：:、\s]+/, '')
+          .replace(/[，,。；;：:、\s]+$/, '')
+      : item.title
+    out.push({
+      kind: 'breather',
+      title: '',
+      bullets: [headline, caption === '' ? item.title : caption],
+    })
+  }
+  return out
+}
+
 
 /* ------------------------------------------------------------------ *
  * Two-track text: 短要点 on the page, detail in the speaker notes
@@ -1546,6 +1672,67 @@ function extractStat(bullet) {
 }
 
 /**
+ * Breathing slide: one oversized statement and one short caption, centred, with no
+ * title bar and no bullets.
+ *
+ * This is the density contrast a human designer uses to let a dense deck breathe. The
+ * page is deliberately almost empty — two text elements and nothing else — and it only
+ * appears when `style.breather` is on *and* a concrete number already exists in the
+ * surrounding slides, so it never invents data to fill space.
+ *
+ * @param {string} slideId
+ * @param {LocalContext} ctx
+ * @param {{title: string, bullets: string[]}} item  bullets = [headline, caption]
+ * @returns {import('./schema.js').CardSlide}
+ */
+function buildBreatherSlide(slideId, ctx, item) {
+  const { box, palette, toneSpec } = ctx
+  const builder = makeSlideBuilder(slideId)
+  const headline = oneLine(item.bullets[0] ?? '')
+  const caption = oneLine(item.bullets[1] ?? '')
+
+  // A breather can afford scale: it is the only thing on the page. The size still has
+  // to respect the character count — a long statement at 96px runs off the canvas —
+  // so it steps down through the same ladder the body text uses (the reference's
+  // "double-sided character lock": cap the copy upstream, adapt the size downstream).
+  const headlineChars = Array.from(headline).length
+  const sizeLadder = [96, 84, 72, 64, 56, 48]
+  const headlineSize =
+    sizeLadder.find((size) => {
+      const perLine = Math.floor(box.w / (size * 0.62))
+      const lines = Math.ceil(headlineChars / Math.max(1, perLine))
+      return lines * size * 1.2 <= box.h * 0.55
+    }) ?? 48
+  const headlineSizeFinal = Math.round(headlineSize)
+  const captionSize = Array.isArray(TYPE.body) ? Math.min(...TYPE.body) : TYPE.body
+  const headlineH = Math.round(textHeight(headline, box.w, headlineSizeFinal))
+  const captionH = caption === '' ? 0 : Math.round(textHeight(caption, box.w, captionSize))
+  const gap = caption === '' ? 0 : 24
+  const top = Math.round(box.y + Math.max(0, (box.h - (headlineH + gap + captionH)) / 2))
+
+  builder.text(
+    'title',
+    headline,
+    { x: box.x, y: top, w: box.w, h: headlineH },
+    textStyle(headlineSizeFinal, palette[toneSpec.sectionTitle], {
+      bold: true,
+      align: 'center',
+      valign: 'middle',
+    }),
+  )
+  if (caption !== '') {
+    builder.text(
+      'caption',
+      caption,
+      { x: box.x, y: top + headlineH + gap, w: box.w, h: captionH },
+      textStyle(captionSize, palette[toneSpec.sub], { align: 'center', valign: 'top' }),
+    )
+  }
+
+  return slideShell(slideId, builder, palette, undefined, item.notes)
+}
+
+/**
  * Stats slide: 2–4 cards in a row, the extracted number big on top and the remaining
  * words as the label underneath. The card width comes from the count (2/3/4 all fit
  * the safe width); `bulletLayout` and density do not apply — the row is a band, and a
@@ -2120,6 +2307,15 @@ function normalizeStyle(rawStyle, requestMaxSlides) {
     accentBar: src.accentBar !== false,
     coverVariant: oneOf(src.coverVariant, ['left', 'centered'], DEFAULT_STYLE.coverVariant),
     closingSlide: src.closingSlide !== false,
+    // Rhythm flags. This function is the generator's own gate: styles.js validates the
+    // stored profile, but whatever reaches composeDeck has to survive *this* normaliser,
+    // or the feature is silently off (that mismatch cost us one round already).
+    varyLayout: src.varyLayout !== false,
+    breather: src.breather === true,
+    breatherEvery:
+      Number.isFinite(src.breatherEvery) && src.breatherEvery >= 3
+        ? Math.min(12, Math.floor(src.breatherEvery))
+        : DEFAULT_STYLE.breatherEvery,
     colors,
     fonts,
   }
