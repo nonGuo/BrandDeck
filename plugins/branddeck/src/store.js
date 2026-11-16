@@ -258,6 +258,7 @@ export function slugifyId(name, prefix = 'item') {
  * @param {string} input.templateName
  * @param {import('./schema.js').ThemeTokens} input.tokens  theme tokens (schema-validated)
  * @param {Buffer | Uint8Array} [input.logoBytes]           logo to write as `logo.png`
+ * @param {Array<{name: string, bytes: Buffer | Uint8Array}>} [input.backdropFiles]  background art to write under `backdrops/`
  * @param {object} [input.meta]                             extra meta fields
  * @param {Array<object>} [input.media]                     media inventory for meta.json
  * @param {Buffer | Uint8Array} [input.sourceBytes]         original .pptx copy
@@ -298,6 +299,51 @@ export function writeTemplate(input, config = {}) {
     fonts: parsed.data.fonts,
     brandAssets: { icons: parsed.data.brandAssets?.icons ?? {} },
   }
+  // The template-derived visual system. `ThemeTokensSchema` now declares these, so they
+  // survive validation; they are copied explicitly anyway so a caller cannot smuggle a
+  // half-built frame into the store.
+  const inputFrame = inputAssets.frame
+  if (
+    inputFrame !== undefined &&
+    inputFrame !== null &&
+    [inputFrame.x, inputFrame.y, inputFrame.w, inputFrame.h].every((value) => Number.isFinite(value))
+  ) {
+    theme.brandAssets.frame = {
+      x: Math.round(inputFrame.x),
+      y: Math.round(inputFrame.y),
+      w: Math.round(inputFrame.w),
+      h: Math.round(inputFrame.h),
+    }
+  }
+  // Backdrop references travel with their frames. A bare string is normalised into
+  // `{path}` so the compiler only ever handles one shape.
+  const inputBackdrops = inputAssets.backdrops
+  if (inputBackdrops !== undefined && inputBackdrops !== null) {
+    /** @type {any} */
+    const normalise = (ref) => {
+      if (typeof ref === 'string' && ref !== '') return { path: ref }
+      if (ref !== null && typeof ref === 'object' && typeof ref.path === 'string' && ref.path !== '') {
+        const frame = ref.frame
+        const usable =
+          frame !== undefined &&
+          frame !== null &&
+          [frame.x, frame.y, frame.w, frame.h].every((value) => Number.isFinite(value))
+        return usable ? { path: ref.path, frame: { ...frame } } : { path: ref.path }
+      }
+      return null
+    }
+    /** @type {any} */
+    const backdrops = {}
+    for (const key of ['cover', 'section', 'closing']) {
+      const ref = normalise(inputBackdrops[key])
+      if (ref !== null) backdrops[key] = ref
+    }
+    if (Object.keys(backdrops).length > 0) theme.brandAssets.backdrops = backdrops
+  }
+  const inputFootlines = Array.isArray(inputAssets.footlines)
+    ? inputAssets.footlines.filter((line) => typeof line === 'string' && line.trim() !== '')
+    : []
+  if (inputFootlines.length > 0) theme.brandAssets.footlines = inputFootlines.slice(0, 4)
   const logoPath = join(dir, 'logo.png')
   const hasLogo = input.logoBytes !== undefined && input.logoBytes !== null && input.logoBytes.length > 0
   if (hasLogo) {
@@ -307,6 +353,20 @@ export function writeTemplate(input, config = {}) {
     if (inputAssets.logoHeightPx !== undefined) theme.brandAssets.logoHeightPx = inputAssets.logoHeightPx
     if (logoFrame !== undefined) theme.brandAssets.logoFrame = logoFrame
     writeFileAtomic(logoPath, /** @type {Buffer | Uint8Array} */ (input.logoBytes))
+  }
+
+  // Background art goes next to the logo; `theme.brandAssets.backdrops` already points at
+  // these absolute paths, so the compiler never has to guess where they live.
+  const backdropFiles = Array.isArray(input.backdropFiles) ? input.backdropFiles : []
+  if (backdropFiles.length > 0) {
+    const backdropDir = join(dir, 'backdrops')
+    mkdirSync(backdropDir, { recursive: true })
+    for (const file of backdropFiles) {
+      const name = typeof file?.name === 'string' ? file.name.replace(/[^\w.-]/g, '') : ''
+      const bytes = file?.bytes
+      if (name === '' || bytes === undefined || bytes === null || bytes.length === 0) continue
+      writeFileAtomic(join(backdropDir, name), /** @type {Buffer | Uint8Array} */ (bytes))
+    }
   }
 
   if (input.sourceBytes !== undefined && input.sourceBytes !== null && input.sourceBytes.length > 0) {

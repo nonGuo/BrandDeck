@@ -15,6 +15,7 @@ import { createHash } from 'node:crypto'
 import { loadPackage } from './pptx/read.js'
 import { discoverStructure, extractThemeTokens } from './pptx/theme.js'
 import { findBrandLogo, listMedia } from './pptx/media.js'
+import { readTemplateArtwork } from './pptx/artwork.js'
 import { ThemeTokensSchema } from './schema.js'
 import { storeRoot } from './store.js'
 
@@ -116,6 +117,57 @@ export async function parsePptxTemplate(input = {}) {
     if (logo.frameInches !== null) tokens.brandAssets.logoFrame = { ...logo.frameInches }
   }
 
+  /* --- the template's visual system -----------------------------------
+   * Backdrop art, the content box it draws in, and its fixed footer strings. These are the
+   * parts of a corporate template that survive the trip to pptxgenjs; without them the deck
+   * is drawn on a white canvas with our own margins and does not look like the template.
+   */
+  const artwork = readTemplateArtwork(pkg, structure)
+  const backdropDir = join(storeRoot(storeConfig), 'templates', templateId, 'backdrops')
+  /** @type {Array<{name: string, bytes: Buffer, mediaPart: string}>} */
+  const backdropFiles = []
+  if (artwork.backdrops.length > 0) {
+    // One file per *distinct* backdrop part, named by layout so the mapping stays readable
+    // in the store (`cover-1.png`, `cover-2.jpg`, …).
+    const seen = new Set()
+    artwork.backdrops.forEach((backdrop, index) => {
+      if (seen.has(backdrop.mediaPart)) return
+      seen.add(backdrop.mediaPart)
+      const bytes = pkg.buffer(backdrop.mediaPart)
+      if (bytes === null || bytes === undefined || bytes.length === 0) return
+      const extension = (backdrop.mediaPart.split('.').pop() ?? 'png').toLowerCase()
+      const file = `backdrop-${index + 1}.${extension}`
+      backdropFiles.push({ name: file, bytes: Buffer.from(bytes), mediaPart: backdrop.mediaPart })
+      void backdropDir
+    })
+  }
+  if (backdropFiles.length > 0) {
+    /** @type {Map<string, {path: string, frame: any}>} */
+    const byPart = new Map()
+    for (const file of backdropFiles) {
+      const source = artwork.backdrops.find((entry) => entry.mediaPart === file.mediaPart)
+      byPart.set(file.mediaPart, {
+        path: join(backdropDir, file.name),
+        ...(source === undefined ? {} : { frame: { ...source.frameInches } }),
+      })
+    }
+    const refs = artwork.backdrops
+      .map((backdrop) => byPart.get(backdrop.mediaPart))
+      .filter((ref) => ref !== undefined)
+    if (refs.length > 0) {
+      // Every theme layout gets art; the first doubles as section/closing unless the
+      // template ships something more specific. Nothing is invented: a template without
+      // artwork simply has no `backdrops` key and the deck stays on a clean background.
+      tokens.brandAssets.backdrops = {
+        cover: refs[0],
+        section: refs[refs.length > 1 ? 1 : 0],
+        closing: refs[0],
+      }
+    }
+  }
+  if (artwork.frame !== null) tokens.brandAssets.frame = { ...artwork.frame }
+  if (artwork.footlines.length > 0) tokens.brandAssets.footlines = [...artwork.footlines]
+
   const checked = ThemeTokensSchema.safeParse(tokens)
   if (!checked.success) {
     const error = new Error(
@@ -188,6 +240,10 @@ export async function parsePptxTemplate(input = {}) {
   return {
     theme: restoreExtraAssets(checked.data, logo, logoPath),
     logoBytes: logo === null ? null : logo.buffer,
+    /** Backdrop files the store must write next to `logo.png`; paths are already in the tokens. */
+    backdropFiles,
+    /** What the template offered visually, for the spec/docs and for debugging. */
+    artwork,
     meta,
     media,
     layouts: doc.layouts ?? null,
@@ -207,7 +263,16 @@ export async function parsePptxTemplate(input = {}) {
  * @returns {import('./schema.js').ThemeTokens}
  */
 function restoreExtraAssets(theme, logo, logoPath) {
-  theme.brandAssets = { icons: theme.brandAssets?.icons ?? {} }
+  // Everything the template gave us beyond the four colour/font groups. This used to
+  // rebuild `brandAssets` from `{icons}` only, which silently dropped the frame, the
+  // backdrop art and the footer markers the parser had just extracted.
+  const carried = theme.brandAssets ?? {}
+  theme.brandAssets = {
+    icons: carried.icons ?? {},
+    ...(carried.frame === undefined ? {} : { frame: { ...carried.frame } }),
+    ...(carried.backdrops === undefined ? {} : { backdrops: { ...carried.backdrops } }),
+    ...(carried.footlines === undefined ? {} : { footlines: [...carried.footlines] }),
+  }
   if (logo === null || logoPath === null) return theme
   theme.brandAssets.logoPath = logoPath
   theme.brandAssets.logoWidthPx = logo.widthPx

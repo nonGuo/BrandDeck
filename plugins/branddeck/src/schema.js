@@ -18,6 +18,9 @@ export const CANVAS = Object.freeze({ width: 1280, height: 720 })
 /** Margin kept free on every side; the top-right corner additionally reserves the logo. */
 export const SAFE_AREA = Object.freeze({ top: 64, right: 64, bottom: 64, left: 64 })
 
+/** Smallest margin a template-derived content box may claim (sanity floor, not a design rule). */
+export const FRAME_MIN_MARGIN = 24
+
 /** Logo reservation inside the top-right corner of the safe area. */
 export const LOGO_RESERVE = Object.freeze({ width: 150, height: 48, gap: 16 })
 
@@ -189,6 +192,23 @@ export const CardDeckSchema = z.object({
   slides: z.array(CardSlideSchema).min(1).max(60),
 })
 
+/** Where the template places one piece of background art, in inches. */
+const frameInches = z.object({
+  x: z.number().finite(),
+  y: z.number().finite(),
+  w: z.number().finite(),
+  h: z.number().finite(),
+})
+
+/**
+ * Background art reference: the extracted file plus the frame the template draws it in.
+ * A bare string is accepted for forward/backward compatibility and treated as full-bleed.
+ */
+const backdropRef = z.union([
+  z.string().min(1),
+  z.object({ path: z.string().min(1), frame: frameInches.optional() }),
+])
+
 export const ThemeTokensSchema = z.object({
   templateId: z.string().min(1),
   templateName: z.string().min(1),
@@ -211,6 +231,53 @@ export const ThemeTokensSchema = z.object({
       logoPath: z.string().optional(),
       logoWidthPx: z.number().int().positive().optional(),
       logoHeightPx: z.number().int().positive().optional(),
+      /**
+       * Where the template's master actually places the logo, in inches. Not decorative
+       * detail: a corporate master puts its lockup bottom-right (10.07in, 6.54in in the
+       * Huawei template), and drawing it in a top-right corner instead is the single most
+       * obvious "this was not made with our template" tell.
+       */
+      logoFrame: z
+        .object({
+          x: z.number().finite(),
+          y: z.number().finite(),
+          w: z.number().finite(),
+          h: z.number().finite(),
+        })
+        .optional(),
+      /**
+       * The content box the template itself uses, in **canvas px** (1280×720). Derived from
+       * a content layout's `BODY` placeholder, so a deck generated from a template keeps that
+       * template's margins instead of our built-in 64px guess. Absent ⇒ 64px safe area.
+       */
+      frame: z
+        .object({
+          x: z.number().finite(),
+          y: z.number().finite(),
+          w: z.number().finite(),
+          h: z.number().finite(),
+        })
+        .optional(),
+      /**
+       * Full-bleed background pictures extracted from the template's own layouts.
+       *
+       * `cover` is the layout art the template uses behind a title, `section` the variant
+       * used for chapter breaks, `closing` the end page. Paths are absolute, like `logoPath`,
+       * and the files are written next to `logo.png` at parse time.
+       */
+      backdrops: z
+        .object({
+          cover: backdropRef.optional(),
+          section: backdropRef.optional(),
+          closing: backdropRef.optional(),
+        })
+        .optional(),
+      /**
+       * Fixed footer strings the template repeats on every page (a confidentiality marker, a
+       * security-level label). Inherited rather than invented: a template without them gets
+       * none, because a fabricated "机密" line is worse than an empty footer.
+       */
+      footlines: z.array(z.string()).max(4).optional(),
       icons: z.record(z.string(), z.string()).default({}),
     })
     .default({ icons: {} }),
@@ -287,16 +354,49 @@ export function splitAlpha(value) {
   return { hex: normalized, alpha: 1 }
 }
 
-/** Vertical safe band, i.e. the drawing area every element must stay inside. */
+/**
+ * The drawing area every element must stay inside: the template's own content box when it
+ * has one, else the built-in 64px safe area.
+ *
+ * Why prefer the template's box: a corporate deck has already decided where content lives
+ * (the Huawei content page puts its body at 0.81in/1.64in, width 11.74in — 78px/157px in
+ * canvas px, not 64px/64px). Drawing inside our guess instead makes every page sit slightly
+ * off the template's own grid, which reads as "pasted in".
+ *
+ * The frame is clamped to the safe area's bounds so a hostile or half-parsed template can
+ * never push content off the canvas.
+ *
+ * @param {ThemeTokens} theme
+ * @returns {{x: number, y: number, w: number, h: number, logo: {width: number, height: number, gap: number} | null}}
+ */
 export function innerBox(theme) {
   const reserveLogo = Boolean(theme?.brandAssets?.logoPath)
-  return {
+  const fallback = {
     x: SAFE_AREA.left,
     y: SAFE_AREA.top,
     w: CANVAS.width - SAFE_AREA.left - SAFE_AREA.right,
     h: CANVAS.height - SAFE_AREA.top - SAFE_AREA.bottom,
-    logo: reserveLogo ? LOGO_RESERVE : null,
   }
+  const frame = theme?.brandAssets?.frame
+  const usable =
+    frame !== undefined &&
+    frame !== null &&
+    [frame.x, frame.y, frame.w, frame.h].every((value) => Number.isFinite(value)) &&
+    frame.w >= 480 &&
+    frame.h >= 240
+  if (usable === false) return { ...fallback, logo: reserveLogo ? LOGO_RESERVE : null }
+
+  // Clamp to a *sanity* floor, not to our own 64px guess: a corporate template may legally
+  // place its title at 0.50in (48px) — the Huawei content page does — and clamping that up
+  // to 64px would silently re-break the alignment this frame exists to provide. 24px keeps
+  // content off the physical edge; the logo reserve is enforced separately by repairDeck.
+  const floor = FRAME_MIN_MARGIN
+  const x = Math.max(floor, Math.round(/** @type {any} */ (frame).x))
+  const y = Math.max(floor, Math.round(/** @type {any} */ (frame).y))
+  const right = Math.min(CANVAS.width - floor, x + Math.round(/** @type {any} */ (frame).w))
+  const bottom = Math.min(CANVAS.height - floor, y + Math.round(/** @type {any} */ (frame).h))
+  if (right - x < 480 || bottom - y < 240) return { ...fallback, logo: reserveLogo ? LOGO_RESERVE : null }
+  return { x, y, w: right - x, h: bottom - y, logo: reserveLogo ? LOGO_RESERVE : null }
 }
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value))

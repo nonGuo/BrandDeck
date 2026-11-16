@@ -305,7 +305,17 @@ await test('compileDeck: layout carries the footer, slides carry the theme backg
   const layouts = pkg.names
     .filter((name) => /^ppt\/slideLayouts\/slideLayout\d+\.xml$/.test(name))
     .map((name) => pkg.parts[name])
-  assert(layouts.some((xml) => xml.includes('引擎导出验证')), 'footer text defaults to the deck title (layout object)')
+  // The footer band belongs to the template when it declares one: the Huawei template has
+  // 'Security Level:' / 'Huawei Confidential' on its master, and inheriting them is the
+  // whole point of reading the template. Without declared footlines the deck title is used.
+  const declaredFootlines = Array.isArray(THEME.brandAssets?.footlines) ? THEME.brandAssets.footlines : []
+  if (declaredFootlines.length > 0) {
+    for (const line of declaredFootlines.slice(0, 2)) {
+      assert(layouts.some((xml) => xml.includes(line)), `template footer "${line}" is not on the content layout`)
+    }
+  } else {
+    assert(layouts.some((xml) => xml.includes('引擎导出验证')), 'footer text defaults to the deck title (layout object)')
+  }
   assertMatch(pkg.parts['ppt/slides/slide1.xml'], /<p:bg><p:bgPr><a:solidFill><a:srgbClr val="FFFFFF"\/>/, 'slide background follows the theme')
   assertMatch(pkg.parts['ppt/slideMasters/slideMaster1.xml'], /<p:ph type="sldNum"/, 'the master keeps a real slide-number placeholder')
   assert(layouts.some((xml) => /<a:latin typeface="Arial"/.test(xml)), 'footer uses the Latin body face')

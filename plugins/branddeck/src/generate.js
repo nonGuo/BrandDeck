@@ -827,7 +827,8 @@ export function composeDeck(input = {}) {
   const bulletCharBudget = resolveBulletChars(request.bulletCharBudget)
 
   /** @type {LocalContext} */
-  const ctx = { theme, box, palette, style, toneSpec, warnings, slideCharBudget, bulletCharBudget }
+  const art = theme.brandAssets?.backdrops !== undefined
+  const ctx = { theme, box, palette, style, toneSpec, warnings, slideCharBudget, bulletCharBudget, art }
 
   const content = buildContentSlides(outline, style, ctx, warnings)
   const wantsClosing = style.closingSlide && style.maxSlides >= 2
@@ -1459,6 +1460,7 @@ function foldTimeline(track, label, warnings) {
  * @property {ReturnType<typeof normalizeStyle>} style
  * @property {typeof TONES['formal']} toneSpec
  * @property {string[]} warnings
+ * @property {boolean} art  the template supplies backdrop art (cover/section pages are drawn over photographs)
  */
 
 /**
@@ -1477,7 +1479,10 @@ function buildCoverSlide(slideId, ctx, deckTitle, subtitle) {
   const centered = style.coverVariant === 'centered'
   const withBar = style.accentBar && toneSpec.coverBar
   const textX = centered ? box.x : box.x + (withBar ? 34 : 0)
-  const width = centered ? box.w : FRAME.titleRight - textX
+  // Over backdrop art the cover text gets its own column (62% of the frame) so the scrim can
+  // match it exactly; on a plain background it may use the full title width as before.
+  const plainWidth = centered ? box.w : FRAME.titleRight - textX
+  const width = ctx.art && centered === false ? Math.min(plainWidth, Math.round(box.w * 0.62)) : plainWidth
 
   const size = chooseSize(TYPE.coverTitle, deckTitle, width, 3)
   const fitted = clampToLines(deckTitle, width, size, 3)
@@ -1496,6 +1501,23 @@ function buildCoverSlide(slideId, ctx, deckTitle, subtitle) {
   // Start at least 72px below the safe top: that keeps the centered variant's
   // full-width title (x..1216) below the logo reserve (y 64..112).
   const y = Math.max(box.y + 72, Math.round((CANVAS.height - total) / 2) - 24)
+
+  // Over the template's backdrop art the title needs a surface: white type on a snowfield is
+  // unreadable, and the art behind the template's own covers is chosen so type sits on its
+  // calm side. The scrim is the same device the section divider uses, sized to the text.
+  if (ctx.art) {
+    const padX = 28
+    const padY = 22
+    builder.shape('scrim', 'rect', {
+      x: textX - padX,
+      y: y - padY,
+      // Exactly the type column plus its padding: a wider scrim is a box on the picture.
+      w: width + padX * 2,
+      // `total` includes the bar's offset above the title; the scrim starts at `y - padY`,
+      // so hugging the type means title + gap + subtitle + rule, not the bar gap.
+      h: titleH + gapAfterTitle + subH + gapBeforeRule + ruleH + padY * 2,
+    }, { fill: `#E0${palette.background.replace('#', '')}` })
+  }
 
   if (withBar && !centered) {
     builder.shape('bar', 'rect', { x: box.x, y: y - 8, w: 8, h: titleH + gapAfterTitle + subH + 16 }, {
@@ -1556,8 +1578,12 @@ function buildCoverSlide(slideId, ctx, deckTitle, subtitle) {
  * @returns {import('./schema.js').CardSlide}
  */
 function buildSectionSlide(slideId, ctx, item) {
-  const { box, palette, style, toneSpec, warnings } = ctx
+  const { box, palette, style, toneSpec, warnings, art } = ctx
   const builder = makeSlideBuilder(slideId)
+  // Over the template's photographic art a centred title is unreadable: the picture owns
+  // the middle of the page. Draw it in the template's own left title zone instead, on a
+  // translucent white scrim, which is how the template itself sets type over its layouts.
+  if (art) return buildArtSectionSlide(slideId, ctx, item)
   const width = box.w
   const size = TYPE.sectionTitle
   const fitted = clampToLines(item.title, width, size, 2)
@@ -1582,6 +1608,86 @@ function buildSectionSlide(slideId, ctx, item) {
 
   const slide = slideShell(slideId, builder, palette, fitted.text, item.notes)
   return slide
+}
+
+/**
+ * Narrowest width at which `text` still fits `maxLines` at `fontSize`, capped at `limit`.
+ *
+ * Used to size surfaces *around* type (a scrim behind a section title) from the text itself
+ * rather than from a fixed fraction of the page — a two-character chapter name should not get
+ * a panel sized for eight.
+ *
+ * @param {string} text
+ * @param {number} limit
+ * @param {number} fontSize
+ * @param {number} maxLines
+ * @returns {number}
+ */
+function widthForLines(text, limit, fontSize, maxLines) {
+  const probe = Math.max(120, Math.round(limit / 6))
+  for (let width = probe; width <= limit; width += 24) {
+    if (estimateLines(text, width, fontSize).lines <= maxLines) return width
+  }
+  return limit
+}
+
+/**
+ * Section divider drawn over the template's backdrop art.
+ *
+ * The figure is a photograph, so type needs a surface: a white scrim at ~72% opacity behind
+ * the title block, sized to the text, plus the brand rule. The title sits in the template's
+ * own left title zone (its cover layouts put the heading at ~1in from the left for the same
+ * reason), not centred, because the art's subject is on the right.
+ *
+ * @param {string} slideId
+ * @param {LocalContext} ctx
+ * @param {{title: string, notes?: string}} item
+ * @returns {import('./schema.js').CardSlide}
+ */
+function buildArtSectionSlide(slideId, ctx, item) {
+  const { box, palette, style, toneSpec, warnings } = ctx
+  const builder = makeSlideBuilder(slideId)
+  // The type column is as wide as the title actually needs (capped at 58% of the frame), so
+  // a one-word chapter name gets a one-word scrim instead of a banner across the photograph.
+  // Measured with the same estimator the layout uses, not a guess at glyph widths.
+  const maxWidth = Math.round(box.w * 0.58)
+  const width = Math.min(maxWidth, Math.max(240, widthForLines(item.title, maxWidth, TYPE.sectionTitle, 1)))
+  const size = Math.min(TYPE.sectionTitle, 52)
+  const fitted = clampToLines(item.title, width, size, 2)
+  if (fitted.truncated) warnings.push(`「${clampChars(item.title, 16)}」· 章节标题过长，已截断`)
+  const titleH = textHeight(fitted.text, width, size)
+  const ruleH = style.tone === 'bold' ? 8 : 6
+  const ruleW = style.tone === 'bold' ? 160 : 120
+  const blockH = titleH + 28 + ruleH
+  const top = Math.round(box.y + (box.h - blockH) / 2)
+
+  // Scrim: a translucent panel behind the title block. The DSL spells alpha FIRST
+  // (`#AARRGGBB`) — building it as `#RRGGBBAA` produced a cream rectangle, because the
+  // compiler read the trailing bytes as colour.
+  const padX = 26
+  const padY = 20
+  builder.shape('scrim', 'rect', {
+    x: box.x - padX,
+    y: top - padY,
+    // Hug the text block: a scrim wider than the words reads as a stray rectangle on the
+    // photograph rather than as a surface for the type.
+    w: width + padX * 2,
+    h: blockH + padY * 2,
+  }, { fill: `#D9${palette.background.replace('#', '')}` })
+
+  builder.text('title', fitted.text, { x: box.x, y: top, w: width, h: titleH }, textStyle(
+    size,
+    palette[toneSpec.sectionTitle],
+    { bold: true, align: 'left', valign: 'middle' },
+  ))
+  builder.shape('rule', 'rect', {
+    x: box.x,
+    y: top + titleH + 28,
+    w: ruleW,
+    h: ruleH,
+  }, { fill: palette[toneSpec.sectionRule] })
+
+  return slideShell(slideId, builder, palette, fitted.text, item.notes)
 }
 
 /**
@@ -2454,6 +2560,18 @@ function buildClosingSlide(slideId, ctx) {
   const total = titleH + 28 + ruleH + (ruleH > 0 ? 24 : 0) + captionH
   const y = Math.round((CANVAS.height - total) / 2)
 
+  // Over art, "谢谢" needs a surface for the same reason a section title does.
+  if (ctx.art) {
+    const padX = 48
+    const padY = 26
+    builder.shape('scrim', 'rect', {
+      x: box.x + Math.round(box.w * 0.18),
+      y: y - padY,
+      w: Math.round(box.w * 0.64),
+      h: total + padY * 2,
+    }, { fill: `#E0${palette.background.replace('#', '')}` })
+  }
+
   builder.text('title', TYPE.closingTitleText, { x: box.x, y, w: box.w, h: titleH }, textStyle(
     TYPE.closingTitle,
     palette.textPrimary,
@@ -2861,6 +2979,16 @@ function normalizeTheme(rawTheme) {
   if (typeof brandAssets.logoPath === 'string' && brandAssets.logoPath !== '') mergedAssets.logoPath = brandAssets.logoPath
   if (Number.isInteger(brandAssets.logoWidthPx)) mergedAssets.logoWidthPx = brandAssets.logoWidthPx
   if (Number.isInteger(brandAssets.logoHeightPx)) mergedAssets.logoHeightPx = brandAssets.logoHeightPx
+  // The template-derived visual system has to survive this whitelist too: dropping it here
+  // is what made the generator unaware of the backdrop art and the template's own margins,
+  // so section dividers were still centred over photographs and pages used our 64px grid.
+  if (isObject(brandAssets.logoFrame)) mergedAssets.logoFrame = { ...brandAssets.logoFrame }
+  if (isObject(brandAssets.frame)) mergedAssets.frame = { ...brandAssets.frame }
+  if (isObject(brandAssets.backdrops)) mergedAssets.backdrops = { ...brandAssets.backdrops }
+  if (Array.isArray(brandAssets.footlines)) {
+    const lines = brandAssets.footlines.filter((line) => typeof line === 'string' && line.trim() !== '')
+    if (lines.length > 0) mergedAssets.footlines = lines.slice(0, 4)
+  }
 
   return {
     templateId:

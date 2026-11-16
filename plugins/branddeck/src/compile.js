@@ -130,16 +130,29 @@ export async function compileDeck({ deck, theme, logoBytes, assets, options } = 
   pres.author = 'BrandDeck'
   pres.company = 'BrandDeck'
 
-  defineMaster(pres, activeTheme, resolvedLogo, deckTitle, opts)
+  const masterSet = defineMasters(pres, activeTheme, resolvedLogo, deckTitle, opts, warnings)
 
   let svgImages = 0
+  const lastIndex = deck.slides.length - 1
   deck.slides.forEach((slideDef, slideIndex) => {
     const label = `slide ${slideIndex + 1}`
-    const slide = pres.addSlide({ masterName: opts.masterName ?? MASTER_NAME })
-    const background = slideDef.background === undefined
-      ? activeTheme.colors.background
-      : resolveColor(slideDef.background, activeTheme, activeTheme.colors.background)
-    slide.background = { color: bareHex(background) }
+    // Which master this page draws on: the template's cover art for the cover and section
+    // breaks, the clean content master (with the template's footer markers) for everything
+    // else. An explicit `opts.masterName` still wins, for callers that lay out their own
+    // masters.
+    const masterName =
+      opts.masterName ??
+      masterFor(slideDef.kind, slideIndex === lastIndex, { hasBackdrops: masterSet.hasBackdrops })
+    const slide = pres.addSlide({ masterName })
+    // On an art master the backdrop *is* the background: painting a solid colour here would
+    // cover it. Only the content master paints, and only when the slide asks for a colour.
+    const onArt = masterName !== (opts.masterName ?? VARIANTS.content)
+    if (onArt === false || slideDef.background !== undefined) {
+      const background = slideDef.background === undefined
+        ? activeTheme.colors.background
+        : resolveColor(slideDef.background, activeTheme, activeTheme.colors.background)
+      slide.background = { color: bareHex(background) }
+    }
 
     reportOverflow(slideDef, activeTheme, label, warnings)
 
@@ -230,35 +243,144 @@ export async function compileDeckToFile(input, outputPath) {
  * ------------------------------------------------------------------ */
 
 /**
+ * Page variants a deck can draw. The master is chosen per slide kind, so a deck can have
+ * the template's photographic cover art on its cover and section breaks while its content
+ * pages stay clean — which is exactly how the corporate template itself is built (its
+ * content layout carries no artwork, only the master footer).
+ */
+export const VARIANTS = Object.freeze({
+  content: 'BRANDDECK',
+  cover: 'BRANDDECK_COVER',
+  section: 'BRANDDECK_SECTION',
+  closing: 'BRANDDECK_CLOSING',
+})
+
+/**
+ * Pick the master for a slide. `kind` is what the generator drew, so this is the one place
+ * that decides which page gets which art.
+ * @param {string | undefined} kind
+ * @param {boolean} isLast
+ * @param {{hasBackdrops: boolean}} availability
+ * @returns {string}
+ */
+export function masterFor(kind, isLast, availability) {
+  if (availability.hasBackdrops === false) return VARIANTS.content
+  if (kind === 'section') return VARIANTS.section
+  if (kind === 'cover') return isLast ? VARIANTS.closing : VARIANTS.cover
+  return VARIANTS.content
+}
+
+/**
+ * Read one backdrop reference into `{data, x, y, w, h}` for pptxgenjs.
+ *
+ * The art is placed as a master *object* rather than as `background: {path}` on purpose:
+ * pptxgenjs's background stretches to the slide, and the template art is 13.34×6.13in on a
+ * 7.5in slide. Stretching would squash the picture and cover the footer band the template
+ * deliberately left white.
+ *
+ * @param {any} ref  `{path, frame?}` or a bare path
+ * @param {{width: number, height: number}} slide  inches
+ * @param {string[]} warnings
+ * @param {string} label
+ * @returns {{dataUri: string, x: number, y: number, w: number, h: number} | null}
+ */
+function readBackdrop(ref, slide, warnings, label) {
+  const path = typeof ref === 'string' ? ref : ref?.path
+  if (typeof path !== 'string' || path === '') return null
+  if (!existsSync(path)) {
+    warnings.push(`${label} · backdrop not found on disk: ${path}`)
+    return null
+  }
+  let buffer
+  try {
+    buffer = readFileSync(path)
+  } catch {
+    warnings.push(`${label} · backdrop could not be read: ${path}`)
+    return null
+  }
+  const extension = (path.split('.').pop() ?? 'png').toLowerCase()
+  const mime = extension === 'jpg' || extension === 'jpeg' ? 'image/jpeg' : `image/${extension}`
+  const frame = typeof ref === 'object' && ref !== null ? ref.frame : undefined
+  const usable =
+    frame !== undefined &&
+    frame !== null &&
+    [frame.x, frame.y, frame.w, frame.h].every((value) => Number.isFinite(value)) &&
+    frame.w > 0 &&
+    frame.h > 0
+  // Without a recorded frame the art is assumed to be full bleed, which is the safest
+  // reading: covering the slide is recoverable, leaving a white gap is not.
+  const box = usable
+    ? { x: frame.x, y: frame.y, w: frame.w, h: frame.h }
+    : { x: 0, y: 0, w: slide.width, h: slide.height }
+  return {
+    dataUri: `data:${mime};base64,${buffer.toString('base64')}`,
+    x: round(box.x, 4),
+    y: round(box.y, 4),
+    w: round(box.w, 4),
+    h: round(box.h, 4),
+  }
+}
+
+/**
+ * Define the master(s) this deck needs: one content master, plus one master per backdrop
+ * variant the template actually provides.
+ *
  * @param {PptxGenJS} pres
  * @param {import('./schema.js').ThemeTokens} theme
  * @param {{buffer: Buffer, aspect: number} | null} logo
  * @param {string} deckTitle
  * @param {CompileOptions} opts
+ * @returns {{hasBackdrops: boolean, variants: string[]}}
  */
-function defineMaster(pres, theme, logo, deckTitle, opts) {
+function defineMasters(pres, theme, logo, deckTitle, opts, warnings) {
+  const slide = { width: CANVAS.width / PX_PER_INCH, height: CANVAS.height / PX_PER_INCH }
+  const backdrops = theme.brandAssets?.backdrops ?? null
+
   /** @type {any[]} */
-  const objects = []
+  const logoObject = logo === null ? [] : [{
+    image: {
+      data: `image/png;base64,${logo.buffer.toString('base64')}`,
+      ...logoFrame(theme, logo.aspect),
+      altText: 'brand logo',
+    },
+  }]
 
-  if (logo !== null) {
-    const frame = logoFrame(theme, logo.aspect)
-    objects.push({
-      image: {
-        data: `image/png;base64,${logo.buffer.toString('base64')}`,
-        x: frame.x,
-        y: frame.y,
-        w: frame.w,
-        h: frame.h,
-        altText: 'brand logo',
-      },
+  // Footer band. The template's own markers ("Security Level:", "Huawei Confidential") win
+  // over our generic deck-title footer: stacking both on one line is unreadable, and the
+  // template's wording is the one an audience expects to see there.
+  const footlines = Array.isArray(theme.brandAssets?.footlines)
+    ? theme.brandAssets.footlines.filter((line) => typeof line === 'string' && line.trim() !== '').slice(0, 2)
+    : []
+  /** @type {any[]} */
+  const footerObjects = []
+  if (footlines.length > 0) {
+    footlines.forEach((line, index) => {
+      footerObjects.push({
+        text: {
+          text: line,
+          options: {
+            x: pxToIn(SAFE_AREA.left),
+            // Two 9pt lines stacked inside the 40px footer band, growing upward from the
+            // bottom edge so the last line never collides with the page number.
+            y: pxToIn(CANVAS.height - SAFE_AREA.bottom + 6 + index * 12),
+            w: pxToIn(640),
+            h: pxToIn(12),
+            fontFace: theme.fonts.body,
+            fontSize: 8,
+            color: bareHex(theme.colors.textSecondary),
+            align: 'left',
+            valign: 'middle',
+            margin: 0,
+            isTextBox: true,
+          },
+        },
+      })
     })
-  }
-
-  if (opts.includeFooter !== false) {
+  } else if (opts.includeFooter !== false) {
     const footerText = typeof opts.footerText === 'string' && opts.footerText.trim().length > 0
       ? opts.footerText.trim()
       : deckTitle
-    objects.push({
+    footerObjects.push({
       text: {
         text: footerText,
         options: {
@@ -277,27 +399,67 @@ function defineMaster(pres, theme, logo, deckTitle, opts) {
       },
     })
   }
+  const slideNumber = opts.slideNumbers === false
+    ? {}
+    : {
+        slideNumber: {
+          x: pxToIn(CANVAS.width - SAFE_AREA.right - 48),
+          y: pxToIn(CANVAS.height - SAFE_AREA.bottom + 20),
+          w: pxToIn(48),
+          h: pxToIn(28),
+          color: bareHex(theme.colors.textSecondary),
+          fontFace: theme.fonts.body,
+          fontSize: 9,
+          align: 'right',
+          valign: 'middle',
+        },
+      }
 
   pres.defineSlideMaster({
-    title: opts.masterName ?? MASTER_NAME,
+    title: VARIANTS.content,
     background: { color: bareHex(theme.colors.background) },
-    objects,
-    ...(opts.slideNumbers === false
-      ? {}
-      : {
-          slideNumber: {
-            x: pxToIn(CANVAS.width - SAFE_AREA.right - 48),
-            y: pxToIn(CANVAS.height - SAFE_AREA.bottom + 20),
-            w: pxToIn(48),
-            h: pxToIn(28),
-            color: bareHex(theme.colors.textSecondary),
-            fontFace: theme.fonts.body,
-            fontSize: 9,
-            align: 'right',
-            valign: 'middle',
-          },
-        }),
+    objects: [...logoObject, ...footerObjects],
+    ...slideNumber,
   })
+
+  /** @type {string[]} */
+  const variants = [VARIANTS.content]
+  const artFor = (key, label) => (backdrops === null ? null : readBackdrop(backdrops[key], slide, warnings, label))
+  // A missing file degrades to the content master (footer intact) instead of a blank one.
+  const cover = artFor('cover', '封面背景')
+  if (cover !== null) {
+    pres.defineSlideMaster({
+      title: VARIANTS.cover,
+      background: { color: bareHex(theme.colors.background) },
+      objects: [{ image: { data: cover.dataUri, x: cover.x, y: cover.y, w: cover.w, h: cover.h, altText: 'cover backdrop' } }, ...logoObject],
+      ...slideNumber,
+    })
+    variants.push(VARIANTS.cover)
+  }
+  // A missing file degrades to the content master (footer intact) instead of a blank one.
+  const section = artFor('section', '章节背景')
+  if (section !== null) {
+    pres.defineSlideMaster({
+      title: VARIANTS.section,
+      background: { color: bareHex(theme.colors.background) },
+      objects: [{ image: { data: section.dataUri, x: section.x, y: section.y, w: section.w, h: section.h, altText: 'section backdrop' } }, ...logoObject],
+      ...slideNumber,
+    })
+    variants.push(VARIANTS.section)
+  }
+  // A missing file degrades to the content master (footer intact) instead of a blank one.
+  const closing = artFor('closing', '封底背景')
+  if (closing !== null) {
+    pres.defineSlideMaster({
+      title: VARIANTS.closing,
+      background: { color: bareHex(theme.colors.background) },
+      objects: [{ image: { data: closing.dataUri, x: closing.x, y: closing.y, w: closing.w, h: closing.h, altText: 'closing backdrop' } }, ...logoObject],
+      ...slideNumber,
+    })
+    variants.push(VARIANTS.closing)
+  }
+
+  return { hasBackdrops: variants.length > 1, variants }
 }
 
 /**
@@ -894,6 +1056,12 @@ function normalizeTheme(theme) {
       ...(theme.brandAssets?.logoWidthPx === undefined ? {} : { logoWidthPx: theme.brandAssets.logoWidthPx }),
       ...(theme.brandAssets?.logoHeightPx === undefined ? {} : { logoHeightPx: theme.brandAssets.logoHeightPx }),
       ...(theme.brandAssets?.logoFrame === undefined ? {} : { logoFrame: theme.brandAssets.logoFrame }),
+      // The template-derived visual system. Rebuilding `brandAssets` without these was
+      // why every deck came out on a white canvas with our own margins: the compiler never
+      // saw the backdrop art or the content frame the parser had extracted.
+      ...(theme.brandAssets?.frame === undefined ? {} : { frame: theme.brandAssets.frame }),
+      ...(theme.brandAssets?.backdrops === undefined ? {} : { backdrops: theme.brandAssets.backdrops }),
+      ...(theme.brandAssets?.footlines === undefined ? {} : { footlines: theme.brandAssets.footlines }),
     },
   }
 }
