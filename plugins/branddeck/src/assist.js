@@ -263,8 +263,9 @@ function outlineConventions(cap) {
     '- 中间各章是**分**：一章一个主题；页标题写成带结论的完整判断句，不要"XX 方案"这类空标题',
     '- 最后一章是**总**：回收结论、给出下一步（章名可用"总结"）',
     '页面与文字：',
-    '- 每页 3~5 条 `- <要点>`，**每条不超过 15 个汉字**，写成动宾短语或关键词，不要整句',
-    '- **细节不要丢**：被压缩掉的解释、案例、数据写进 `备注：<一段话>`（同一页可多写几句）',
+    '- 每页 3~6 条 `- <要点>`，**每条 12~28 个汉字**，写成「主张 + 关键数据/限定条件」的短句，不要关键词清单',
+    '- **单页「标题 + 要点」合计 80~125 字**（预算 150 字，标题也算在内）：读者只看这一页也要能读懂，不要把内容全推给备注',
+    '- **细节不要丢**：更长的解释、案例、来龙去脉写进 `备注：<一段话>`（页面正文与备注是两条轨，各司其职）',
     '- 不要写 Markdown 表格、不要写代码块、不要写解释性前后文',
     `- 总页数不超过 ${cap} 页（含封面、目录与结尾）`,
     '版式（在该页块内写一行 `版式：<类型>`）：',
@@ -325,10 +326,11 @@ export async function assistOutlineFromMaterial(ctx, input) {
   // Short material: exactly the previous behaviour, one call.
   if (needsMapReduce(material, options) === false) {
     const prompt = buildContentPrompt({ description: material, maxSlides: input.maxSlides })
-    const answer = await callModel(ctx, { ...prompt, maxTokens: 3600, signal: input.signal })
+    const answer = await callModel(ctx, { ...prompt, maxTokens: 6000, signal: input.signal })
     stats.calls = 1
     stats.blocks = 1
-    return { markdown: extractMarkdown(answer), ...stats }
+    const markdown = extractMarkdown(answer)
+    return { ...(await finishWithDensify(ctx, markdown, options, input.signal, stats)), ...stats }
   }
 
   const blocks = splitIntoBlocks(material, options)
@@ -367,7 +369,226 @@ export async function assistOutlineFromMaterial(ctx, input) {
     maxSlides: input.maxSlides,
     topic: input.topic,
   })
-  const answer = await callModel(ctx, { ...reducePrompt, maxTokens: 6000, signal: input.signal })
+  const answer = await callModel(ctx, { ...reducePrompt, maxTokens: 8000, signal: input.signal })
   stats.calls += 1
-  return { markdown: extractMarkdown(answer), ...stats }
+  const markdown = extractMarkdown(answer)
+  return { ...(await finishWithDensify(ctx, markdown, options, input.signal, stats)), ...stats }
+}
+
+/**
+ * One densify pass, then the outline the caller asked for.
+ *
+ * It lives here rather than in `index.js` because every entry point (command, tool, panel)
+ * must get the same treatment and because the call has to be counted in `pipeline.calls`.
+ * Failure is swallowed on purpose: a fuller outline is a quality improvement, never a
+ * reason to lose a deck that was already generated.
+ *
+ * @param {any} ctx
+ * @param {string} markdown
+ * @param {any} options material options (also carries the densify flags)
+ * @param {AbortSignal | undefined} signal
+ * @param {{calls: number}} stats
+ */
+async function finishWithDensify(ctx, markdown, options, signal, stats) {
+  if (options.densify === false) return { markdown, densified: false }
+  try {
+    const result = await densifyOutline(ctx, {
+      markdown,
+      charBudget: options.charBudget,
+      floor: options.pageCharFloor,
+      signal,
+    })
+    if (result.densified) stats.calls += 1
+    return { markdown: result.markdown, densified: result.densified }
+  } catch {
+    return { markdown, densified: false }
+  }
+}
+
+
+/* ------------------------------------------------------------------ *
+ * Outline densification ("填充细节")
+ * ------------------------------------------------------------------ */
+
+/** Metadata lines carry structure, not copy — they never count toward a page's text. */
+const OUTLINE_META = /^(?:版式|排版|layout|章节|章|chapter|备注|notes?|图|示意图|diagram|mermaid)\s*[:：]/i
+/** The one metadata line that opens a multi-line diagram block. */
+const DIAGRAM_META = /^(?:图|示意图|diagram|mermaid)\s*[:：]/i
+
+/**
+ * Measure the visible copy of an outline, page by page.
+ *
+ * "Visible" means what a reader sees on the slide: the page title plus its bullets.
+ * Metadata (`版式：` / `章节：` / `备注：` / `图：`) and Mermaid source lines are excluded —
+ * counting them would make a page look dense when it is not, which is exactly the mistake
+ * that produced 20-character pages while the budget said 150.
+ *
+ * Pure and dependency-free so it can be unit-tested and reused by the panel.
+ *
+ * @param {string} markdown
+ * @returns {{pages: Array<{title: string, chars: number, bullets: number}>, total: number}}
+ */
+export function measureOutline(markdown) {
+  const pages = []
+  /** @type {{title: string, chars: number, bullets: number} | null} */
+  let current = null
+  let inFence = false
+  // A `图：mermaid` block may be fenced or bare. A bare one has no closing marker, so it
+  // is tracked explicitly: otherwise every `flowchart` / `A --> B` line counts as copy and
+  // a thin diagram page looks dense (which would hide it from the densify pass).
+  let inDiagram = false
+  for (const line of String(markdown ?? '').replace(/\r\n?/g, '\n').split('\n')) {
+    const trimmed = line.trim()
+    if (trimmed.startsWith('```')) {
+      inFence = !inFence
+      inDiagram = false
+      continue
+    }
+    if (inFence) continue
+    const heading = /^##\s+(.*)$/.exec(trimmed)
+    if (heading !== null) {
+      inDiagram = false
+      const title = heading[1].replace(/\{#.*?\}/g, '').trim()
+      current = { title, chars: charCount(title), bullets: 0 }
+      pages.push(current)
+      continue
+    }
+    if (trimmed === '') {
+      inDiagram = false
+      continue
+    }
+    if (trimmed.startsWith('#')) {
+      inDiagram = false
+      continue
+    }
+    if (OUTLINE_META.test(trimmed)) {
+      // `图：` opens a diagram; the other metadata lines are single lines.
+      inDiagram = DIAGRAM_META.test(trimmed)
+      continue
+    }
+    if (inDiagram) continue
+    if (current === null) continue
+    const bullet = /^(?:[-*+]|\d{1,2}[.)、])\s*(.+)$/.exec(trimmed)
+    if (bullet !== null) {
+      current.chars += charCount(bullet[1])
+      current.bullets += 1
+      continue
+    }
+    // A plain paragraph inside a page is still visible copy.
+    current.chars += charCount(trimmed)
+  }
+  const total = pages.reduce((sum, page) => sum + page.chars, 0)
+  return { pages, total }
+}
+
+/** @param {string} text */
+function charCount(text) {
+  return Array.from(String(text ?? '')).length
+}
+
+/**
+ * Pages that are below the floor, i.e. the ones the densify pass should rewrite.
+ *
+ * A page with a diagram is deliberately sparse (the figure is the content), so it is not
+ * counted as thin — expanding it would fight the layout.
+ *
+ * @param {string} markdown
+ * @param {{floor?: number}} [options]
+ */
+export function thinPages(markdown, options = {}) {
+  const floor = Number.isFinite(options.floor) ? Math.max(1, Math.floor(options.floor)) : DENSIFY.floor
+  const { pages } = measureOutline(markdown)
+  return pages
+    .map((page, index) => ({ ...page, index }))
+    .filter((page) => page.bullets > 0 && page.chars < floor)
+}
+
+/** Densify knobs. `floor` is a *floor*, not a target: the target is the page budget. */
+export const DENSIFY = Object.freeze({
+  /** A page below this many visible characters is considered thin. */
+  floor: 70,
+  /** Never ask for more than this per page, whatever the budget says. */
+  ceiling: 150,
+})
+
+/**
+ * Prompt for the densify pass: thin pages → the same pages with fuller copy.
+ *
+ * The pass is deliberately conservative about structure: titles, chapters, layout intents
+ * and diagrams must come back unchanged, otherwise the deck the user approved is not the
+ * deck they get. Only the bullet text may grow.
+ *
+ * @param {{markdown: string, pages: Array<{index: number, title: string, chars: number}>, charBudget?: number}} input
+ */
+export function buildEnrichPrompt(input) {
+  const budget = Number.isFinite(input.charBudget)
+    ? Math.min(DENSIFY.ceiling, Math.max(40, Math.floor(input.charBudget)))
+    : DENSIFY.ceiling
+  const list = input.pages.map((page) => `- 第 ${page.index + 1} 页「${page.title}」（当前 ${page.chars} 字）`).join('\n')
+  return {
+    system: [
+      '你在给一份演示文稿的大纲"补细节"。上一轮大纲的页面太薄了：读者只看页面读不懂，必须翻备注。',
+      '你的任务：把指定页面的要点写充实，同时**严格保持结构不变**。',
+      '必须遵守：',
+      '- 保持 `# 卡组标题`、每页 `## 页面标题`、`章节：`、`版式：`、`图：` 与其后的 mermaid 代码**完全不变**',
+      '- 只重写这些页面的 `- ` 要点；页数、页序、每页标题都不许变',
+      `- 每页正文（标题+要点）写到 **${Math.round(budget * 0.55)}~${Math.round(budget * 0.85)} 字**，每条要点 12~28 个汉字，3~6 条`,
+      '- 要点写成「主张 + 关键数据/限定条件」的短句，不要关键词堆砌，不要空话（禁止"赋能/抓手/闭环/矩阵/重塑/全链路"）',
+      '- 只能用原文材料里出现过的事实、数字、人名、工具名；不许编造，没料就少写一条',
+      '- 保留每页已有的 `备注：` 行（可补充，不要删除已有关键信息）',
+      '- 只输出完整大纲，不要解释、不要代码块围栏',
+    ].join('\n'),
+    prompt: [
+      '需要补细节的页面：',
+      list,
+      '',
+      '当前完整大纲：',
+      input.markdown,
+      '',
+      '请输出补细节后的完整大纲。',
+    ].join('\n'),
+  }
+}
+
+/**
+ * Run the densify pass once and return the (possibly) fuller outline.
+ *
+ * Failing soft is the whole point: this runs *after* a successful outline, so a bad or
+ * truncated answer must never destroy the deck. The result is accepted only when it keeps
+ * every page title, keeps the page count, and is actually denser; otherwise the original
+ * markdown comes back untouched and the caller reports `densified: false`.
+ *
+ * @param {any} ctx
+ * @param {{markdown: string, charBudget?: number, floor?: number, signal?: AbortSignal}} input
+ * @returns {Promise<{markdown: string, densified: boolean, pages: number, before: number, after: number}>}
+ */
+export async function densifyOutline(ctx, input) {
+  const original = String(input.markdown ?? '')
+  const thin = thinPages(original, { floor: input.floor })
+  const before = measureOutline(original)
+  if (thin.length === 0) {
+    return { markdown: original, densified: false, pages: 0, before: before.total, after: before.total }
+  }
+  const prompt = buildEnrichPrompt({
+    markdown: original,
+    pages: thin,
+    charBudget: input.charBudget,
+  })
+  const answer = await callModel(ctx, {
+    ...prompt,
+    // The densify answer is the whole outline again, rewritten denser: it needs more room
+    // than the outline it replaces, not the same amount.
+    maxTokens: 8000,
+    temperature: 0.3,
+    signal: input.signal,
+  })
+  const candidate = extractMarkdown(answer)
+  const after = measureOutline(candidate)
+  const sameShape =
+    after.pages.length === before.pages.length &&
+    after.pages.every((page, index) => page.title === before.pages[index].title)
+  if (sameShape === false || after.total <= before.total) {
+    return { markdown: original, densified: false, pages: thin.length, before: before.total, after: before.total }
+  }
+  return { markdown: candidate, densified: true, pages: thin.length, before: before.total, after: after.total }
 }

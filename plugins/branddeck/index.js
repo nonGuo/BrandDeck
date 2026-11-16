@@ -379,6 +379,11 @@ function normalizeConfig(raw) {
     // sparser decks must be able to move them. Both are also accepted per request.
     slideCharBudget: clampNumber(raw.slideCharBudget, 40, 600, 150),
     bulletCharBudget: clampNumber(raw.bulletCharBudget, 20, 200, 90),
+    // Densify pass: after the outline is built, pages below `pageCharFloor` visible
+    // characters get one extra model call that fills in the detail. Without it the pages
+    // stayed at ~20% of the budget (the model treated the per-bullet limit as the target).
+    densify: raw.densify !== false,
+    pageCharFloor: clampNumber(raw.pageCharFloor, 0, 600, 70),
     // Long-material pipeline (see src/mapreduce.js). Above materialThreshold chars the
     // outline is built Map-Reduce instead of from one oversized prompt.
     materialThreshold: clampNumber(raw.materialThreshold, 500, 200000, 6000),
@@ -1150,6 +1155,11 @@ async function assistContent(input, deps) {
         maxBlocks: deps.config.materialMaxBlocks,
         concurrency: deps.config.materialConcurrency,
         factsPerBlock: deps.config.materialFactsPerBlock,
+        // The densify pass targets the *page* budget, so it stays in sync when a
+        // deployment moves `slideCharBudget`.
+        charBudget: deps.config.slideCharBudget,
+        pageCharFloor: input.pageCharFloor ?? deps.config.pageCharFloor,
+        densify: input.densify ?? deps.config.densify,
       },
       onProgress: deps.onProgress,
       signal: deps.signal,
@@ -1160,6 +1170,9 @@ async function assistContent(input, deps) {
       calls: outlined.calls,
       dropped: outlined.dropped,
       mode: outlined.blocks > 1 ? 'map-reduce' : 'single',
+      // Whether the densify pass ran: a thin outline is the difference between a deck of
+      // keywords and a deck that reads, so the caller should be able to see it.
+      densified: outlined.densified === true,
     }
   } catch (error) {
     const code = typeof error?.code === 'string' ? error.code : 'llm_failed'
@@ -1830,6 +1843,8 @@ async function dispatchEndpoint(endpoint, payload, deps) {
             slideCharBudget: Number.isFinite(body.slideCharBudget) ? Number(body.slideCharBudget) : undefined,
             bulletCharBudget: Number.isFinite(body.bulletCharBudget) ? Number(body.bulletCharBudget) : undefined,
             materialThreshold: Number.isFinite(body.materialThreshold) ? Number(body.materialThreshold) : undefined,
+            pageCharFloor: Number.isFinite(body.pageCharFloor) ? Number(body.pageCharFloor) : undefined,
+            densify: typeof body.densify === 'boolean' ? body.densify : undefined,
           },
           { ctx, config, storeConfig },
         )
