@@ -1,0 +1,2144 @@
+{
+  "deckId": "branddeck5",
+  "title": "BrandDeck：把 5 天品牌合规演示压到半小时",
+  "templateId": "ppt-hw",
+  "slides": [
+    {
+      "slideId": "s1",
+      "title": "BrandDeck：把 5 天品牌合规演示压到半小时",
+      "kind": "cover",
+      "background": "#FFFFFF",
+      "elements": [
+        {
+          "type": "shape",
+          "id": "s1-bar-1",
+          "x": 64,
+          "y": 224,
+          "w": 8,
+          "h": 189,
+          "shapeType": "rect",
+          "style": {
+            "fill": "#C7000A"
+          }
+        },
+        {
+          "type": "text",
+          "id": "s1-title-1",
+          "x": 98,
+          "y": 232,
+          "w": 952,
+          "h": 173,
+          "role": "title",
+          "content": "BrandDeck：把 5 天品牌合规演示压到半小时",
+          "style": {
+            "fontSize": 64,
+            "bold": true,
+            "color": "#1D1D1A",
+            "align": "left"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s1-rule-1",
+          "x": 98,
+          "y": 439,
+          "w": 952,
+          "h": 2,
+          "shapeType": "line",
+          "style": {
+            "stroke": "#EBEBEB",
+            "strokeWidth": 2
+          }
+        }
+      ]
+    },
+    {
+      "slideId": "s2",
+      "title": "目录",
+      "kind": "toc",
+      "background": "#FFFFFF",
+      "elements": [
+        {
+          "type": "text",
+          "id": "s2-title-1",
+          "x": 64,
+          "y": 64,
+          "w": 986,
+          "h": 54,
+          "role": "title",
+          "content": "目录",
+          "style": {
+            "fontSize": 40,
+            "bold": true,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s2-bar-1",
+          "x": 64,
+          "y": 132,
+          "w": 96,
+          "h": 6,
+          "shapeType": "rect",
+          "style": {
+            "fill": "#C7000A"
+          }
+        },
+        {
+          "type": "text",
+          "id": "s2-caption-1",
+          "x": 64,
+          "y": 238,
+          "w": 56,
+          "h": 49,
+          "role": "caption",
+          "content": "01",
+          "style": {
+            "fontSize": 20,
+            "bold": true,
+            "color": "#666666",
+            "valign": "middle"
+          }
+        },
+        {
+          "type": "text",
+          "id": "s2-subtitle-1",
+          "x": 120,
+          "y": 238,
+          "w": 1040,
+          "h": 49,
+          "role": "subtitle",
+          "content": "结论与全景",
+          "style": {
+            "fontSize": 26,
+            "color": "#1D1D1A",
+            "valign": "middle"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s2-toc-rule-1",
+          "x": 120,
+          "y": 281,
+          "w": 1016,
+          "h": 2,
+          "shapeType": "line",
+          "style": {
+            "stroke": "#EBEBEB",
+            "strokeWidth": 2
+          }
+        },
+        {
+          "type": "text",
+          "id": "s2-body-1",
+          "x": 1160,
+          "y": 238,
+          "w": 56,
+          "h": 49,
+          "role": "body",
+          "content": "3",
+          "style": {
+            "fontSize": 26,
+            "color": "#666666",
+            "align": "right",
+            "valign": "middle"
+          }
+        },
+        {
+          "type": "text",
+          "id": "s2-caption-2",
+          "x": 64,
+          "y": 287,
+          "w": 56,
+          "h": 49,
+          "role": "caption",
+          "content": "02",
+          "style": {
+            "fontSize": 20,
+            "bold": true,
+            "color": "#666666",
+            "valign": "middle"
+          }
+        },
+        {
+          "type": "text",
+          "id": "s2-subtitle-2",
+          "x": 120,
+          "y": 287,
+          "w": 1040,
+          "h": 49,
+          "role": "subtitle",
+          "content": "架构与数据",
+          "style": {
+            "fontSize": 26,
+            "color": "#1D1D1A",
+            "valign": "middle"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s2-toc-rule-2",
+          "x": 120,
+          "y": 330,
+          "w": 1016,
+          "h": 2,
+          "shapeType": "line",
+          "style": {
+            "stroke": "#EBEBEB",
+            "strokeWidth": 2
+          }
+        },
+        {
+          "type": "text",
+          "id": "s2-body-2",
+          "x": 1160,
+          "y": 287,
+          "w": 56,
+          "h": 49,
+          "role": "body",
+          "content": "6",
+          "style": {
+            "fontSize": 26,
+            "color": "#666666",
+            "align": "right",
+            "valign": "middle"
+          }
+        },
+        {
+          "type": "text",
+          "id": "s2-caption-3",
+          "x": 64,
+          "y": 336,
+          "w": 56,
+          "h": 49,
+          "role": "caption",
+          "content": "03",
+          "style": {
+            "fontSize": 20,
+            "bold": true,
+            "color": "#666666",
+            "valign": "middle"
+          }
+        },
+        {
+          "type": "text",
+          "id": "s2-subtitle-3",
+          "x": 120,
+          "y": 336,
+          "w": 1040,
+          "h": 49,
+          "role": "subtitle",
+          "content": "模板兼容",
+          "style": {
+            "fontSize": 26,
+            "color": "#1D1D1A",
+            "valign": "middle"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s2-toc-rule-3",
+          "x": 120,
+          "y": 379,
+          "w": 1016,
+          "h": 2,
+          "shapeType": "line",
+          "style": {
+            "stroke": "#EBEBEB",
+            "strokeWidth": 2
+          }
+        },
+        {
+          "type": "text",
+          "id": "s2-body-3",
+          "x": 1160,
+          "y": 336,
+          "w": 56,
+          "h": 49,
+          "role": "body",
+          "content": "9",
+          "style": {
+            "fontSize": 26,
+            "color": "#666666",
+            "align": "right",
+            "valign": "middle"
+          }
+        },
+        {
+          "type": "text",
+          "id": "s2-caption-4",
+          "x": 64,
+          "y": 385,
+          "w": 56,
+          "h": 49,
+          "role": "caption",
+          "content": "04",
+          "style": {
+            "fontSize": 20,
+            "bold": true,
+            "color": "#666666",
+            "valign": "middle"
+          }
+        },
+        {
+          "type": "text",
+          "id": "s2-subtitle-4",
+          "x": 120,
+          "y": 385,
+          "w": 1040,
+          "h": 49,
+          "role": "subtitle",
+          "content": "质量护栏",
+          "style": {
+            "fontSize": 26,
+            "color": "#1D1D1A",
+            "valign": "middle"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s2-toc-rule-4",
+          "x": 120,
+          "y": 428,
+          "w": 1016,
+          "h": 2,
+          "shapeType": "line",
+          "style": {
+            "stroke": "#EBEBEB",
+            "strokeWidth": 2
+          }
+        },
+        {
+          "type": "text",
+          "id": "s2-body-4",
+          "x": 1160,
+          "y": 385,
+          "w": 56,
+          "h": 49,
+          "role": "body",
+          "content": "13",
+          "style": {
+            "fontSize": 26,
+            "color": "#666666",
+            "align": "right",
+            "valign": "middle"
+          }
+        },
+        {
+          "type": "text",
+          "id": "s2-caption-5",
+          "x": 64,
+          "y": 434,
+          "w": 56,
+          "h": 49,
+          "role": "caption",
+          "content": "05",
+          "style": {
+            "fontSize": 20,
+            "bold": true,
+            "color": "#666666",
+            "valign": "middle"
+          }
+        },
+        {
+          "type": "text",
+          "id": "s2-subtitle-5",
+          "x": 120,
+          "y": 434,
+          "w": 1040,
+          "h": 49,
+          "role": "subtitle",
+          "content": "边界与下一步",
+          "style": {
+            "fontSize": 26,
+            "color": "#1D1D1A",
+            "valign": "middle"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s2-toc-rule-5",
+          "x": 120,
+          "y": 477,
+          "w": 1016,
+          "h": 2,
+          "shapeType": "line",
+          "style": {
+            "stroke": "#EBEBEB",
+            "strokeWidth": 2
+          }
+        },
+        {
+          "type": "text",
+          "id": "s2-body-5",
+          "x": 1160,
+          "y": 434,
+          "w": 56,
+          "h": 49,
+          "role": "body",
+          "content": "16",
+          "style": {
+            "fontSize": 26,
+            "color": "#666666",
+            "align": "right",
+            "valign": "middle"
+          }
+        }
+      ]
+    },
+    {
+      "slideId": "s3",
+      "title": "结论与全景",
+      "kind": "section",
+      "background": "#FFFFFF",
+      "elements": [
+        {
+          "type": "text",
+          "id": "s3-title-1",
+          "x": 64,
+          "y": 294,
+          "w": 1152,
+          "h": 71,
+          "role": "title",
+          "content": "结论与全景",
+          "style": {
+            "fontSize": 52,
+            "bold": true,
+            "color": "#1D1D1A",
+            "align": "center",
+            "valign": "middle"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s3-rule-1",
+          "x": 580,
+          "y": 397,
+          "w": 120,
+          "h": 6,
+          "shapeType": "rect",
+          "style": {
+            "fill": "#C7000A"
+          }
+        }
+      ]
+    },
+    {
+      "slideId": "s4",
+      "title": "一套 DSL 让 80% 常规演示从 5 天变半小时",
+      "kind": "bullets",
+      "background": "#FFFFFF",
+      "speakerNotes": "BrandDeck 的定位不是\"更聪明的 PPT 生成器\"，而是把品牌合规这类确定性工作从人手里拿走。企业做一份合规演示平均 5 天，大部分耗在找色值、调 Logo 位置、统一字体这些重复劳动上；BrandDeck 要吃掉的就是这部分，同时明确不碰需要设计师判断的精品场合。",
+      "elements": [
+        {
+          "type": "text",
+          "id": "s4-title-1",
+          "x": 64,
+          "y": 64,
+          "w": 986,
+          "h": 54,
+          "role": "title",
+          "content": "一套 DSL 让 80% 常规演示从 5 天变半小时",
+          "style": {
+            "fontSize": 40,
+            "bold": true,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s4-bar-1",
+          "x": 64,
+          "y": 132,
+          "w": 96,
+          "h": 6,
+          "shapeType": "rect",
+          "style": {
+            "fill": "#C7000A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s4-marker-1",
+          "x": 64,
+          "y": 238,
+          "w": 8,
+          "h": 8,
+          "shapeType": "roundRect",
+          "style": {
+            "fill": "#C7000A",
+            "radius": 4
+          }
+        },
+        {
+          "type": "text",
+          "id": "s4-body-1",
+          "x": 94,
+          "y": 220,
+          "w": 1122,
+          "h": 44,
+          "role": "body",
+          "content": "装在 DeepSeek Harness 内，产出原生可编辑 .pptx",
+          "style": {
+            "fontSize": 32,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s4-marker-2",
+          "x": 64,
+          "y": 314,
+          "w": 8,
+          "h": 8,
+          "shapeType": "roundRect",
+          "style": {
+            "fill": "#C7000A",
+            "radius": 4
+          }
+        },
+        {
+          "type": "text",
+          "id": "s4-body-2",
+          "x": 94,
+          "y": 296,
+          "w": 1122,
+          "h": 44,
+          "role": "body",
+          "content": "企业做一份合规演示平均花 5 天",
+          "style": {
+            "fontSize": 32,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s4-marker-3",
+          "x": 64,
+          "y": 390,
+          "w": 8,
+          "h": 8,
+          "shapeType": "roundRect",
+          "style": {
+            "fill": "#C7000A",
+            "radius": 4
+          }
+        },
+        {
+          "type": "text",
+          "id": "s4-body-3",
+          "x": 94,
+          "y": 372,
+          "w": 1122,
+          "h": 44,
+          "role": "body",
+          "content": "多数时间用于对齐品牌色和修版式",
+          "style": {
+            "fontSize": 32,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s4-marker-4",
+          "x": 64,
+          "y": 466,
+          "w": 8,
+          "h": 8,
+          "shapeType": "roundRect",
+          "style": {
+            "fill": "#C7000A",
+            "radius": 4
+          }
+        },
+        {
+          "type": "text",
+          "id": "s4-body-4",
+          "x": 94,
+          "y": 448,
+          "w": 1122,
+          "h": 44,
+          "role": "body",
+          "content": "目标是 80% 常规演示降到半小时",
+          "style": {
+            "fontSize": 32,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s4-marker-5",
+          "x": 64,
+          "y": 542,
+          "w": 8,
+          "h": 8,
+          "shapeType": "roundRect",
+          "style": {
+            "fill": "#C7000A",
+            "radius": 4
+          }
+        },
+        {
+          "type": "text",
+          "id": "s4-body-5",
+          "x": 94,
+          "y": 524,
+          "w": 1122,
+          "h": 44,
+          "role": "body",
+          "content": "不取代设计师做剩下 20% 的精品",
+          "style": {
+            "fontSize": 32,
+            "color": "#1D1D1A"
+          }
+        }
+      ]
+    },
+    {
+      "slideId": "s5",
+      "title": "模型只出卡片 DSL，坐标计算交给确定性代码",
+      "kind": "diagram",
+      "background": "#FFFFFF",
+      "speakerNotes": "这是整份实现的主线：内容与版式解耦。模型擅长写文字、判断信息层级，但不擅长算坐标，所以它只吐卡片 DSL；位置、尺寸、样式由确定性代码统一计算，保证同一份输入反复编译得到完全一致的结果。card.json 是这套几何计算的落盘结果，后续渲染、快照、写回都以它为准。",
+      "elements": [
+        {
+          "type": "text",
+          "id": "s5-title-1",
+          "x": 64,
+          "y": 64,
+          "w": 986,
+          "h": 54,
+          "role": "title",
+          "content": "模型只出卡片 DSL，坐标计算交给确定性代码",
+          "style": {
+            "fontSize": 40,
+            "bold": true,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s5-bar-1",
+          "x": 64,
+          "y": 132,
+          "w": 96,
+          "h": 6,
+          "shapeType": "rect",
+          "style": {
+            "fill": "#C7000A"
+          }
+        },
+        {
+          "type": "svg",
+          "id": "s5-figure-1",
+          "x": 64,
+          "y": 184,
+          "w": 1152,
+          "h": 339,
+          "description": "模型只出卡片 DSL，坐标计算交给确定性代码",
+          "svgCode": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1152\" height=\"339\" viewBox=\"0 0 1152 339\"><g transform=\"translate(53.5,149.2) scale(0.9216)\"><line x1=\"123\" y1=\"22\" x2=\"179\" y2=\"22\" stroke=\"#666666\" stroke-width=\"1.4\" /><polygon points=\"179,22 173.6,24.6 173.6,19.4\" fill=\"#666666\" /><line x1=\"318\" y1=\"22\" x2=\"374\" y2=\"22\" stroke=\"#666666\" stroke-width=\"1.4\" /><polygon points=\"374,22 368.6,24.6 368.6,19.4\" fill=\"#666666\" /><line x1=\"510\" y1=\"22\" x2=\"566\" y2=\"22\" stroke=\"#666666\" stroke-width=\"1.4\" /><polygon points=\"566,22 560.6,24.6 560.6,19.4\" fill=\"#666666\" /><line x1=\"723\" y1=\"22\" x2=\"779\" y2=\"22\" stroke=\"#666666\" stroke-width=\"1.4\" /><polygon points=\"779,22 773.6,24.6 773.6,19.4\" fill=\"#666666\" /><line x1=\"907\" y1=\"22\" x2=\"963\" y2=\"22\" stroke=\"#666666\" stroke-width=\"1.4\" /><polygon points=\"963,22 957.6,24.6 957.6,19.4\" fill=\"#666666\" /><rect x=\"0\" y=\"0\" width=\"123\" height=\"44\" rx=\"6\" fill=\"#FFFFFF\" stroke=\"#1D1D1A\" stroke-width=\"1.4\" /><text x=\"61.5\" y=\"26.6\" text-anchor=\"middle\" font-family=\"inherit\" font-size=\"13\" fill=\"#1D1D1A\">长材料或一句话</text><rect x=\"179\" y=\"0\" width=\"139\" height=\"44\" rx=\"6\" fill=\"#FFFFFF\" stroke=\"#1D1D1A\" stroke-width=\"1.4\" /><text x=\"248.5\" y=\"26.6\" text-anchor=\"middle\" font-family=\"inherit\" font-size=\"13\" fill=\"#1D1D1A\">模型只出卡片 DSL</text><rect x=\"374\" y=\"0\" width=\"136\" height=\"44\" rx=\"6\" fill=\"#FFFFFF\" stroke=\"#1D1D1A\" stroke-width=\"1.4\" /><text x=\"442\" y=\"26.6\" text-anchor=\"middle\" font-family=\"inherit\" font-size=\"13\" fill=\"#1D1D1A\">确定性代码算坐标</text><rect x=\"566\" y=\"0\" width=\"157\" height=\"44\" rx=\"6\" fill=\"#FFFFFF\" stroke=\"#1D1D1A\" stroke-width=\"1.4\" /><text x=\"644.5\" y=\"26.6\" text-anchor=\"middle\" font-family=\"inherit\" font-size=\"13\" fill=\"#1D1D1A\">card.json 几何数据</text><rect x=\"779\" y=\"0\" width=\"128\" height=\"44\" rx=\"6\" fill=\"#FFFFFF\" stroke=\"#1D1D1A\" stroke-width=\"1.4\" /><text x=\"843\" y=\"26.6\" text-anchor=\"middle\" font-family=\"inherit\" font-size=\"13\" fill=\"#1D1D1A\">导出原生 .pptx</text><rect x=\"963\" y=\"0\" width=\"171\" height=\"44\" rx=\"6\" fill=\"#FFFFFF\" stroke=\"#1D1D1A\" stroke-width=\"1.4\" /><text x=\"1048.5\" y=\"26.6\" text-anchor=\"middle\" font-family=\"inherit\" font-size=\"13\" fill=\"#1D1D1A\">LibreOffice 渲染核对</text></g></svg>"
+        },
+        {
+          "type": "text",
+          "id": "s5-body-1",
+          "x": 64,
+          "y": 543,
+          "w": 1152,
+          "h": 27,
+          "role": "body",
+          "content": "模型只输出卡片 DSL，内容之外一概不管",
+          "style": {
+            "fontSize": 20,
+            "color": "#666666"
+          }
+        },
+        {
+          "type": "text",
+          "id": "s5-body-2",
+          "x": 64,
+          "y": 586,
+          "w": 1152,
+          "h": 27,
+          "role": "body",
+          "content": "坐标由确定性代码计算，同一输入结果一致",
+          "style": {
+            "fontSize": 20,
+            "color": "#666666"
+          }
+        },
+        {
+          "type": "text",
+          "id": "s5-body-3",
+          "x": 64,
+          "y": 629,
+          "w": 1152,
+          "h": 27,
+          "role": "body",
+          "content": "card.json 记录全部几何，是所有渲染的唯一依据",
+          "style": {
+            "fontSize": 20,
+            "color": "#666666"
+          }
+        }
+      ]
+    },
+    {
+      "slideId": "s6",
+      "title": "架构与数据",
+      "kind": "section",
+      "background": "#FFFFFF",
+      "elements": [
+        {
+          "type": "text",
+          "id": "s6-title-1",
+          "x": 64,
+          "y": 294,
+          "w": 1152,
+          "h": 71,
+          "role": "title",
+          "content": "架构与数据",
+          "style": {
+            "fontSize": 52,
+            "bold": true,
+            "color": "#1D1D1A",
+            "align": "center",
+            "valign": "middle"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s6-rule-1",
+          "x": 580,
+          "y": 397,
+          "w": 120,
+          "h": 6,
+          "shapeType": "rect",
+          "style": {
+            "fill": "#C7000A"
+          }
+        }
+      ]
+    },
+    {
+      "slideId": "s7",
+      "title": "card.json 是几何真相，outline.md 按 id 写回",
+      "kind": "bullets",
+      "background": "#FFFFFF",
+      "speakerNotes": "两份文件分工明确。card.json 是机器读的几何真相，任何渲染、导出、比对都以它为依据；outline.md 是人读的内容视图，每个元素带 {#id} 锚点，用户改完文字保存后按 id 写回对应卡片，不会错位。每次保存默认留最近 20 版修订快照，版式改坏了可以往回翻。",
+      "elements": [
+        {
+          "type": "text",
+          "id": "s7-title-1",
+          "x": 64,
+          "y": 64,
+          "w": 986,
+          "h": 54,
+          "role": "title",
+          "content": "card.json 是几何真相，outline.md 按 id 写回",
+          "style": {
+            "fontSize": 40,
+            "bold": true,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s7-bar-1",
+          "x": 64,
+          "y": 132,
+          "w": 96,
+          "h": 6,
+          "shapeType": "rect",
+          "style": {
+            "fill": "#C7000A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s7-marker-1",
+          "x": 64,
+          "y": 238,
+          "w": 8,
+          "h": 8,
+          "shapeType": "roundRect",
+          "style": {
+            "fill": "#C7000A",
+            "radius": 4
+          }
+        },
+        {
+          "type": "text",
+          "id": "s7-body-1",
+          "x": 94,
+          "y": 220,
+          "w": 1122,
+          "h": 44,
+          "role": "body",
+          "content": "card.json：记录位置、尺寸、样式与内容",
+          "style": {
+            "fontSize": 32,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s7-marker-2",
+          "x": 64,
+          "y": 314,
+          "w": 8,
+          "h": 8,
+          "shapeType": "roundRect",
+          "style": {
+            "fill": "#C7000A",
+            "radius": 4
+          }
+        },
+        {
+          "type": "text",
+          "id": "s7-body-2",
+          "x": 94,
+          "y": 296,
+          "w": 1122,
+          "h": 44,
+          "role": "body",
+          "content": "card.json：所有渲染只认这一份数据",
+          "style": {
+            "fontSize": 32,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s7-marker-3",
+          "x": 64,
+          "y": 390,
+          "w": 8,
+          "h": 8,
+          "shapeType": "roundRect",
+          "style": {
+            "fill": "#C7000A",
+            "radius": 4
+          }
+        },
+        {
+          "type": "text",
+          "id": "s7-body-3",
+          "x": 94,
+          "y": 372,
+          "w": 1122,
+          "h": 44,
+          "role": "body",
+          "content": "outline.md：用 {#id} 锚点标识每个元素",
+          "style": {
+            "fontSize": 32,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s7-marker-4",
+          "x": 64,
+          "y": 466,
+          "w": 8,
+          "h": 8,
+          "shapeType": "roundRect",
+          "style": {
+            "fill": "#C7000A",
+            "radius": 4
+          }
+        },
+        {
+          "type": "text",
+          "id": "s7-body-4",
+          "x": 94,
+          "y": 448,
+          "w": 1122,
+          "h": 44,
+          "role": "body",
+          "content": "outline.md：保存后按 id 写回对应卡片",
+          "style": {
+            "fontSize": 32,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s7-marker-5",
+          "x": 64,
+          "y": 542,
+          "w": 8,
+          "h": 8,
+          "shapeType": "roundRect",
+          "style": {
+            "fill": "#C7000A",
+            "radius": 4
+          }
+        },
+        {
+          "type": "text",
+          "id": "s7-body-5",
+          "x": 94,
+          "y": 524,
+          "w": 1122,
+          "h": 44,
+          "role": "body",
+          "content": "快照：默认保留最近 20 版，可回溯",
+          "style": {
+            "fontSize": 32,
+            "color": "#1D1D1A"
+          }
+        }
+      ]
+    },
+    {
+      "slideId": "s8",
+      "title": "/branddeck file 一句话产出 10 页卡组",
+      "kind": "bullets",
+      "background": "#FFFFFF",
+      "speakerNotes": "/branddeck file 是面向长材料的入口，把文章、会议记录、需求文档直接切成卡组。实测一句话需求就能产出 10 页，编译 6 页演示耗时 200 到 900 毫秒，含 SVG 插图时更慢，但仍在可交互范围内。产物是原生 .pptx，不是图片拼接，用户可以在 PowerPoint 里继续改。",
+      "elements": [
+        {
+          "type": "text",
+          "id": "s8-title-1",
+          "x": 64,
+          "y": 64,
+          "w": 986,
+          "h": 54,
+          "role": "title",
+          "content": "/branddeck file 一句话产出 10 页卡组",
+          "style": {
+            "fontSize": 40,
+            "bold": true,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s8-bar-1",
+          "x": 64,
+          "y": 132,
+          "w": 96,
+          "h": 6,
+          "shapeType": "rect",
+          "style": {
+            "fill": "#C7000A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s8-marker-1",
+          "x": 64,
+          "y": 238,
+          "w": 8,
+          "h": 8,
+          "shapeType": "roundRect",
+          "style": {
+            "fill": "#C7000A",
+            "radius": 4
+          }
+        },
+        {
+          "type": "text",
+          "id": "s8-body-1",
+          "x": 94,
+          "y": 220,
+          "w": 1122,
+          "h": 44,
+          "role": "body",
+          "content": "命令从长材料直接生成完整卡组",
+          "style": {
+            "fontSize": 32,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s8-marker-2",
+          "x": 64,
+          "y": 314,
+          "w": 8,
+          "h": 8,
+          "shapeType": "roundRect",
+          "style": {
+            "fill": "#C7000A",
+            "radius": 4
+          }
+        },
+        {
+          "type": "text",
+          "id": "s8-body-2",
+          "x": 94,
+          "y": 296,
+          "w": 1122,
+          "h": 44,
+          "role": "body",
+          "content": "实测一句话需求产出 10 页卡组",
+          "style": {
+            "fontSize": 32,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s8-marker-3",
+          "x": 64,
+          "y": 390,
+          "w": 8,
+          "h": 8,
+          "shapeType": "roundRect",
+          "style": {
+            "fill": "#C7000A",
+            "radius": 4
+          }
+        },
+        {
+          "type": "text",
+          "id": "s8-body-3",
+          "x": 94,
+          "y": 372,
+          "w": 1122,
+          "h": 44,
+          "role": "body",
+          "content": "编译 6 页演示需 200 到 900 毫秒",
+          "style": {
+            "fontSize": 32,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s8-marker-4",
+          "x": 64,
+          "y": 466,
+          "w": 8,
+          "h": 8,
+          "shapeType": "roundRect",
+          "style": {
+            "fill": "#C7000A",
+            "radius": 4
+          }
+        },
+        {
+          "type": "text",
+          "id": "s8-body-4",
+          "x": 94,
+          "y": 448,
+          "w": 1122,
+          "h": 44,
+          "role": "body",
+          "content": "含 SVG 时更慢，但仍在一秒内",
+          "style": {
+            "fontSize": 32,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s8-marker-5",
+          "x": 64,
+          "y": 542,
+          "w": 8,
+          "h": 8,
+          "shapeType": "roundRect",
+          "style": {
+            "fill": "#C7000A",
+            "radius": 4
+          }
+        },
+        {
+          "type": "text",
+          "id": "s8-body-5",
+          "x": 94,
+          "y": 524,
+          "w": 1122,
+          "h": 44,
+          "role": "body",
+          "content": "输出原生 .pptx，可直接二次编辑",
+          "style": {
+            "fontSize": 32,
+            "color": "#1D1D1A"
+          }
+        }
+      ]
+    },
+    {
+      "slideId": "s9",
+      "title": "模板兼容",
+      "kind": "section",
+      "background": "#FFFFFF",
+      "elements": [
+        {
+          "type": "text",
+          "id": "s9-title-1",
+          "x": 64,
+          "y": 294,
+          "w": 1152,
+          "h": 71,
+          "role": "title",
+          "content": "模板兼容",
+          "style": {
+            "fontSize": 52,
+            "bold": true,
+            "color": "#1D1D1A",
+            "align": "center",
+            "valign": "middle"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s9-rule-1",
+          "x": 580,
+          "y": 397,
+          "w": 120,
+          "h": 6,
+          "shapeType": "rect",
+          "style": {
+            "fill": "#C7000A"
+          }
+        }
+      ]
+    },
+    {
+      "slideId": "s10",
+      "title": "华为模板 dk1 与 lt1 同色，白底藏在 p:bg",
+      "kind": "bullets",
+      "background": "#FFFFFF",
+      "speakerNotes": "真实企业模板往往不按规范出牌。华为模板的主题色方案里，dk1 和 lt1 被写成同一个 #1D1D1A，按\"背景=lt1\"的常规推断会得到黑底；实际白底来自母版里显式的 p:bg 填充。幻灯片尺寸也不是标准 16:9，宽出 4763 EMU，差这点就会在叠加时整体偏移。所以取色与取尺寸必须直读母版，不能靠主题推。",
+      "elements": [
+        {
+          "type": "text",
+          "id": "s10-title-1",
+          "x": 64,
+          "y": 64,
+          "w": 986,
+          "h": 54,
+          "role": "title",
+          "content": "华为模板 dk1 与 lt1 同色，白底藏在 p:bg",
+          "style": {
+            "fontSize": 40,
+            "bold": true,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s10-bar-1",
+          "x": 64,
+          "y": 132,
+          "w": 96,
+          "h": 6,
+          "shapeType": "rect",
+          "style": {
+            "fill": "#C7000A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s10-marker-1",
+          "x": 64,
+          "y": 238,
+          "w": 8,
+          "h": 8,
+          "shapeType": "roundRect",
+          "style": {
+            "fill": "#C7000A",
+            "radius": 4
+          }
+        },
+        {
+          "type": "text",
+          "id": "s10-body-1",
+          "x": 94,
+          "y": 220,
+          "w": 1122,
+          "h": 44,
+          "role": "body",
+          "content": "模板 clrScheme 里 dk1 与 lt1 都是 #1D1D1A",
+          "style": {
+            "fontSize": 32,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s10-marker-2",
+          "x": 64,
+          "y": 314,
+          "w": 8,
+          "h": 8,
+          "shapeType": "roundRect",
+          "style": {
+            "fill": "#C7000A",
+            "radius": 4
+          }
+        },
+        {
+          "type": "text",
+          "id": "s10-body-2",
+          "x": 94,
+          "y": 296,
+          "w": 1122,
+          "h": 44,
+          "role": "body",
+          "content": "白底靠母版 p:bg 显式填充，不是主题色",
+          "style": {
+            "fontSize": 32,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s10-marker-3",
+          "x": 64,
+          "y": 390,
+          "w": 8,
+          "h": 8,
+          "shapeType": "roundRect",
+          "style": {
+            "fill": "#C7000A",
+            "radius": 4
+          }
+        },
+        {
+          "type": "text",
+          "id": "s10-body-3",
+          "x": 94,
+          "y": 372,
+          "w": 1122,
+          "h": 44,
+          "role": "body",
+          "content": "sldSz 为 12196763×6858000 EMU",
+          "style": {
+            "fontSize": 32,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s10-marker-4",
+          "x": 64,
+          "y": 466,
+          "w": 8,
+          "h": 8,
+          "shapeType": "roundRect",
+          "style": {
+            "fill": "#C7000A",
+            "radius": 4
+          }
+        },
+        {
+          "type": "text",
+          "id": "s10-body-4",
+          "x": 94,
+          "y": 448,
+          "w": 1122,
+          "h": 44,
+          "role": "body",
+          "content": "比标准 16:9 宽 4763 EMU",
+          "style": {
+            "fontSize": 32,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s10-marker-5",
+          "x": 64,
+          "y": 542,
+          "w": 8,
+          "h": 8,
+          "shapeType": "roundRect",
+          "style": {
+            "fill": "#C7000A",
+            "radius": 4
+          }
+        },
+        {
+          "type": "text",
+          "id": "s10-body-5",
+          "x": 94,
+          "y": 524,
+          "w": 1122,
+          "h": 44,
+          "role": "body",
+          "content": "差这 4763 EMU 就会整体偏移",
+          "style": {
+            "fontSize": 32,
+            "color": "#1D1D1A"
+          }
+        }
+      ]
+    },
+    {
+      "slideId": "s11",
+      "title": "Logo 固定在 10.07×6.54 英寸，被两个母版引用",
+      "kind": "bullets",
+      "background": "#FFFFFF",
+      "speakerNotes": "这是模板兼容里最容易踩的坑：同一个 Logo 被母版 1 和母版 4 同时引用，只改一处，另一处还在原位，导出后两页 Logo 错位。处理办法是把 Logo 当版式层对象，坐标与尺寸从 card.json 统一取，两个母版同步写入。10.07×6.54 英寸是这块模板的固定锚点，不随页面内容浮动。",
+      "elements": [
+        {
+          "type": "text",
+          "id": "s11-title-1",
+          "x": 64,
+          "y": 64,
+          "w": 986,
+          "h": 54,
+          "role": "title",
+          "content": "Logo 固定在 10.07×6.54 英寸，被两个母版引用",
+          "style": {
+            "fontSize": 40,
+            "bold": true,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s11-bar-1",
+          "x": 64,
+          "y": 132,
+          "w": 96,
+          "h": 6,
+          "shapeType": "rect",
+          "style": {
+            "fill": "#C7000A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s11-marker-1",
+          "x": 64,
+          "y": 238,
+          "w": 8,
+          "h": 8,
+          "shapeType": "roundRect",
+          "style": {
+            "fill": "#C7000A",
+            "radius": 4
+          }
+        },
+        {
+          "type": "text",
+          "id": "s11-body-1",
+          "x": 94,
+          "y": 220,
+          "w": 1122,
+          "h": 44,
+          "role": "body",
+          "content": "右下角 Logo 坐标 x=10.07 英寸",
+          "style": {
+            "fontSize": 32,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s11-marker-2",
+          "x": 64,
+          "y": 314,
+          "w": 8,
+          "h": 8,
+          "shapeType": "roundRect",
+          "style": {
+            "fill": "#C7000A",
+            "radius": 4
+          }
+        },
+        {
+          "type": "text",
+          "id": "s11-body-2",
+          "x": 94,
+          "y": 296,
+          "w": 1122,
+          "h": 44,
+          "role": "body",
+          "content": "y=6.54 英寸，母版 1 和母版 4 同时引用",
+          "style": {
+            "fontSize": 32,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s11-marker-3",
+          "x": 64,
+          "y": 390,
+          "w": 8,
+          "h": 8,
+          "shapeType": "roundRect",
+          "style": {
+            "fill": "#C7000A",
+            "radius": 4
+          }
+        },
+        {
+          "type": "text",
+          "id": "s11-body-3",
+          "x": 94,
+          "y": 372,
+          "w": 1122,
+          "h": 44,
+          "role": "body",
+          "content": "只改一个母版会漏掉另一处 Logo",
+          "style": {
+            "fontSize": 32,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s11-marker-4",
+          "x": 64,
+          "y": 466,
+          "w": 8,
+          "h": 8,
+          "shapeType": "roundRect",
+          "style": {
+            "fill": "#C7000A",
+            "radius": 4
+          }
+        },
+        {
+          "type": "text",
+          "id": "s11-body-4",
+          "x": 94,
+          "y": 448,
+          "w": 1122,
+          "h": 44,
+          "role": "body",
+          "content": "Logo 属于版式层，不随内容移动",
+          "style": {
+            "fontSize": 32,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s11-marker-5",
+          "x": 64,
+          "y": 542,
+          "w": 8,
+          "h": 8,
+          "shapeType": "roundRect",
+          "style": {
+            "fill": "#C7000A",
+            "radius": 4
+          }
+        },
+        {
+          "type": "text",
+          "id": "s11-body-5",
+          "x": 94,
+          "y": 524,
+          "w": 1122,
+          "h": 44,
+          "role": "body",
+          "content": "坐标与尺寸一律从 card.json 取",
+          "style": {
+            "fontSize": 32,
+            "color": "#1D1D1A"
+          }
+        }
+      ]
+    },
+    {
+      "slideId": "s12",
+      "title": "模板 a:ea 为空，中文字体要按四级链回退",
+      "kind": "diagram",
+      "background": "#FFFFFF",
+      "speakerNotes": "该模板的 <a:ea> 是空字符串，直接读会拿到空字体名。中文字体要沿母版 txStyles→主题 ea→Hans 映射→拉丁字体回退四级链依次找，找到第一个可用值。另一个坑在 pptxgenjs：它会把同一个字体名同时写进 <a:latin> 和 <a:ea>，中文渲染出现重影，必须让两个槽位分别写入拉丁字体和中文字体。",
+      "elements": [
+        {
+          "type": "text",
+          "id": "s12-title-1",
+          "x": 64,
+          "y": 64,
+          "w": 986,
+          "h": 54,
+          "role": "title",
+          "content": "模板 a:ea 为空，中文字体要按四级链回退",
+          "style": {
+            "fontSize": 40,
+            "bold": true,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s12-bar-1",
+          "x": 64,
+          "y": 132,
+          "w": 96,
+          "h": 6,
+          "shapeType": "rect",
+          "style": {
+            "fill": "#C7000A"
+          }
+        },
+        {
+          "type": "svg",
+          "id": "s12-figure-1",
+          "x": 64,
+          "y": 184,
+          "w": 1152,
+          "h": 339,
+          "description": "模板 a:ea 为空，中文字体要按四级链回退",
+          "svgCode": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1152\" height=\"339\" viewBox=\"0 0 1152 339\"><g transform=\"translate(70.1,142.9) scale(1.2087999999999999)\"><line x1=\"124\" y1=\"22\" x2=\"180\" y2=\"22\" stroke=\"#666666\" stroke-width=\"1.4\" /><polygon points=\"180,22 174.6,24.6 174.6,19.4\" fill=\"#666666\" /><line x1=\"293\" y1=\"22\" x2=\"349\" y2=\"22\" stroke=\"#666666\" stroke-width=\"1.4\" /><polygon points=\"349,22 343.6,24.6 343.6,19.4\" fill=\"#666666\" /><line x1=\"445\" y1=\"22\" x2=\"501\" y2=\"22\" stroke=\"#666666\" stroke-width=\"1.4\" /><polygon points=\"501,22 495.6,24.6 495.6,19.4\" fill=\"#666666\" /><line x1=\"611\" y1=\"22\" x2=\"667\" y2=\"22\" stroke=\"#666666\" stroke-width=\"1.4\" /><polygon points=\"667,22 661.6,24.6 661.6,19.4\" fill=\"#666666\" /><rect x=\"0\" y=\"0\" width=\"124\" height=\"44\" rx=\"6\" fill=\"#FFFFFF\" stroke=\"#1D1D1A\" stroke-width=\"1.4\" /><text x=\"62\" y=\"26.6\" text-anchor=\"middle\" font-family=\"inherit\" font-size=\"13\" fill=\"#1D1D1A\">母版 txStyles</text><rect x=\"180\" y=\"0\" width=\"113\" height=\"44\" rx=\"6\" fill=\"#FFFFFF\" stroke=\"#1D1D1A\" stroke-width=\"1.4\" /><text x=\"236.5\" y=\"26.6\" text-anchor=\"middle\" font-family=\"inherit\" font-size=\"13\" fill=\"#1D1D1A\">主题 ea 字体</text><rect x=\"349\" y=\"0\" width=\"96\" height=\"44\" rx=\"6\" fill=\"#FFFFFF\" stroke=\"#1D1D1A\" stroke-width=\"1.4\" /><text x=\"397\" y=\"26.6\" text-anchor=\"middle\" font-family=\"inherit\" font-size=\"13\" fill=\"#1D1D1A\">Hans 映射</text><rect x=\"501\" y=\"0\" width=\"110\" height=\"44\" rx=\"6\" fill=\"#FFFFFF\" stroke=\"#1D1D1A\" stroke-width=\"1.4\" /><text x=\"556\" y=\"26.6\" text-anchor=\"middle\" font-family=\"inherit\" font-size=\"13\" fill=\"#1D1D1A\">拉丁字体回退</text><rect x=\"667\" y=\"0\" width=\"170\" height=\"44\" rx=\"6\" fill=\"#FFFFFF\" stroke=\"#1D1D1A\" stroke-width=\"1.4\" /><text x=\"752\" y=\"26.6\" text-anchor=\"middle\" font-family=\"inherit\" font-size=\"13\" fill=\"#1D1D1A\">分别写入 latin 与 ea</text></g></svg>"
+        },
+        {
+          "type": "text",
+          "id": "s12-body-1",
+          "x": 64,
+          "y": 543,
+          "w": 1152,
+          "h": 27,
+          "role": "body",
+          "content": "模板 a:ea 是空字符串，不能当默认字体用",
+          "style": {
+            "fontSize": 20,
+            "color": "#666666"
+          }
+        },
+        {
+          "type": "text",
+          "id": "s12-body-2",
+          "x": 64,
+          "y": 586,
+          "w": 1152,
+          "h": 27,
+          "role": "body",
+          "content": "中文按母版→主题→Hans→拉丁四级回退",
+          "style": {
+            "fontSize": 20,
+            "color": "#666666"
+          }
+        },
+        {
+          "type": "text",
+          "id": "s12-body-3",
+          "x": 64,
+          "y": 629,
+          "w": 1152,
+          "h": 27,
+          "role": "body",
+          "content": "pptxgenjs 同名字体写入 latin 与 ea 致重影",
+          "style": {
+            "fontSize": 20,
+            "color": "#666666"
+          }
+        }
+      ]
+    },
+    {
+      "slideId": "s13",
+      "title": "质量护栏",
+      "kind": "section",
+      "background": "#FFFFFF",
+      "elements": [
+        {
+          "type": "text",
+          "id": "s13-title-1",
+          "x": 64,
+          "y": 294,
+          "w": 1152,
+          "h": 71,
+          "role": "title",
+          "content": "质量护栏",
+          "style": {
+            "fontSize": 52,
+            "bold": true,
+            "color": "#1D1D1A",
+            "align": "center",
+            "valign": "middle"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s13-rule-1",
+          "x": 580,
+          "y": 397,
+          "w": 120,
+          "h": 6,
+          "shapeType": "rect",
+          "style": {
+            "fill": "#C7000A"
+          }
+        }
+      ]
+    },
+    {
+      "slideId": "s14",
+      "title": "单页超 150 字告警，单条超 35 字降级",
+      "kind": "bullets",
+      "background": "#FFFFFF",
+      "speakerNotes": "密度护栏解决的是\"模型写得太多\"这个通病。单页正文超过 150 字就告警，提示拆页；单条内容超过 35 字自动降级为通栏列表，宁可牺牲分栏美感也不让文字挤爆卡片。护栏写在生成环节而不是事后人工检查，阈值可以按模板调整，150 与 35 是默认值。",
+      "elements": [
+        {
+          "type": "text",
+          "id": "s14-title-1",
+          "x": 64,
+          "y": 64,
+          "w": 986,
+          "h": 54,
+          "role": "title",
+          "content": "单页超 150 字告警，单条超 35 字降级",
+          "style": {
+            "fontSize": 40,
+            "bold": true,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s14-bar-1",
+          "x": 64,
+          "y": 132,
+          "w": 96,
+          "h": 6,
+          "shapeType": "rect",
+          "style": {
+            "fill": "#C7000A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s14-marker-1",
+          "x": 64,
+          "y": 238,
+          "w": 8,
+          "h": 8,
+          "shapeType": "roundRect",
+          "style": {
+            "fill": "#C7000A",
+            "radius": 4
+          }
+        },
+        {
+          "type": "text",
+          "id": "s14-body-1",
+          "x": 94,
+          "y": 220,
+          "w": 1122,
+          "h": 44,
+          "role": "body",
+          "content": "单页正文超过 150 字触发告警",
+          "style": {
+            "fontSize": 32,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s14-marker-2",
+          "x": 64,
+          "y": 314,
+          "w": 8,
+          "h": 8,
+          "shapeType": "roundRect",
+          "style": {
+            "fill": "#C7000A",
+            "radius": 4
+          }
+        },
+        {
+          "type": "text",
+          "id": "s14-body-2",
+          "x": 94,
+          "y": 296,
+          "w": 1122,
+          "h": 44,
+          "role": "body",
+          "content": "单条内容超过 35 字自动降级",
+          "style": {
+            "fontSize": 32,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s14-marker-3",
+          "x": 64,
+          "y": 390,
+          "w": 8,
+          "h": 8,
+          "shapeType": "roundRect",
+          "style": {
+            "fill": "#C7000A",
+            "radius": 4
+          }
+        },
+        {
+          "type": "text",
+          "id": "s14-body-3",
+          "x": 94,
+          "y": 372,
+          "w": 1122,
+          "h": 44,
+          "role": "body",
+          "content": "降级后变成通栏列表，不再分栏",
+          "style": {
+            "fontSize": 32,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s14-marker-4",
+          "x": 64,
+          "y": 466,
+          "w": 8,
+          "h": 8,
+          "shapeType": "roundRect",
+          "style": {
+            "fill": "#C7000A",
+            "radius": 4
+          }
+        },
+        {
+          "type": "text",
+          "id": "s14-body-4",
+          "x": 94,
+          "y": 448,
+          "w": 1122,
+          "h": 44,
+          "role": "body",
+          "content": "护栏写在生成环节，不靠人工检查",
+          "style": {
+            "fontSize": 32,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s14-marker-5",
+          "x": 64,
+          "y": 542,
+          "w": 8,
+          "h": 8,
+          "shapeType": "roundRect",
+          "style": {
+            "fill": "#C7000A",
+            "radius": 4
+          }
+        },
+        {
+          "type": "text",
+          "id": "s14-body-5",
+          "x": 94,
+          "y": 524,
+          "w": 1122,
+          "h": 44,
+          "role": "body",
+          "content": "阈值可按模板调整，默认值如上",
+          "style": {
+            "fontSize": 32,
+            "color": "#1D1D1A"
+          }
+        }
+      ]
+    },
+    {
+      "slideId": "s15",
+      "title": "16 套自动化测试守住 200 多项断言",
+      "kind": "stats",
+      "background": "#FFFFFF",
+      "speakerNotes": "测试分两层。自动化测试 16 套、两百多项断言，覆盖坐标计算、颜色解析、字体回退、密度降级以及各种边界模板，全部可复现，改一处跑全量，防止模板回归。光有断言不够，导出的 .pptx 还要用 LibreOffice 渲染成图片，人工逐页核对，重点看中文重影、Logo 位置和整体偏移这些机器难判的问题。",
+      "elements": [
+        {
+          "type": "text",
+          "id": "s15-title-1",
+          "x": 64,
+          "y": 64,
+          "w": 986,
+          "h": 54,
+          "role": "title",
+          "content": "16 套自动化测试守住 200 多项断言",
+          "style": {
+            "fontSize": 40,
+            "bold": true,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s15-bar-1",
+          "x": 64,
+          "y": 132,
+          "w": 96,
+          "h": 6,
+          "shapeType": "rect",
+          "style": {
+            "fill": "#C7000A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s15-marker-1",
+          "x": 64,
+          "y": 238,
+          "w": 8,
+          "h": 8,
+          "shapeType": "roundRect",
+          "style": {
+            "fill": "#C7000A",
+            "radius": 4
+          }
+        },
+        {
+          "type": "text",
+          "id": "s15-body-1",
+          "x": 94,
+          "y": 220,
+          "w": 1122,
+          "h": 44,
+          "role": "body",
+          "content": "自动化测试共 16 套，全部可复现",
+          "style": {
+            "fontSize": 32,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s15-marker-2",
+          "x": 64,
+          "y": 314,
+          "w": 8,
+          "h": 8,
+          "shapeType": "roundRect",
+          "style": {
+            "fill": "#C7000A",
+            "radius": 4
+          }
+        },
+        {
+          "type": "text",
+          "id": "s15-body-2",
+          "x": 94,
+          "y": 296,
+          "w": 1122,
+          "h": 44,
+          "role": "body",
+          "content": "覆盖两百多项断言，含边界模板",
+          "style": {
+            "fontSize": 32,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s15-marker-3",
+          "x": 64,
+          "y": 390,
+          "w": 8,
+          "h": 8,
+          "shapeType": "roundRect",
+          "style": {
+            "fill": "#C7000A",
+            "radius": 4
+          }
+        },
+        {
+          "type": "text",
+          "id": "s15-body-3",
+          "x": 94,
+          "y": 372,
+          "w": 1122,
+          "h": 44,
+          "role": "body",
+          "content": "导出 .pptx 用 LibreOffice 渲成图片",
+          "style": {
+            "fontSize": 32,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s15-marker-4",
+          "x": 64,
+          "y": 466,
+          "w": 8,
+          "h": 8,
+          "shapeType": "roundRect",
+          "style": {
+            "fill": "#C7000A",
+            "radius": 4
+          }
+        },
+        {
+          "type": "text",
+          "id": "s15-body-4",
+          "x": 94,
+          "y": 448,
+          "w": 1122,
+          "h": 44,
+          "role": "body",
+          "content": "人工逐页核对，重点看中文与 Logo",
+          "style": {
+            "fontSize": 32,
+            "color": "#1D1D1A"
+          }
+        }
+      ]
+    },
+    {
+      "slideId": "s16",
+      "title": "边界与下一步",
+      "kind": "section",
+      "background": "#FFFFFF",
+      "elements": [
+        {
+          "type": "text",
+          "id": "s16-title-1",
+          "x": 64,
+          "y": 294,
+          "w": 1152,
+          "h": 71,
+          "role": "title",
+          "content": "边界与下一步",
+          "style": {
+            "fontSize": 52,
+            "bold": true,
+            "color": "#1D1D1A",
+            "align": "center",
+            "valign": "middle"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s16-rule-1",
+          "x": 580,
+          "y": 397,
+          "w": 120,
+          "h": 6,
+          "shapeType": "rect",
+          "style": {
+            "fill": "#C7000A"
+          }
+        }
+      ]
+    },
+    {
+      "slideId": "s17",
+      "title": "四类场景：季度汇报、发布说明、提案、周会",
+      "kind": "bullets",
+      "background": "#FFFFFF",
+      "speakerNotes": "这四类场景的共同点不是\"简单\"，而是内容不必每次从零排版，但都要遵守同一套品牌规范。季度汇报的结构年年在，产品发布说明的品牌约束极强，对外提案和内部周会材料量大且重复。品牌规范越硬、材料频次越高，BrandDeck 的收益越明显。",
+      "elements": [
+        {
+          "type": "text",
+          "id": "s17-title-1",
+          "x": 64,
+          "y": 64,
+          "w": 986,
+          "h": 54,
+          "role": "title",
+          "content": "四类场景：季度汇报、发布说明、提案、周会",
+          "style": {
+            "fontSize": 40,
+            "bold": true,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s17-bar-1",
+          "x": 64,
+          "y": 132,
+          "w": 96,
+          "h": 6,
+          "shapeType": "rect",
+          "style": {
+            "fill": "#C7000A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s17-marker-1",
+          "x": 64,
+          "y": 238,
+          "w": 8,
+          "h": 8,
+          "shapeType": "roundRect",
+          "style": {
+            "fill": "#C7000A",
+            "radius": 4
+          }
+        },
+        {
+          "type": "text",
+          "id": "s17-body-1",
+          "x": 94,
+          "y": 220,
+          "w": 1122,
+          "h": 44,
+          "role": "body",
+          "content": "适合季度汇报与产品发布说明",
+          "style": {
+            "fontSize": 32,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s17-marker-2",
+          "x": 64,
+          "y": 314,
+          "w": 8,
+          "h": 8,
+          "shapeType": "roundRect",
+          "style": {
+            "fill": "#C7000A",
+            "radius": 4
+          }
+        },
+        {
+          "type": "text",
+          "id": "s17-body-2",
+          "x": 94,
+          "y": 296,
+          "w": 1122,
+          "h": 44,
+          "role": "body",
+          "content": "适合对外提案与内部周会材料",
+          "style": {
+            "fontSize": 32,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s17-marker-3",
+          "x": 64,
+          "y": 390,
+          "w": 8,
+          "h": 8,
+          "shapeType": "roundRect",
+          "style": {
+            "fill": "#C7000A",
+            "radius": 4
+          }
+        },
+        {
+          "type": "text",
+          "id": "s17-body-3",
+          "x": 94,
+          "y": 372,
+          "w": 1122,
+          "h": 44,
+          "role": "body",
+          "content": "共同点是不必每次从零排版",
+          "style": {
+            "fontSize": 32,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s17-marker-4",
+          "x": 64,
+          "y": 466,
+          "w": 8,
+          "h": 8,
+          "shapeType": "roundRect",
+          "style": {
+            "fill": "#C7000A",
+            "radius": 4
+          }
+        },
+        {
+          "type": "text",
+          "id": "s17-body-4",
+          "x": 94,
+          "y": 448,
+          "w": 1122,
+          "h": 44,
+          "role": "body",
+          "content": "但都要遵守同一套品牌规范",
+          "style": {
+            "fontSize": 32,
+            "color": "#1D1D1A"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s17-marker-5",
+          "x": 64,
+          "y": 542,
+          "w": 8,
+          "h": 8,
+          "shapeType": "roundRect",
+          "style": {
+            "fill": "#C7000A",
+            "radius": 4
+          }
+        },
+        {
+          "type": "text",
+          "id": "s17-body-5",
+          "x": 94,
+          "y": 524,
+          "w": 1122,
+          "h": 44,
+          "role": "body",
+          "content": "内容重复、品牌约束强的团队收益最大",
+          "style": {
+            "fontSize": 32,
+            "color": "#1D1D1A"
+          }
+        }
+      ]
+    },
+    {
+      "slideId": "s18",
+      "title": "谢谢",
+      "kind": "cover",
+      "background": "#FFFFFF",
+      "elements": [
+        {
+          "type": "text",
+          "id": "s18-title-1",
+          "x": 64,
+          "y": 274,
+          "w": 1152,
+          "h": 87,
+          "role": "title",
+          "content": "谢谢",
+          "style": {
+            "fontSize": 64,
+            "bold": true,
+            "color": "#1D1D1A",
+            "align": "center"
+          }
+        },
+        {
+          "type": "shape",
+          "id": "s18-rule-1",
+          "x": 608,
+          "y": 389,
+          "w": 64,
+          "h": 6,
+          "shapeType": "rect",
+          "style": {
+            "fill": "#C7000A"
+          }
+        },
+        {
+          "type": "text",
+          "id": "s18-caption-1",
+          "x": 64,
+          "y": 419,
+          "w": 1152,
+          "h": 27,
+          "role": "caption",
+          "content": "结束",
+          "style": {
+            "fontSize": 20,
+            "color": "#666666",
+            "align": "center"
+          }
+        }
+      ]
+    }
+  ]
+}

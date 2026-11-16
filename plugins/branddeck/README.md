@@ -125,8 +125,11 @@ SVG 仅允许纯矢量标签（禁 `foreignObject`/`script`）、流程图优先
         defaultTemplateId: ppt-hw
         commandMaxSlides: 10               # /branddeck 生成的页数上限
         # —— 文案预算（影响生成结果，按自家规范调）——
-        slideCharBudget: 150               # 单页正文总字数（超出告警）
+        slideCharBudget: 150               # 单页正文总字数（标题也算，超出告警）
         bulletCharBudget: 90               # 单条要点字数上限（超出则细节移入备注）
+        # —— 大纲补细节（见 src/assist.js 的 densifyOutline）——
+        densify: true                      # 大纲后按需补细节：只有"薄页"才多花一次调用
+        pageCharFloor: 70                  # 每页可见正文低于此值算"薄"，进入补细节
         # —— 长材料分层提炼（见 src/mapreduce.js）——
         materialThreshold: 6000            # 超过多少字改为 Map-Reduce
         materialBlockChars: 4000           # 每个 Map 块的目标字数

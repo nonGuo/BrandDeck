@@ -1,0 +1,10 @@
+{
+  "deckId": "branddeck5",
+  "title": "BrandDeck：把 5 天品牌合规演示压到半小时",
+  "templateId": "ppt-hw",
+  "slideCount": 18,
+  "revision": 4,
+  "updatedAt": "2026-11-16T00:51:39.516Z",
+  "materializedAt": "2026-11-16T00:53:00.276Z",
+  "note": "card.json 是几何真相，outline.md 是文字真相；用 branddeck_outline_save 回写。"
+}
