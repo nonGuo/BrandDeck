@@ -14,6 +14,7 @@
 | 模块 | 实现 | 说明 |
 | --- | --- | --- |
 | 模板特征提取 | `src/pptx/*` + `src/template.js` | `jszip` 解包 + `fast-xml-parser` 解析 `theme1.xml`：`a:clrScheme`（兼容 `srgbClr` 与 `sysClr/@lastClr`）、`a:fontScheme`（latin / ea / cs）、母版 Logo 精准定位（含真实摆放坐标）、`sldSz` 真实尺寸 |
+| 模板视觉资产 | `src/pptx/artwork.js` | 除令牌外，还提取模板真正拥有的**视觉系统**：版式级背景艺术图（含模板自己的摆放几何）、模板内容框（用于替换内置 64px 边距）、母版上的合规脚注（`Security Level:` / `Confidential`）。有艺术图时自动用于封面/章节/封底，内容页保持模板自己的白底+脚注 |
 | 生成流水线 | 8 个 `branddeck_*` 工具 + 系统提示段 | 由**当前会话的 Agent** 担任“纯文本大模型”：插件负责结构化输出契约、Zod 强校验、坐标修复与溢出预算 |
 | 卡片交互视图 | `client.js`（Web 面板） | 16:9 等比视口、双击改字、拖拽/缩放、方向键微调、缩略图排序、实时溢出预警、自动保存 |
 | PPTX 编译导出 | `src/compile.js` | `pptxgenjs` 从零构建 `LAYOUT_WIDE`(13.333×7.5in)：文本→原生文本框、图形→原生形状、图表→原生 Office 图表、SVG→`@resvg/resvg-js` 3× 光栅化后嵌入 |
