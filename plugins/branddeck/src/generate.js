@@ -150,10 +150,20 @@ export const DETAIL_TO_NOTES_WARNING = '要点过长，细节已移入演讲备�
  * the builder, not by the author). Every value here is a valid `CardSlide.kind`.
  * @type {ReadonlyArray<'section' | 'bullets' | 'compare' | 'timeline' | 'stats' | 'diagram'>}
  */
-export const CONTENT_KINDS = Object.freeze(['section', 'bullets', 'compare', 'timeline', 'stats', 'diagram'])
+export const CONTENT_KINDS = Object.freeze([
+  'section',
+  'bullets',
+  'compare',
+  'timeline',
+  'stats',
+  'diagram',
+  'columns',
+  'figures',
+  'rankList',
+])
 
 /**
- * @typedef {'section' | 'bullets' | 'compare' | 'timeline' | 'stats' | 'diagram'} SlideKind
+ * @typedef {'section' | 'bullets' | 'compare' | 'timeline' | 'stats' | 'diagram' | 'columns' | 'figures' | 'rankList'} SlideKind
  */
 
 /**
@@ -178,6 +188,18 @@ const LAYOUT_ALIASES = new Map([
   ['process', 'timeline'],
   ['steps', 'timeline'],
   ['step', 'timeline'],
+  ['分栏', 'columns'],
+  ['栏目', 'columns'],
+  ['四栏', 'columns'],
+  ['columns', 'columns'],
+  ['大数字', 'figures'],
+  ['数字', 'figures'],
+  ['figures', 'figures'],
+  ['figure', 'figures'],
+  ['排行', 'rankList'],
+  ['排名', 'rankList'],
+  ['rank', 'rankList'],
+  ['ranking', 'rankList'],
   ['指标', 'stats'],
   ['数据', 'stats'],
   ['stat', 'stats'],
@@ -300,6 +322,11 @@ const FRAME = Object.freeze({
  * is untouched.
  */
 const SPARSE_BODY_SIZES = Object.freeze([32, 30, 28, 26, 24])
+
+/** Size of the grey explanation line under a claim. */
+const LIST_DETAIL_SIZE = 16
+/** Gap between a claim and its detail. */
+const LIST_DETAIL_GAP = 6
 
 /** How far a sparse list may be pushed down while centring (keeps it near its title). */
 const BLOCK_CENTER_MAX = 48
@@ -717,7 +744,9 @@ const LABEL_COLON = /[：:]/
  * more often than "ROI 138%", and a unit-less number would leave the card with no
  * headline at all.
  */
-const STAT_UNIT = '天|小时|分钟|周|月|年|人|次|页|个|条|项|家|台|套|万|亿|元|美元|块|个百分点|倍|%|％|k|K|M|B'
+// Longer alternatives first: JS alternation is first-match, so `万` would swallow the `万辆`
+// that makes `261.5 万辆` a meaningful figure.
+const STAT_UNIT = '个百分点|万美元|美元|万辆|万人|小时|分钟|天|周|月|年|人|次|页|个|条|项|家|台|套|万|亿|元|块|倍|%|％|k|K|M|B'
 /**
  * Chinese numerals used as quantities: 三分之一 / 三倍 / 两成 / 四分之三.
  * A "statistics" page in a Chinese deck says 成本降至三分之一 far more often than 33%,
@@ -848,11 +877,19 @@ export function composeDeck(input = {}) {
   /** @type {string | null} */
   let currentChapter = null
   for (const item of content) {
-    if (useChapters && item.chapter !== undefined && item.chapter !== currentChapter) {
-      plan.push({ type: 'divider', chapter: item.chapter })
-      currentChapter = item.chapter
+    const chapterName = item.chapter
+    if (useChapters && chapterName !== undefined && chapterName !== currentChapter) {
+      plan.push({ type: 'divider', chapter: chapterName })
+      currentChapter = chapterName
     }
-    plan.push({ type: 'page', item })
+    // The page needs to know where it sits: the header kicker reads `02 · 模板与数据`, which
+    // is what stops a 16-page deck from feeling like 16 unrelated pages.
+    const page = item
+    if (useChapters && chapterName !== undefined) {
+      page.chapterIndex = chapters.indexOf(chapterName) + 1
+      page.chapterCount = chapters.length
+    }
+    plan.push({ type: 'page', item: page })
   }
 
   // Budget, in priority order: cover/closing and the 目录 are structural (a deck with
@@ -920,6 +957,12 @@ export function composeDeck(input = {}) {
       slide = buildStatsSlide(slideId, ctx, item)
     } else if (item.kind === 'diagram') {
       slide = buildDiagramSlide(slideId, ctx, item)
+    } else if (item.kind === 'columns') {
+      slide = buildColumnsSlide(slideId, ctx, item)
+    } else if (item.kind === 'figures') {
+      slide = buildFiguresSlide(slideId, ctx, item)
+    } else if (item.kind === 'rankList') {
+      slide = buildRankListSlide(slideId, ctx, item)
     } else if (item.kind === 'breather') {
       slide = buildBreatherSlide(slideId, ctx, item)
     } else {
@@ -1133,7 +1176,7 @@ function buildContentSlides(outline, style, ctx, warnings) {
   })
 
   // Rhythm: break up monotony without inventing meaning (see the two helpers below).
-  const varied = varyAdjacentLayouts(out, style)
+  const varied = varyAdjacentLayouts(out, style, warnings)
   const paced = insertBreathers(varied, style)
   return paced
 }
@@ -1197,42 +1240,135 @@ function fitOnePage(bullets, ctx, title, kind, label, warnings) {
  * ------------------------------------------------------------------ */
 
 /** Kinds that present the same thing — an unordered set of points. */
-const LISTY = new Set(['bullets', 'cards'])
+const LISTY = new Set(['bullets', 'cards', 'columns', 'figures', 'rankList'])
 
 /**
- * Keep two neighbouring slides from being visually identical, using only swaps that
- * do not change what a slide *means*.
+ * Choose the fallback layout for each page, then break up runs of the same shape.
  *
- * The honest constraint here: we must not turn a list into a timeline just to look
- * different — that invents a sequence the author never wrote. So the allowed moves are
- * those that re-render the same content:
- *   · two bullets as `bullets` right after a list → `compare` (two columns, neutral);
- *   · a `cards` slide sandwiched between lists → plain `bullets` (same semantics).
- * Anything else is left alone; a repeated layout is much better than a lie.
+ * WHY THIS IS NOT "LET THE MODEL DECIDE": the outline declares a *page type* ("these are
+ * metrics"), not a layout. Left alone, a deck of numeric pages becomes five identical stat
+ * bands — which is the monotony a reader actually notices. The rules below map content
+ * shape → layout, and then guarantee that three pages in a row never draw the same way.
+ *
+ * The moves are all meaning-preserving: a list of four points can be four panels or four
+ * bullets, and a pair of numbers can be two figures or two cards. Nothing is reordered,
+ * reworded or invented — only re-drawn.
  *
  * @param {Array<{kind: SlideKind, title: string, bullets: string[], notes?: string}>} slides
  * @param {ReturnType<typeof normalizeStyle>} style
  * @param {string[]} warnings
  */
-function varyAdjacentLayouts(slides, style) {
+function varyAdjacentLayouts(slides, style, warnings) {
   if (style.varyLayout === false) return slides
-  const out = slides.slice()
-  let run = 0
-  for (let index = 0; index < out.length; index += 1) {
-    const item = out[index]
-    const previous = index === 0 ? null : out[index - 1]
-    const isListy = LISTY.has(item.kind)
-    run = isListy && previous !== null && LISTY.has(previous.kind) ? run + 1 : 0
-    // Only react once the page would be the third list-like slide in a row.
-    if (run < 2) continue
+  const out = slides.map((slide) => ({ ...slide }))
 
-    if (item.kind === 'cards') {
-      out[index] = { ...item, kind: 'bullets' }
-      run = 0
+  for (const slide of out) {
+    // `bullets` is what the parser infers for anything it cannot classify, and `stats` is
+    // what it infers for anything numeric — including a list of `标签：说明` lines that merely
+    // mention a number. Both are candidates for a better fallback shape.
+    if (slide.kind !== 'bullets' && slide.kind !== 'stats') continue
+    const list = slide.bullets.map((bullet) => oneLine(bullet)).filter((bullet) => bullet !== '')
+    const numbers = list.filter((bullet) => extractStat(bullet).number !== undefined).length
+    // A genuine metrics page (every line is a figure) keeps its stat row: that layout *is*
+    // the right answer, and swapping it for panels would lose the numbers as the subject.
+    // One or two figures are a *statement*, and the reference decks always set that statement
+    // big. Three or more are a row of cards, which is what `stats` already draws.
+    if (slide.kind === 'stats' && numbers === list.length) {
+      if (list.length <= 2) slide.kind = 'figures'
+      continue
     }
+    // A `版式：指标` page whose copy is not actually made of figures has already lost its
+    // reason to be a stat row. Falling back to a plain list throws away the structure the
+    // author asked for; three or four points want panels, which is the same page re-drawn.
+    if (slide.kind === 'stats' && list.length >= 3 && list.length <= COLUMNS_MAX) {
+      slide.kind = 'columns'
+      continue
+    }
+    const suggested = suggestLayout(slide.bullets)
+    if (suggested !== null) slide.kind = suggested
+  }
+
+  // Break runs of three: the third page in a row must not repeat the shape.
+  for (let index = 2; index < out.length; index += 1) {
+    const current = out[index]
+    const previous = out[index - 1]
+    const before = out[index - 2]
+    if (current.kind !== previous.kind || current.kind !== before.kind) continue
+    const alternative = alternateLayout(current)
+    if (alternative === null) continue
+    out[index] = { ...current, kind: alternative }
+    // Deliberately silent: which shape a page is drawn in is a composition decision, not a
+    // warning. Surfacing it would train readers to ignore the warnings that matter.
+    void warnings
   }
   return out
 }
+
+/**
+ * Content shape → fallback layout. Conservative: it only fires on shapes it can recognise,
+ * and returns null (keep the plain list) when unsure.
+ *
+ * @param {string[]} bullets
+ * @returns {SlideKind | null}
+ */
+function suggestLayout(bullets) {
+  const list = bullets.map((bullet) => oneLine(bullet)).filter((bullet) => bullet !== '')
+  if (list.length < 2) return null
+
+  // Two numbers and little else: a figures page makes the pair land.
+  const stats = list.map((bullet) => extractStat(bullet))
+  const withNumbers = stats.filter((stat) => stat.number !== undefined)
+  if (list.length <= 2 && withNumbers.length === list.length) return 'figures'
+
+  // Rows that already read as `label — value`: a ranking.
+  const ranked = list.filter((bullet) => splitRankRow(bullet).value !== null)
+  if (ranked.length >= 4 && ranked.length >= list.length - 1) return 'rankList'
+
+  // Three or four points, each with something to say: panels beat a list.
+  if (list.length >= 3 && list.length <= COLUMNS_MAX) {
+    const withDetail = list.filter((bullet) => splitClaimDetail(bullet).detail !== null)
+    if (withDetail.length >= Math.ceil(list.length / 2)) return 'columns'
+  }
+  return null
+}
+
+/**
+ * The next-best shape for a page that would otherwise repeat. Always a different *drawing*
+ * of the same content, never a different claim.
+ *
+ * @param {{kind: SlideKind, bullets: string[]}} slide
+ * @returns {SlideKind | null}
+ */
+function alternateLayout(slide) {
+  const list = slide.bullets.map((bullet) => oneLine(bullet)).filter((bullet) => bullet !== '')
+  const hasNumbers = list.every((bullet) => extractStat(bullet).number !== undefined)
+  switch (slide.kind) {
+    case 'columns':
+      return 'bullets'
+    case 'cards':
+      return 'bullets'
+    case 'stats':
+      if (list.length <= 2 && hasNumbers) return 'figures'
+      return 'columns'
+    case 'figures':
+      return 'stats'
+    case 'bullets':
+      if (list.length >= 3 && list.length <= COLUMNS_MAX) return 'columns'
+      return style_cards_fallback(list)
+    case 'rankList':
+      return 'columns'
+    default:
+      return null
+  }
+}
+
+/** @param {string[]} list @returns {SlideKind} */
+function style_cards_fallback(list) {
+  void list
+  return 'cards'
+}
+
+
 
 /** A statement that is already a number, so a breather page never invents data. */
 const BREATHER_NUMBER = /(\d+(?:[.,]\d+)?\s*(?:%|％|倍|天|小时|分钟|周|月|年|人|次|页|个|条|项|万|亿|元|ms|s))/
@@ -1690,6 +1826,266 @@ function buildArtSectionSlide(slideId, ctx, item) {
   return slideShell(slideId, builder, palette, fitted.text, item.notes)
 }
 
+/* ------------------------------------------------------------------ *
+ * Fallback layout library (参考 example/bussiness.pptx · technology.pptx)
+ *
+ * Three shapes the reference decks lean on that we did not have. They exist because a
+ * corporate template decides *skin*, not *composition*: the Huawei template has a single
+ * content-page geometry, so "use the template" alone still yields a deck of identical
+ * bullet pages. These are the fallback vocabulary for that gap.
+ * ------------------------------------------------------------------ */
+
+/** Panel geometry shared by the columns / figures layouts. */
+const PANEL = Object.freeze({
+  gap: 24,
+  padX: 26,
+  padTop: 24,
+  padBottom: 24,
+  radius: 14,
+  headerSize: 20,
+  bodySize: 16,
+  headerGap: 12,
+  rowGap: 14,
+})
+
+/**
+ * Columns layout: 2–4 tinted panels across the frame, each a header plus body lines.
+ *
+ * This is the reference decks' agenda / three-point page. The tinted panel is what does the
+ * work: a page of four headed blocks reads as a structured argument, where the same four
+ * points as a bullet list read as a shopping list.
+ *
+ * @param {string} slideId
+ * @param {LocalContext} ctx
+ * @param {{title: string, bullets: string[], notes?: string, chapter?: string, chapterIndex?: number}} item
+ * @returns {import('./schema.js').CardSlide}
+ */
+function buildColumnsSlide(slideId, ctx, item) {
+  const { box, palette, style, toneSpec, warnings } = ctx
+  const builder = makeSlideBuilder(slideId)
+  const header = buildHeader(builder, ctx, item.title, item)
+  const entries = item.bullets.map((bullet) => splitClaimDetail(bullet))
+  const count = Math.max(2, Math.min(COLUMNS_MAX, entries.length))
+  const colW = Math.round((box.w - PANEL.gap * (count - 1)) / count)
+  const textW = colW - PANEL.padX * 2
+  const top = header.top
+  const bottom = box.y + box.h
+
+  // Panel height is content-driven, but never a thin strip: the reference pages run the
+  // tint nearly the full body band, which is what gives the page its mass.
+  const measured = entries.map((entry) =>
+    PANEL.padTop +
+    textHeight(entry.claim, textW, PANEL.headerSize) +
+    (entry.detail === null ? 0 : PANEL.headerGap + textHeight(entry.detail, textW, PANEL.bodySize)) +
+    PANEL.padBottom,
+  )
+  const wanted = Math.max(...measured)
+  const available = bottom - top
+  // Panels sit directly under the header rule and run down the body band, with the copy
+  // centred inside each one. This is the reference decks’ geometry: the tint gives the page
+  // its mass, and because the text is centred a short panel never looks like a void — it
+  // looks like a card. (Centring the *stack* instead pushed it down and left a hole under
+  // the rule, which is the one place the eye is guaranteed to look.)
+  let panelH = Math.min(wanted, available)
+  if (wanted > available) {
+    warnings.push(`${header.label} · 分栏内容过高，已压缩到页面高度`)
+    panelH = available
+  }
+  const panelTop = top
+
+  entries.slice(0, count).forEach((entry, index) => {
+    const x = box.x + index * (colW + PANEL.gap)
+    const top = panelTop
+    if (toneSpec.cardFill !== null) {
+      builder.shape('panel', 'roundRect', { x, y: top, w: colW, h: panelH }, {
+        fill: palette[toneSpec.cardFill],
+        radius: PANEL.radius,
+      })
+      // A 3px primary cap on each panel: the reference pages mark the block, not the page,
+      // which is how four columns stay distinguishable without four colours.
+      builder.shape('cap', 'rect', { x, y: top, w: colW, h: 3 }, { fill: palette.primary })
+    }
+    const innerW = textW
+    const claimH = textHeight(entry.claim, innerW, PANEL.headerSize)
+    const detailH = entry.detail === null ? 0 : textHeight(entry.detail, innerW, PANEL.bodySize)
+    const blockH = claimH + (detailH > 0 ? PANEL.headerGap + detailH : 0)
+    // The panel is sized to this copy, so it sits at the top padding. Centring is only
+    // meaningful when the panel is taller than its text, which is no longer the case.
+    const blockTop = top + PANEL.padTop
+    builder.text('subtitle', entry.claim, {
+      x: x + PANEL.padX,
+      y: blockTop,
+      w: innerW,
+      h: claimH,
+    }, textStyle(PANEL.headerSize, palette.textPrimary, { bold: true }))
+    if (entry.detail !== null) {
+      builder.text('body', entry.detail, {
+        x: x + PANEL.padX,
+        y: blockTop + claimH + PANEL.headerGap,
+        w: innerW,
+        h: detailH,
+      }, textStyle(PANEL.bodySize, palette[toneSpec.sub]))
+    }
+  })
+
+  const slide = slideShell(slideId, builder, palette, header.text, item.notes)
+  slide.kind = 'columns'
+  return slide
+}
+
+/** A panel never collapses into a thin strip, even with two lines of copy. */
+const PANEL_MIN_HEIGHT = 132
+
+/** How many panels the columns layout will draw. */
+const COLUMNS_MAX = 4
+
+/**
+ * Figures layout: one or two oversized numbers with a label and a line of context.
+ *
+ * The reference decks open almost every section with this page ("709.8 万辆", "261.5 vs 343").
+ * It is the cheapest way to make a fact land, and it is honest: the number comes from the
+ * bullet, nothing is invented.
+ *
+ * @param {string} slideId
+ * @param {LocalContext} ctx
+ * @param {{title: string, bullets: string[], notes?: string, chapter?: string, chapterIndex?: number}} item
+ * @returns {import('./schema.js').CardSlide}
+ */
+function buildFiguresSlide(slideId, ctx, item) {
+  const { box, palette, style, toneSpec, warnings } = ctx
+  const builder = makeSlideBuilder(slideId)
+  const header = buildHeader(builder, ctx, item.title, item)
+  const figures = item.bullets.map((bullet) => extractStat(bullet)).slice(0, 2)
+  const count = Math.max(1, figures.length)
+  const colW = Math.round((box.w - PANEL.gap * (count - 1)) / count)
+  const textW = colW - PANEL.padX * 2
+  const top = header.top
+  const available = box.y + box.h - top
+
+  const sizes = [120, 104, 88, 72, 60, 48]
+  const numberSize = chooseSize(sizes, figures[0]?.number ?? '0', textW, 1)
+  const numberH = textHeight(figures[0]?.number ?? '0', textW, numberSize)
+  const labelH = Math.max(...figures.map((figure) => textHeight(figure.label, textW, 22)))
+  const blockH = numberH + 18 + labelH
+  if (blockH > available) warnings.push(`${header.label} · 大数字页内容过高，已压缩`)
+  const y = top + Math.max(0, Math.round((available - blockH) / 2) - 20)
+
+  figures.forEach((figure, index) => {
+    const x = box.x + index * (colW + PANEL.gap)
+    if (figure.number !== undefined) {
+      builder.text('subtitle', figure.number, {
+        x,
+        y,
+        w: textW,
+        h: numberH,
+      }, textStyle(numberSize, palette.primary, { bold: true }), 'figure')
+    }
+    builder.text('body', figure.label, {
+      x,
+      y: y + numberH + 18,
+      w: textW,
+      h: labelH,
+    }, textStyle(22, palette.textPrimary), 'label')
+    if (index > 0) {
+      builder.shape('divider', 'line', {
+        x: x - Math.round(PANEL.gap / 2),
+        y,
+        w: 1,
+        h: blockH,
+      }, { stroke: palette.surface, strokeWidth: 1 })
+    }
+  })
+
+  const slide = slideShell(slideId, builder, palette, header.text, item.notes)
+  slide.kind = 'figures'
+  return slide
+}
+
+/**
+ * Ranked rows: `label · value` on one line per bullet, hairline between rows, the first row
+ * marked in the accent colour. The reference decks use this for market share / ranking.
+ *
+ * @param {string} slideId
+ * @param {LocalContext} ctx
+ * @param {{title: string, bullets: string[], notes?: string, chapter?: string, chapterIndex?: number}} item
+ * @returns {import('./schema.js').CardSlide}
+ */
+function buildRankListSlide(slideId, ctx, item) {
+  const { box, palette, style, toneSpec, warnings } = ctx
+  const builder = makeSlideBuilder(slideId)
+  const header = buildHeader(builder, ctx, item.title, item)
+  const rows = item.bullets.slice(0, RANK_MAX)
+  const top = header.top
+  const available = box.y + box.h - top
+  const rowH = Math.max(40, Math.min(64, Math.floor(available / Math.max(1, rows.length))))
+  const valueW = Math.round(box.w * 0.22)
+  const labelW = box.w - valueW - 24
+
+  rows.forEach((row, index) => {
+    const parts = splitRankRow(row)
+    const y = top + index * rowH
+    if (index === 0) {
+      builder.shape('highlight', 'rect', { x: box.x, y, w: box.w, h: rowH }, {
+        fill: palette.primary,
+      })
+    }
+    const color = index === 0 ? palette.background : palette.textPrimary
+    builder.text('body', parts.label, {
+      x: box.x + 16,
+      y,
+      w: labelW,
+      h: rowH,
+    }, textStyle(20, color, { bold: index === 0, valign: 'middle' }), 'label')
+    if (parts.value !== null) {
+      builder.text('subtitle', parts.value, {
+        x: box.x + box.w - valueW - 16,
+        y,
+        w: valueW,
+        h: rowH,
+      }, textStyle(24, index === 0 ? palette.background : palette.primary, {
+        bold: true,
+        align: 'right',
+        valign: 'middle',
+      }), 'value')
+    }
+    if (index > 0) {
+      builder.shape('row-rule', 'line', {
+        x: box.x,
+        y,
+        w: box.w,
+        h: 1,
+      }, { stroke: palette.surface, strokeWidth: 1 })
+    }
+  })
+  if (item.bullets.length > rows.length) {
+    warnings.push(`${header.label} · 排行行数超过 ${RANK_MAX}，已截断`)
+  }
+
+  const slide = slideShell(slideId, builder, palette, header.text, item.notes)
+  slide.kind = 'rankList'
+  return slide
+}
+
+/** Rows the rank layout will draw. */
+const RANK_MAX = 7
+
+/**
+ * Split a ranked bullet into label and value: `墨西哥 — 62.52` / `墨西哥：62.52 万辆`.
+ *
+ * @param {string} bullet
+ * @returns {{label: string, value: string | null}}
+ */
+function splitRankRow(bullet) {
+  const flat = oneLine(bullet)
+  const match = /^(.+?)\s*(?:—|–|-|：|:)\s*([\d.,]+\s*[^\s，,。]*)$/.exec(flat)
+  if (match === null) {
+    const trailing = /^(.+?)\s+([\d.,]+\s*(?:%|％|万辆|万|亿|台|个|家|倍|天|小时)?)$/.exec(flat)
+    if (trailing === null) return { label: flat, value: null }
+    return { label: trailing[1].trim(), value: trailing[2].trim() }
+  }
+  return { label: match[1].trim(), value: match[2].trim() }
+}
+
 /**
  * 目录 page: the deck's chapters in order, each with the page it starts on.
  *
@@ -1705,7 +2101,7 @@ function buildArtSectionSlide(slideId, ctx, item) {
 function buildTocSlide(slideId, ctx, item) {
   const { box, palette, style, toneSpec, warnings } = ctx
   const builder = makeSlideBuilder(slideId)
-  const header = buildHeader(builder, ctx, item.title)
+  const header = buildHeader(builder, ctx, item.title, item)
   const entries = item.entries.slice(0, TOC.maxEntries)
   if (item.entries.length > entries.length) {
     warnings.push(`目录 · 章节过多，仅列出前 ${TOC.maxEntries} 个`)
@@ -1785,7 +2181,7 @@ const TOC = Object.freeze({
 function buildDiagramSlide(slideId, ctx, item) {
   const { box, palette, style, toneSpec, warnings } = ctx
   const builder = makeSlideBuilder(slideId)
-  const header = buildHeader(builder, ctx, item.title)
+  const header = buildHeader(builder, ctx, item.title, item)
   const bullets = item.bullets.slice(0, DIAGRAM_BULLET_CAP)
 
   const captionSize = TYPE.body[1]
@@ -1831,40 +2227,134 @@ function buildDiagramSlide(slideId, ctx, item) {
 }
 
 /**
- * Shared slide header: fitted title at the top of the safe area plus the optional
- * accent bar. Every content layout starts with exactly these two elements and then
- * places its body below `top`, so the title/logo rules are stated once.
+ * Page header metrics. Shared by the drawing code and by the planner, so the height budget
+ * a layout is measured against is the height it is actually drawn with.
+ *
+ * The structure is lifted from the reference decks: a small kicker line (which chapter this
+ * page belongs to), the title, and a full-width hairline that closes the header band. That
+ * rule is what makes a page look *composed* rather than "title, then stuff" — it gives the
+ * eye a horizon to align to.
+ *
+ * @param {LocalContext} ctx
+ * @param {string} title
+ * @param {{chapter?: string, chapterIndex?: number, lead?: string}} [meta]
+ */
+function headerMetrics(ctx, title, meta = {}) {
+  const { box, style, toneSpec, palette } = ctx
+  const width = FRAME.titleRight - box.x
+  const kicker = kickerText(meta)
+  // Reserve the real line height (≈1.35 × size), not the point size: reserving 14px for a
+  // 14px run made every page report "kicker overflows its box".
+  const kickerH = kicker === null ? 0 : Math.ceil(HEADER.kickerSize * 1.35) + HEADER.kickerGap
+  const size = chooseSize(TYPE.slideTitle, title, width, 2)
+  const fitted = clampToLines(title, width, size, 2)
+  const titleH = textHeight(fitted.text, width, size)
+  const lead = typeof meta.lead === 'string' ? oneLine(meta.lead) : ''
+  const leadFitted = lead === '' ? null : clampToLines(lead, width, HEADER.leadSize, 2)
+  const leadH = leadFitted === null ? 0 : HEADER.leadGap + textHeight(leadFitted.text, width, HEADER.leadSize)
+  const ruleH = style.accentBar && toneSpec.bar ? HEADER.ruleGap + HEADER.ruleHeight : 0
+  void palette
+  const ruleTop = box.y + kickerH + titleH + leadH + (ruleH > 0 ? HEADER.ruleGap : 0)
+  const top = box.y + kickerH + titleH + leadH + ruleH + HEADER.contentGap
+  return { kicker, kickerH, size, fitted, titleH, leadFitted, leadH, ruleH, ruleTop, top, width }
+}
+
+/**
+ * The kicker: `01 · 结论与全景`. It answers "where am I" without a divider page, which is
+ * the single cheapest orientation cue a long deck has.
+ *
+ * @param {{chapter?: string, chapterIndex?: number}} meta
+ * @returns {string | null}
+ */
+function kickerText(meta) {
+  const chapter = typeof meta.chapter === 'string' ? oneLine(meta.chapter) : ''
+  if (chapter === '') return null
+  const index = Number.isFinite(meta.chapterIndex) ? meta.chapterIndex : 0
+  const label = index > 0 ? String(index).padStart(2, '0') : ''
+  return label === '' ? chapter : `${label} · ${chapter}`
+}
+
+/**
+ * Draw the header band: kicker, title, optional lead, and the closing hairline.
  *
  * @param {ReturnType<typeof makeSlideBuilder>} builder
  * @param {LocalContext} ctx
  * @param {string} title
- * @returns {{top: number, label: string, text: string}} `label` is the `「…」` warning
- *   prefix; `text` is the fitted title the slide envelope should carry
+ * @param {{chapter?: string, chapterIndex?: number, lead?: string}} [meta]
+ * @returns {{top: number, label: string, text: string}}
  */
-function buildHeader(builder, ctx, title) {
+function buildHeader(builder, ctx, title, meta = {}) {
   const { box, palette, style, toneSpec, warnings } = ctx
-  const width = FRAME.titleRight - box.x
-  const size = chooseSize(TYPE.slideTitle, title, width, 2)
-  const fitted = clampToLines(title, width, size, 2)
-  const label = `「${clampChars(fitted.text, 16)}」`
-  if (fitted.truncated) warnings.push(`${label} · 页标题过长，已截断到 2 行以内`)
-  const titleH = textHeight(fitted.text, width, size)
+  const m = headerMetrics(ctx, title, meta)
+  const label = `「${clampChars(m.fitted.text, 16)}」`
+  if (m.fitted.truncated) warnings.push(`${label} · 页标题过长，已截断到 2 行以内`)
 
-  builder.text('title', fitted.text, { x: box.x, y: box.y, w: width, h: titleH }, textStyle(
-    size,
+  let cursor = box.y
+  if (m.kicker !== null) {
+    builder.text('caption', m.kicker, {
+      x: box.x,
+      y: cursor,
+      w: m.width,
+      h: textHeight(m.kicker, m.width, HEADER.kickerSize),
+    }, textStyle(
+      HEADER.kickerSize,
+      palette.primary,
+      { bold: true },
+    ), 'kicker')
+    cursor += m.kickerH
+  }
+  builder.text('title', m.fitted.text, { x: box.x, y: cursor, w: m.width, h: m.titleH }, textStyle(
+    m.size,
     palette.textPrimary,
     { bold: true },
   ))
+  cursor += m.titleH
 
-  let cursor = box.y + titleH
-  if (style.accentBar && toneSpec.bar) {
-    const barH = style.tone === 'bold' ? 8 : 6
-    const barW = style.tone === 'bold' ? 120 : 96
-    builder.shape('bar', 'rect', { x: box.x, y: cursor + 14, w: barW, h: barH }, { fill: palette.primary })
-    cursor += 14 + barH
+  if (m.leadFitted !== null) {
+    cursor += HEADER.leadGap
+    builder.text('subtitle', m.leadFitted.text, {
+      x: box.x,
+      y: cursor,
+      w: m.width,
+      h: textHeight(m.leadFitted.text, m.width, HEADER.leadSize),
+    }, textStyle(HEADER.leadSize, palette[toneSpec.sub]), 'lead')
+    cursor += textHeight(m.leadFitted.text, m.width, HEADER.leadSize)
   }
-  return { top: cursor + 34, label, text: fitted.text }
+
+  if (m.ruleH > 0) {
+    // One continuous hairline across the frame, drawn as two adjacent segments: a primary
+    // tick at the left and the neutral rule after it. Drawing them as two *overlapping*
+    // shapes (a tick on top of a full-width line) fails our own overlap gate, and the gate
+    // is right — the eye reads a smudged joint where the two colours meet.
+    void style
+    builder.shape('accent', 'rect', {
+      x: box.x,
+      y: Math.round(m.ruleTop),
+      w: HEADER.accentWidth,
+      h: HEADER.ruleHeight,
+    }, { fill: palette.primary })
+    builder.shape('rule', 'line', {
+      x: box.x + HEADER.accentWidth,
+      y: Math.round(m.ruleTop),
+      w: box.w - HEADER.accentWidth,
+      h: HEADER.ruleHeight,
+    }, { stroke: palette.surface, strokeWidth: HEADER.ruleHeight })
+  }
+
+  return { top: m.top, label, text: m.fitted.text }
 }
+
+/** Header band geometry, in canvas px. */
+const HEADER = Object.freeze({
+  kickerSize: 14,
+  kickerGap: 18,
+  leadSize: 18,
+  leadGap: 12,
+  ruleGap: 16,
+  ruleHeight: 1,
+  accentWidth: 72,
+  contentGap: 30,
+})
 
 /**
  * Bullet slide: title + optional accent bar, then the bullets as a vertical list
@@ -1878,7 +2368,7 @@ function buildHeader(builder, ctx, title) {
 function buildBulletSlide(slideId, ctx, item) {
   const { palette, style } = ctx
   const builder = makeSlideBuilder(slideId)
-  const header = buildHeader(builder, ctx, item.title)
+  const header = buildHeader(builder, ctx, item.title, item)
   const contentTop = header.top
 
   if (style.bulletLayout === 'cards') {
@@ -2048,7 +2538,7 @@ function stripLabel(bullet, label) {
 function buildCompareSlide(slideId, ctx, item) {
   const { box, palette, style, toneSpec, warnings } = ctx
   const builder = makeSlideBuilder(slideId)
-  const header = buildHeader(builder, ctx, item.title)
+  const header = buildHeader(builder, ctx, item.title, item)
   const { left, right, headings } = splitCompareColumns(item.bullets)
 
   /** @type {Array<{heading: string, label: string | null, bullets: string[]}>} */
@@ -2221,6 +2711,9 @@ const STATS = Object.freeze({
   padBottom: 24,
   numberGap: 14,
   labelSize: 18,
+  /** Grey context line under the label. */
+  detailSize: 13,
+  detailGap: 6,
   numberSizes: Object.freeze([56, 48, 40, 32]),
   maxCards: 4,
   labelMaxLines: 3,
@@ -2248,15 +2741,55 @@ function extractStat(bullet) {
     return { number: headline, label: label === '' ? flat : label }
   }
 
-  const match = STAT_NUMBER.exec(flat)
+  const match = pickNumber(flat)
   if (match === null) return { label: flat }
-  const number = oneLine(match[0]).replace(/\s+/g, '')
+  // Collapse whitespace but keep a single space: `261.5 万辆` is how the source wrote it, and
+  // `261.5万` reads as a different (rougher) figure.
+  const number = oneLine(match[0]).replace(/\s+/g, ' ').trim()
   const label = trimDanglingConnective(
     oneLine(`${flat.slice(0, match.index)} ${flat.slice(match.index + match[0].length)}`)
       .replace(/^[，,。；;：:、\s]+/, '')
       .replace(/[，,。；;：:、\s]+$/, ''),
   )
   return { number, label: label === '' ? flat : label }
+}
+
+/**
+ * Pick the number a card should lead with, not merely the first one in the sentence.
+ *
+ * `2025 年新能源汽车出口 261.5 万辆` contains two numbers and only one of them is the point:
+ * the first match would headline the year. Score by how much a number *says* — a magnitude
+ * with a unit, then a percentage, then a plain quantity, with a bare year last — and take the
+ * best one. Ties keep document order, so the result stays deterministic.
+ *
+ * @param {string} text
+ * @returns {RegExpExecArray | null}
+ */
+function pickNumber(text) {
+  const pattern = new RegExp(STAT_NUMBER.source, 'g')
+  /** @type {RegExpExecArray | null} */
+  let best = null
+  let bestScore = -1
+  let match = pattern.exec(text)
+  while (match !== null) {
+    const token = match[0]
+    const digits = token.replace(/[^\d.]/g, '')
+    const isYear = /^(?:19|20)\d{2}\s*年?$/.test(token.trim())
+    const hasMagnitude = /(?:万|亿|千|百万|万辆)/.test(token)
+    const hasUnit = new RegExp(`(?:${STAT_UNIT})`).test(token)
+    let score = 1
+    if (hasUnit) score += 2
+    if (hasMagnitude) score += 3
+    if (/%|％/.test(token)) score += 2
+    if (isYear && digits.length === 4 && hasUnit === false) score = 0
+    if (score > bestScore) {
+      bestScore = score
+      best = match
+    }
+    if (match.index === pattern.lastIndex) pattern.lastIndex += 1
+    match = pattern.exec(text)
+  }
+  return best
 }
 
 /**
@@ -2349,6 +2882,25 @@ function buildBreatherSlide(slideId, ctx, item) {
 }
 
 /**
+ * Split a stat label into the thing measured and a grey context line.
+ *
+ * `改造前基线：企业合规演示平均耗时` becomes `改造前基线` + `企业合规演示平均耗时`, which is how a
+ * real metrics card reads: a short bold caption and the measurement under it.
+ *
+ * @param {string} label
+ * @returns {{label: string, detail: string | null}}
+ */
+function splitStatLabel(label) {
+  const flat = oneLine(label)
+  const match = /^(.{2,12}?)\s*[：:]\s*(.{6,})$/.exec(flat)
+  if (match !== null) return { label: match[1].trim(), detail: match[2].trim() }
+  const parts = splitClaimDetail(flat)
+  // For a card, the claim is the caption and the detail is the context.
+  if (parts.detail !== null) return { label: parts.claim, detail: parts.detail }
+  return { label: flat, detail: null }
+}
+
+/**
  * Stats slide: 2–4 cards in a row, the extracted number big on top and the remaining
  * words as the label underneath. The card width comes from the count (2/3/4 all fit
  * the safe width); `bulletLayout` and density do not apply — the row is a band, and a
@@ -2362,23 +2914,47 @@ function buildBreatherSlide(slideId, ctx, item) {
 function buildStatsSlide(slideId, ctx, item) {
   const { box, palette, style, toneSpec, warnings } = ctx
   const builder = makeSlideBuilder(slideId)
-  const header = buildHeader(builder, ctx, item.title)
+  const header = buildHeader(builder, ctx, item.title, item)
   const count = Math.max(1, Math.min(STATS.maxCards, item.bullets.length))
   const cardW = Math.round((box.w - STATS.gapX * (count - 1)) / count)
   const textW = cardW - STATS.padX * 2
 
-  /** @type {Array<{number?: string, label: string, numberSize: number, numberH: number, labelH: number}>} */
+  /**
+   * A stat card is three lines, not two: the figure, the thing it measures, and a grey line
+   * of context. Two lines left the card half empty and made five stat pages look like the
+   * same page printed five times.
+   *
+   * @type {Array<{number?: string, label: string, detail: string | null, numberSize: number, numberH: number, labelH: number, detailH: number}>}
+   */
   const cards = item.bullets.slice(0, count).map((bullet) => {
     const stat = extractStat(bullet)
+    // `标签：正文` inside a stat bullet is a heading plus its explanation.
+    const split = splitStatLabel(stat.label)
     const numberSize = stat.number === undefined ? 0 : chooseSize(STATS.numberSizes, stat.number, textW, 1)
     const numberH = stat.number === undefined ? 0 : textHeight(stat.number, textW, numberSize)
-    return { ...stat, numberSize, numberH, labelH: textHeight(stat.label, textW, STATS.labelSize) }
+    return {
+      ...stat,
+      label: split.label,
+      detail: split.detail,
+      numberSize,
+      numberH,
+      labelH: textHeight(split.label, textW, STATS.labelSize),
+      detailH: split.detail === null ? 0 : textHeight(split.detail, textW, STATS.detailSize),
+    }
   })
 
   /** Height of the tallest card: number + gap + label, plus padding. */
   const measure = () =>
     STATS.padTop +
-    Math.max(...cards.map((card) => card.numberH + (card.numberH > 0 ? STATS.numberGap : 0) + card.labelH)) +
+    Math.max(
+      ...cards.map(
+        (card) =>
+          card.numberH +
+          (card.numberH > 0 ? STATS.numberGap : 0) +
+          card.labelH +
+          (card.detailH > 0 ? STATS.detailGap + card.detailH : 0),
+      ),
+    ) +
     STATS.padBottom
   let cardH = measure()
   const available = box.y + box.h - header.top
@@ -2430,14 +3006,23 @@ function buildStatsSlide(slideId, ctx, item) {
         h: card.numberH,
       }, textStyle(card.numberSize, numberColor, { bold: true }), 'stat')
     }
-    // Labels are bottom-aligned in the row: a bullet without a number has no number
-    // line, and its label must still line up with the labels of its neighbours.
+    // Label under the figure, detail under the label. Cards share a height, so the text of
+    // every card starts on the same baseline as its neighbours.
+    const labelTop = top + STATS.padTop + card.numberH + (card.numberH > 0 ? STATS.numberGap : 0)
     builder.text('body', card.label, {
       x: x + STATS.padX,
-      y: top + cardH - STATS.padBottom - card.labelH,
+      y: labelTop,
       w: textW,
       h: card.labelH,
-    }, textStyle(STATS.labelSize, palette[toneSpec.sub]), 'label')
+    }, textStyle(STATS.labelSize, palette.textPrimary, { bold: true }), 'label')
+    if (card.detail !== null && card.detailH > 0) {
+      builder.text('caption', card.detail, {
+        x: x + STATS.padX,
+        y: labelTop + card.labelH + STATS.detailGap,
+        w: textW,
+        h: card.detailH,
+      }, textStyle(STATS.detailSize, palette[toneSpec.sub]), 'detail')
+    }
   })
 
   return slideShell(slideId, builder, palette, header.text, item.notes)
@@ -2462,7 +3047,7 @@ function buildStatsSlide(slideId, ctx, item) {
 function buildTimelineSlide(slideId, ctx, item) {
   const { box, palette, style, toneSpec, warnings } = ctx
   const builder = makeSlideBuilder(slideId)
-  const header = buildHeader(builder, ctx, item.title)
+  const header = buildHeader(builder, ctx, item.title, item)
   const all = item.bullets.map((bullet) => oneLine(bullet)).filter((bullet) => bullet !== '')
   if (all.length === 0) {
     return buildSectionSlide(slideId, ctx, { title: header.text, notes: item.notes })
@@ -2624,6 +3209,46 @@ function slideShell(slideId, builder, palette, title, notes) {
  * ------------------------------------------------------------------ */
 
 /**
+ * Split one bullet into a **claim** and its **detail**.
+ *
+ * A page of single-line bullets reads as a keyword list no matter how good the words are:
+ * the eye gets one weight and one size for every line. Real decks set a claim in the body
+ * weight and hang a smaller, greyer explanation off it, which is what makes a page look
+ * composed rather than dumped.
+ *
+ * The split is deliberately conservative: it only fires when both halves are substantial
+ * (a five-character tail is not a detail, it is the end of a sentence), and it prefers the
+ * first clause boundary the author already wrote — `，` `：` `——` `；`.
+ *
+ * @param {string} bullet
+ * @returns {{claim: string, detail: string | null}}
+ */
+function splitClaimDetail(bullet) {
+  const flat = oneLine(bullet)
+  const pattern = /^(.*?[，,：:；;—])\s*(.+)$/
+  const match = pattern.exec(flat)
+  if (match === null) return { claim: flat, detail: null }
+  const claim = match[1].replace(/[，,：:；;—]+$/, '').trim()
+  const detail = match[2].trim()
+  const claimChars = Array.from(claim).length
+  const detailChars = Array.from(detail).length
+  const colonSplit = /[：:]/.test(match[1])
+  // `口径：中汽协口径，另有乘联会口径并列` — a short label plus a colon is the most common
+  // shape in real decks (every reference page uses it), so the length floor does not apply
+  // to it; a label may legitimately be two characters long.
+  if (colonSplit) {
+    if (claimChars < 2 || detailChars < 6) return { claim: flat, detail: null }
+    return { claim, detail }
+  }
+  // Otherwise both halves must carry weight, and the claim must not be the shorter one:
+  // `甲，乙` is a list of two things, not a claim with an explanation.
+  if (claimChars < 6 || detailChars < 8 || detailChars < claimChars * 0.6) {
+    return { claim: flat, detail: null }
+  }
+  return { claim, detail }
+}
+
+/**
  * Vertical list: one text box per bullet, a small square marker per bullet when
  * the tone allows it. Font size is 22 when everything fits at the density gap,
  * else 20; the 18/16 step exists only to keep pathological input inside the safe
@@ -2642,6 +3267,20 @@ function slideShell(slideId, builder, palette, title, notes) {
 function placeList(builder, ctx, bullets, top, label) {
   const { box, palette, style, toneSpec, warnings } = ctx
   const marker = toneSpec.marker
+  const detailSize = LIST_DETAIL_SIZE
+  const measure = (size) => {
+    let total = 0
+    const rows = bullets.map((bullet) => {
+      const parts = splitClaimDetail(bullet)
+      const claimH = textHeight(parts.claim, widthOf(), size)
+      const detailH = parts.detail === null ? 0 : textHeight(parts.detail, widthOf(), detailSize)
+      const rowH = claimH + (detailH > 0 ? LIST_DETAIL_GAP + detailH : 0)
+      total += rowH
+      return { claim: parts.claim, detail: parts.detail, claimH, detailH, rowH }
+    })
+    return { rows, total }
+  }
+  const widthOf = () => FRAME.right - (marker ? box.x + 30 : box.x)
   const textX = marker ? box.x + 30 : box.x
   const width = FRAME.right - textX
   const available = box.y + box.h - top
@@ -2650,59 +3289,65 @@ function placeList(builder, ctx, bullets, top, label) {
 
   let fontSize = TYPE.body[0]
   let gap = baseGap
-  let heights = bullets.map((bullet) => textHeight(bullet, width, fontSize))
-  let total = totalHeight(heights, gap)
+  let laid = measure(fontSize)
 
-  if (total > available) {
+  if (laid.total + gap * Math.max(0, bullets.length - 1) > available) {
     fontSize = TYPE.body[1]
     gap = Math.min(baseGap, 16)
-    heights = bullets.map((bullet) => textHeight(bullet, width, fontSize))
-    total = totalHeight(heights, gap)
+    laid = measure(fontSize)
   }
-  if (total > available) {
+  if (laid.total + gap * Math.max(0, bullets.length - 1) > available) {
     for (const size of TYPE.bodyEmergency) {
       fontSize = size
       gap = Math.min(baseGap, 10)
-      heights = bullets.map((bullet) => textHeight(bullet, width, size))
-      total = totalHeight(heights, gap)
-      if (total <= available) break
+      laid = measure(fontSize)
+      if (laid.total + gap * Math.max(0, bullets.length - 1) <= available) break
     }
     warnings.push(`${label} · 要点过多，字号已缩小到 ${fontSize}px`)
   }
+  let total = laid.total + gap * Math.max(0, bullets.length - 1)
   if (total > available) {
-    // Unreachable for bullets that went through `splitLongBullet`; kept so a
-    // hand-built outline can never push text outside the safe area.
+    // Unreachable for bullets that went through `splitLongBullet`; kept so a hand-built
+    // outline can never push text outside the safe area.
     const scale = available / total
-    heights = heights.map((height) => Math.max(8, Math.floor(height * scale)))
+    // `rowH` must be scaled too: the draw loop advances by it, so shrinking only the
+    // two text heights would leave the cursor walking the original distance and push the
+    // last detail straight through the bottom of the safe box.
+    laid.rows = laid.rows.map((row) => {
+      const claimH = Math.max(8, Math.floor(row.claimH * scale))
+      const detailH = Math.max(0, Math.floor(row.detailH * scale))
+      return {
+        ...row,
+        claimH,
+        detailH,
+        rowH: claimH + (detailH > 0 ? LIST_DETAIL_GAP + detailH : 0),
+      }
+    })
     gap = Math.max(4, Math.floor(gap * scale))
     warnings.push(`${label} · 要点过多，已压缩行高以适应页面`)
   } else if (bullets.length > 0) {
     const spec = DENSITY[style.density]
-    // Sparse page: four short bullets at 22px hug the title and leave the bottom 40%
-    // of the slide empty, which reads as an unfinished page. Step the body size up
-    // first (the copy is short, so it can carry the page), then spread the leftover
-    // into the gap up to `gapMax`, and finally centre the block so what remains is
-    // split above and below instead of pooling at the bottom.
+    // Sparse page: step the body size up first (the copy is short, so it can carry the
+    // page), then spread the leftover into the gap up to `gapMax`, then centre by a
+    // bounded amount so the remaining air is split above and below.
     for (const size of SPARSE_BODY_SIZES) {
       if (size <= fontSize) break
-      const candidateHeights = bullets.map((bullet) => textHeight(bullet, width, size))
-      if (totalHeight(candidateHeights, spec.gapMax) > available) continue
+      const candidate = measure(size)
+      if (candidate.total + spec.gapMax * Math.max(0, bullets.length - 1) > available) continue
       fontSize = size
-      heights = candidateHeights
+      laid = candidate
     }
-    total = totalHeight(heights, gap)
+    total = laid.total + gap * Math.max(0, bullets.length - 1)
     if (bullets.length > 1) {
       gap = Math.min(spec.gapMax, gap + Math.floor((available - total) / (bullets.length - 1)))
-      total = totalHeight(heights, gap)
+      total = laid.total + gap * Math.max(0, bullets.length - 1)
     }
-    // Centring is bounded: a sparse page should breathe, not float away from its title.
     const offset = Math.min(BLOCK_CENTER_MAX, Math.max(0, Math.floor((available - total) / 2)))
     blockTop = top + offset
   }
 
   let y = blockTop
-  bullets.forEach((bullet, index) => {
-    const height = heights[index]
+  laid.rows.forEach((row, index) => {
     if (marker) {
       builder.shape('marker', 'roundRect', {
         x: box.x,
@@ -2711,15 +3356,25 @@ function placeList(builder, ctx, bullets, top, label) {
         h: 8,
       }, { fill: palette.primary, radius: 4 })
     }
-    builder.text('body', bullet, { x: textX, y, w: width, h: height }, textStyle(
+    builder.text('body', row.claim, { x: textX, y, w: width, h: row.claimH }, textStyle(
       fontSize,
       palette.textPrimary,
     ))
-    const lines = estimateLines(bullet, width, fontSize).lines
-    if (lines > 4) {
-      warnings.push(`${label} · 要点过长（约 ${lines} 行），建议精简为 ${ctx.bulletCharBudget} 字以内`)
+    if (row.detail !== null && row.detailH > 0) {
+      // The detail hangs off the claim in the secondary colour: one weight for the point,
+      // one for the evidence. This is what stops a page reading as a keyword dump.
+      builder.text('caption', row.detail, {
+        x: textX,
+        y: y + row.claimH + LIST_DETAIL_GAP,
+        w: width,
+        h: row.detailH,
+      }, textStyle(detailSize, palette[toneSpec.sub]))
     }
-    y += height + gap
+    const lines = estimateLines(row.claim, width, fontSize).lines
+    if (lines > 4) {
+      warnings.push(`${label} · 要点过长（约 ${lines} 行），建议精简为 ${MAX_BULLET_CHARS} 字以内`)
+    }
+    y += row.rowH + gap
   })
 }
 
@@ -2788,22 +3443,8 @@ function measureCardRows(bullets, textW, fontSize, tick) {
   return { rows, total }
 }
 
-/**
- * Top edge of the bullet area on a bullet slide, i.e. below the title and the
- * optional accent bar. Shared by the card planner and the actual layout so the
- * height budget used for spilling is the real one.
- *
- * @param {LocalContext} ctx
- * @param {string} title
- */
 function bulletContentTop(ctx, title) {
-  const { box, style, toneSpec } = ctx
-  const width = FRAME.titleRight - box.x
-  const size = chooseSize(TYPE.slideTitle, title, width, 2)
-  const fitted = clampToLines(title, width, size, 2)
-  let cursor = box.y + textHeight(fitted.text, width, size)
-  if (style.accentBar && toneSpec.bar) cursor += 14 + (style.tone === 'bold' ? 8 : 6)
-  return cursor + 34
+  return headerMetrics(ctx, title, {}).top
 }
 
 /**

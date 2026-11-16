@@ -171,6 +171,12 @@ export const SlideKindSchema = z.enum([
   'stats',
   /** A page built around a figure (Mermaid-compiled architecture/flow diagram). */
   'diagram',
+  /** 2–4 tinted panels, one per point (the reference decks' agenda/three-point page). */
+  'columns',
+  /** One or two oversized numbers with a label and context. */
+  'figures',
+  /** Labelled rows with hairlines, the first row marked in the accent colour. */
+  'rankList',
   /** Generator-only pacing page: one oversized statement, no title, no bullets. */
   'breather',
 ])

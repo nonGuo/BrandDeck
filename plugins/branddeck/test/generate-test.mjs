@@ -700,9 +700,11 @@ check('7 · style.colors.primary changes the rendered accent colour', () => {
   assert(overriddenJson.includes('#00A366'), 'override colour is missing from the deck')
   assert(!overriddenJson.includes('#C7000A'), 'theme primary still rendered after the override')
 
-  const accentFill = overridden.deck.slides[1].elements.find((element) => element.type === 'shape' && element.id.endsWith('-bar-1'))
+  const accentFill = overridden.deck.slides[1].elements.find(
+    (element) => element.type === 'shape' && element.id.endsWith('-accent-1'),
+  )
   assert(accentFill !== undefined, 'no accent bar on the first bullet slide')
-  assert(accentFill.style.fill === '#00A366', `accent bar fill was "${accentFill.style.fill}"`)
+  assert(accentFill.style.fill === '#00A366', `accent tick fill was "${accentFill.style.fill}"`)
 
   // A `$colors.*` token in the override resolves against the theme.
   assert(stable(tokenForm.deck).includes('#E9002F'), '$colors.accent token did not resolve to the theme accent')
@@ -934,7 +936,9 @@ check('8d · stats extracts numbers (2/3/4 cards) and timeline handles 2 and 6 b
     title: '指标',
     slides: [{ title: '关键指标', kind: 'stats', bullets: ['内容交付量同比增长 138%', '人工返工工时下降 74%'] }],
   }
-  const statsDeck = composeDeck({ outline: statsOutline, theme: HW_THEME, style: {} })
+  // `varyLayout: false` pins the stats *builder*: at compose level the layout chooser now
+  // promotes a two-figure page to `figures` (a statement rather than two cards).
+  const statsDeck = composeDeck({ outline: statsOutline, theme: HW_THEME, style: { varyLayout: false } })
   const statsSlide = statsDeck.deck.slides[1]
   const numbers = textElements(statsSlide).filter((element) => element.id.includes('-stat-')).map((element) => element.content)
   const labels = textElements(statsSlide).filter((element) => element.id.includes('-label-')).map((element) => element.content)
@@ -956,7 +960,8 @@ check('8d · stats extracts numbers (2/3/4 cards) and timeline handles 2 and 6 b
     const { deck, warnings } = composeDeck({
       outline: { title: '指标', slides: [{ title: '指标页', kind: 'stats', bullets }] },
       theme: HW_THEME,
-      style: {},
+      // Builder-level test: the chooser would promote a 2-figure page to `figures`.
+      style: { varyLayout: false },
     })
     const slide = deck.slides[1]
     const cards = shapeElements(slide).filter((element) => element.shapeType === 'roundRect')
@@ -987,13 +992,16 @@ check('8d · stats extracts numbers (2/3/4 cards) and timeline handles 2 and 6 b
 
   // The case that *does* degrade: a card with no quantity at all. A stat row reads as
   // data, so one missing number turns the page into a list rather than a tall empty card.
+  // `varyLayout: false` pins the builder itself: at compose level the layout chooser now
+  // re-routes a non-numeric stats page to panels before this code runs (that is the better
+  // outcome for the reader), so the builder is tested in isolation.
   const degrade = composeDeck({
     outline: {
       title: '指标',
       slides: [{ title: '指标页', kind: 'stats', bullets: ['内容交付量同比增长 138%', '人工返工工时下降 74%', '交付节奏更稳'] }],
     },
     theme: HW_THEME,
-    style: {},
+    style: { varyLayout: false },
   })
   const degradeSlide = degrade.deck.slides[1]
   const degradeStats = textElements(degradeSlide).filter((element) => element.id.includes('-stat-') || element.id.includes('-label-'))
@@ -1270,6 +1278,8 @@ check('8k · chapters produce a 目录 page with true page numbers and a divider
   return `${kinds.length} slides: 目录 + 3 dividers, TOC numbers verified`
 })
 
+const LISTY_KINDS = new Set(['bullets', 'cards', 'columns', 'rankList'])
+
 check('8l · the page and bullet budgets are configuration, not constants', () => {
   // Both used to be module constants (150 chars per page, 90 per bullet). They change what
   // the generator *produces*, so a deployment with another house rule must be able to move
@@ -1291,17 +1301,18 @@ check('8l · the page and bullet budgets are configuration, not constants', () =
     style: { maxSlides: 10 },
     bulletCharBudget: 30,
   })
+  // Count every text element on the page, not just `-body-`: a columns layout puts the
+  // claim in a subtitle role and the detail in the body, and the budget is about how much
+  // a reader has to read, not about which DSL role carries it.
   const visibleChars = (result) => {
-    const slide = result.deck.slides.find((entry) => entry.kind === 'bullets')
-    return textElements(slide)
-      .filter((element) => element.id.includes('-body-'))
-      .reduce((sum, element) => sum + Array.from(element.content).length, 0)
+    const slide = result.deck.slides.find((entry) => LISTY_KINDS.has(entry.kind))
+    return textElements(slide).reduce((sum, element) => sum + Array.from(element.content).length, 0)
   }
   assert(visibleChars(narrow) < visibleChars(wide), `narrow ${visibleChars(narrow)} !< wide ${visibleChars(wide)}`)
   // A tighter bullet budget means more detail moves to the notes: the visible copy shrinks
   // and the speaker notes grow to hold the rest (nothing is thrown away).
   const notesLength = (result) => {
-    const slide = result.deck.slides.find((entry) => entry.kind === 'bullets')
+    const slide = result.deck.slides.find((entry) => LISTY_KINDS.has(entry.kind))
     return (slide.speakerNotes ?? '').length
   }
   assert(notesLength(narrow) > notesLength(wide), `narrow notes ${notesLength(narrow)} !> wide ${notesLength(wide)}`)
