@@ -290,11 +290,15 @@ check('4a · the map prompt carries the block, its position and the fact budget'
   return `${system.length + prompt.length} chars`
 })
 
-check('4b · the reduce prompt restates the outline convention and the page cap', () => {
+check('4b · the reduce prompt restates the outline convention and the page band', () => {
   const { system, prompt } = buildReducePrompt({ facts: ['要点一 138%', '要点二 74%'], maxSlides: 8 })
   assert(system.includes('# <卡组标题>'), 'title convention missing')
   assert(system.includes('## <页面标题>'), 'page convention missing')
-  assert(system.includes('不超过 8 页'), 'page cap missing')
+  // The cap is a *band*: "no more than N" made the model answer with the minimum, which is
+  // exactly how a 29k-character report became four pages.
+  assert(system.includes('8 页'), `page band missing: ${system.slice(-200)}`)
+  assert(system.includes('上限不是目标'), 'the cap is still phrased as a ceiling')
+  assert(system.includes('6~8 页'), `target band missing: ${system.slice(-200)}`)
   assert(prompt.includes('1. 要点一 138%'), `facts not numbered: ${prompt}`)
   return `${system.length + prompt.length} chars`
 })
