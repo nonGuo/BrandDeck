@@ -708,7 +708,11 @@ function addChartElement(slide, element, theme, pres, label, warnings) {
     labels,
     values: one.values.map((value) => (Number.isFinite(value) ? value : 0)),
   }))
-  const palette = theme.colors.chartPalette.map((hex) => bareHex(hex))
+  // Monochrome depth, not a rainbow: the theme palette exists for multi-series charts, but a
+  // single-series categorical chart painted with six unrelated hues (including one black bar)
+  // reads as "some of this data is different" when nothing is. One hue at descending depth,
+  // with the primary reserved for the point the page is about (the first row).
+  const palette = chartPaletteFor(theme, data.length)
   /** @type {Record<string, any>} */
   const chartOptions = {
     x: pxToIn(element.x),
@@ -727,12 +731,75 @@ function addChartElement(slide, element, theme, pres, label, warnings) {
     catAxisLabelColor: bareHex(theme.colors.textSecondary),
     valAxisLabelColor: bareHex(theme.colors.textSecondary),
     dataLabelColor: bareHex(theme.colors.textPrimary),
+    // Keep the data’s own precision. PowerPoint defaults the label format to integers, so
+    // a series of 62.52 / 58.27 / 37.2 came out as 63 / 58 / 37 — a chart that silently
+    // rewrites its own data. Two decimals at most, and never more than the source carries.
+    dataLabelFormatCode: numberFormatFor(data),
+    dataLabelPosition: chartName === 'pie' ? 'bestFit' : 'outEnd',
   }
   try {
     slide.addChart(pres.ChartType[chartName], data, chartOptions)
   } catch (cause) {
     warnings.push(`${label} · chart "${element.id}" could not be added: ${messageOf(cause)}`)
   }
+}
+
+/**
+ * Colours for one chart, in the order pptxgenjs assigns them to series/points.
+ *
+ * Single series → a monochrome ramp from the brand colour, so a bar chart says "one measure,
+ * several categories" instead of assigning each category its own meaning. Multi-series → the
+ * theme palette, where colour legitimately encodes the series.
+ *
+ * @param {import('./schema.js').ThemeTokens} theme
+ * @param {number} seriesCount
+ * @returns {string[]}
+ */
+function chartPaletteFor(theme, seriesCount) {
+  const brand = bareHex(theme.colors.primary)
+  if (seriesCount > 1) return theme.colors.chartPalette.map((hex) => bareHex(hex))
+  // Four depths: full, then progressively lighter toward the page background.
+  const lighten = [0, 0.28, 0.48, 0.64, 0.76]
+  return lighten.map((amount) => mixWithWhite(brand, amount))
+}
+
+/**
+ * Mix a bare hex toward white: `mixWithWhite('C7000A', 0.4)` → a 40%-lighter red.
+ * @param {string} hex bare 6-digit hex (no `#`)
+ * @param {number} amount 0 = unchanged, 1 = white
+ * @returns {string}
+ */
+function mixWithWhite(hex, amount) {
+  const clean = hex.replace('#', '')
+  if (/^[0-9a-fA-F]{6}$/.test(clean) === false) return hex
+  const channel = (offset) => {
+    const value = parseInt(clean.slice(offset, offset + 2), 16)
+    return Math.round(value + (255 - value) * amount)
+      .toString(16)
+      .padStart(2, '0')
+  }
+  return `${channel(0)}${channel(2)}${channel(4)}`
+}
+
+/**
+ * Excel-style number format that preserves the series’ own precision:
+ * `62.52` → `0.00`, `37.2` → `0.0`, `100` → `0`.
+ *
+ * @param {Array<{values: number[]}>} data
+ * @returns {string}
+ */
+function numberFormatFor(data) {
+  let decimals = 0
+  for (const series of data) {
+    for (const value of series.values) {
+      const text = String(value)
+      const dot = text.indexOf('.')
+      if (dot === -1) continue
+      const places = Math.min(2, text.length - dot - 1)
+      if (places > decimals) decimals = places
+    }
+  }
+  return decimals === 0 ? '0' : `0.${'0'.repeat(decimals)}`
 }
 
 /**

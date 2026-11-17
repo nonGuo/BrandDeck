@@ -177,6 +177,8 @@ export const SlideKindSchema = z.enum([
   'figures',
   /** Labelled rows with hairlines, the first row marked in the accent colour. */
   'rankList',
+  /** A native chart driven by the page's own values (bar / line / pie). */
+  'chart',
   /** Generator-only pacing page: one oversized statement, no title, no bullets. */
   'breather',
 ])

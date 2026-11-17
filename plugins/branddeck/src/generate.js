@@ -160,10 +160,11 @@ export const CONTENT_KINDS = Object.freeze([
   'columns',
   'figures',
   'rankList',
+  'chart',
 ])
 
 /**
- * @typedef {'section' | 'bullets' | 'compare' | 'timeline' | 'stats' | 'diagram' | 'columns' | 'figures' | 'rankList'} SlideKind
+ * @typedef {'section' | 'bullets' | 'compare' | 'timeline' | 'stats' | 'diagram' | 'columns' | 'figures' | 'rankList' | 'chart'} SlideKind
  */
 
 /**
@@ -196,6 +197,15 @@ const LAYOUT_ALIASES = new Map([
   ['数字', 'figures'],
   ['figures', 'figures'],
   ['figure', 'figures'],
+  ['图表', 'chart'],
+  ['柱状图', 'chart'],
+  ['折线图', 'chart'],
+  ['饼图', 'chart'],
+  ['chart', 'chart'],
+  ['bar', 'chart'],
+  ['column', 'chart'],
+  ['line', 'chart'],
+  ['pie', 'chart'],
   ['排行', 'rankList'],
   ['排名', 'rankList'],
   ['rank', 'rankList'],
@@ -292,17 +302,88 @@ const TONES = Object.freeze({
   }),
 })
 
-/** Font sizes per role. Ranges follow the layout rules in the module header. */
+/**
+ * Type scale: every role as a ratio of the body size.
+ *
+ * The reference decks read as "designed" not because they use many sizes but because they use
+ * *few* sizes on a fixed ratio ladder. Absolute px constants scattered through the layout code
+ * cannot do that: the moment the body size moves (density, a template with a bigger frame), the
+ * whole deck drifts out of proportion. These are the ratios from the planning recipe — cover
+ * hero 2.5–5×, chapter 2–2.5×, page title and KPI hero 1.5–2×, subtitle 1.2–1.5×, lead
+ * 1.1–1.4×, body 1×, a bilingual second line 0.75–0.9×, annotation 0.7–0.85×, and footnote /
+ * page number 0.5–0.65×.
+ */
+export const TYPE_RATIO = Object.freeze({
+  hero: 2.6,
+  chapter: 2.2,
+  title: 1.9,
+  subtitle: 1.4,
+  lead: 1.3,
+  body: 1,
+  bilingual: 0.8,
+  annotation: 0.75,
+  footnote: 0.6,
+})
+
+/**
+ * Snap a ratio to an even px value: every size in a deck should be a round number, or the
+ * ladder reads as accidental.
+ * @param {number} bodyAnchor
+ * @param {number} ratio
+ * @returns {number}
+ */
+function snapSize(bodyAnchor, ratio) {
+  const raw = bodyAnchor * ratio
+  return Math.max(10, Math.round(raw / 2) * 2)
+}
+
+/**
+ * The full ladder for one body anchor.
+ *
+ * @param {number} [bodyAnchor] px of the body role (default 22, the layout default)
+ * @returns {{hero: number, chapter: number, title: number, subtitle: number, lead: number,
+ *   body: number, bilingual: number, annotation: number, footnote: number}}
+ */
+export function typeScale(bodyAnchor = 22) {
+  const base = Math.max(12, Math.min(40, Math.round(Number(bodyAnchor) || 22)))
+  return {
+    hero: snapSize(base, TYPE_RATIO.hero),
+    chapter: snapSize(base, TYPE_RATIO.chapter),
+    title: snapSize(base, TYPE_RATIO.title),
+    subtitle: snapSize(base, TYPE_RATIO.subtitle),
+    lead: snapSize(base, TYPE_RATIO.lead),
+    body: base,
+    bilingual: snapSize(base, TYPE_RATIO.bilingual),
+    annotation: snapSize(base, TYPE_RATIO.annotation),
+    footnote: snapSize(base, TYPE_RATIO.footnote),
+  }
+}
+
+/**
+ * Font sizes per role, derived from the ladder so the deck stays in proportion.
+ *
+ * The multi-value arrays are the "step down until it fits" ladders the layouts already use;
+ * they step by 2px from the ladder value rather than by arbitrary amounts.
+ */
+const SCALE = typeScale(22)
 const TYPE = Object.freeze({
-  coverTitle: Object.freeze([64, 60, 56]),
-  coverSubtitle: 22,
-  slideTitle: Object.freeze([40, 38, 36]),
-  sectionTitle: 52,
-  body: Object.freeze([22, 20]),
-  bodyEmergency: Object.freeze([18, 16]),
-  card: Object.freeze([22, 20, 18]),
-  closingTitle: 64,
-  closingCaption: 20,
+  coverTitle: Object.freeze([SCALE.hero, SCALE.hero - 4, SCALE.hero - 8]),
+  coverSubtitle: SCALE.subtitle,
+  slideTitle: Object.freeze([SCALE.title, SCALE.title - 2, SCALE.title - 4]),
+  sectionTitle: SCALE.chapter,
+  body: Object.freeze([SCALE.body, SCALE.body - 2]),
+  bodyEmergency: Object.freeze([SCALE.annotation, SCALE.annotation - 2]),
+  card: Object.freeze([SCALE.body, SCALE.body - 2, SCALE.annotation]),
+  /** Second-language line on a bilingual page. */
+  bilingual: SCALE.bilingual,
+  /** Annotation / caption above the footnote. */
+  annotation: SCALE.annotation,
+  /** Source line and page number. */
+  footnote: SCALE.footnote,
+  /** Lead paragraph under a page title. */
+  lead: SCALE.lead,
+  closingTitle: SCALE.hero,
+  closingCaption: SCALE.footnote + 6,
   closingCaptionText: '结束',
   closingTitleText: '谢谢',
 })
@@ -475,6 +556,20 @@ export function parseSourceToOutline(text, options = {}) {
       continue
     }
 
+    // `来源：中汽协 / caam.org.cn` and `结论：一句话读法` are page-level metadata: a source line
+    // and the reading that sits beside a chart. Both travel to the layout, neither is invented.
+    const sourceLine = parseMetaLine(trimmed, '来源', 'source')
+    if (sourceLine !== null) {
+      flushParagraph()
+      if (current !== null) current.source = sourceLine
+      continue
+    }
+    const conclusionLine = parseMetaLine(trimmed, '结论', 'conclusion')
+    if (conclusionLine !== null) {
+      flushParagraph()
+      if (current !== null) current.conclusion = conclusionLine
+      continue
+    }
     // `图：mermaid` — the following lines are a diagram, not copy. Both a fenced block
     // (```mermaid … ```) and a bare `flowchart LR` block are accepted: a model writes
     // either, and rejecting one silently loses the picture.
@@ -639,12 +734,19 @@ export function parseSourceToOutline(text, options = {}) {
    * @type {Array<{title: string, bullets: string[], notes?: string, kind?: SlideKind}>}
    */
   const normalized = slides.map((slide) => {
-    /** @type {{title: string, bullets: string[], notes?: string, kind?: SlideKind, chapter?: string}} */
+    /**
+     * @type {{title: string, bullets: string[], notes?: string, kind?: SlideKind,
+     *   chapter?: string, diagram?: string, source?: string, conclusion?: string}}
+     */
     const out = { title: slide.title === '' ? '未命名页面' : slide.title, bullets: slide.bullets }
     if (slide.notes !== undefined && slide.notes !== '') out.notes = slide.notes
     // `chapter` is structural metadata like `notes`, and this white-list rebuild is
     // exactly where it used to get dropped (which silently disabled the 目录).
     if (slide.chapter !== undefined && slide.chapter !== '') out.chapter = slide.chapter
+    // Page-level provenance and reading. Carried explicitly for the same reason as
+    // `chapter`: this rebuild is a white-list, and anything not listed here disappears.
+    if (slide.source !== undefined && slide.source !== '') out.source = slide.source
+    if (slide.conclusion !== undefined && slide.conclusion !== '') out.conclusion = slide.conclusion
     if (slide.diagram !== undefined && slide.diagram !== '') out.diagram = slide.diagram
     if (slide.bullets.length === 0) {
       out.kind = 'section'
@@ -691,6 +793,26 @@ function parseLayoutLine(line) {
     .replace(/[。．.；;，,、\s]+$/, '')
   const kind = LAYOUT_ALIASES.get(value)
   return { kind: kind === undefined ? null : kind }
+}
+
+/**
+ * Read one `来源：…` / `结论：…` metadata line (also `source:` / `takeaway:`).
+ *
+ * `来源` is the source line the reference decks put under every data page; `结论` is the
+ * reading that sits beside a chart. Both are inherited only when the author wrote them —
+ * we never invent a citation.
+ *
+ * @param {string} line
+ * @param {string} zh the Chinese label
+ * @param {string} en the English label
+ * @returns {string | null}
+ */
+function parseMetaLine(line, zh, en) {
+  const pattern = new RegExp(`^(?:[-*+]\\s+)?(?:${zh}|${en})\\s*[:：]\\s*(.+)$`, 'i')
+  const match = pattern.exec(line.trim())
+  if (match === null) return null
+  const value = oneLine(cleanInline(match[1]))
+  return value === '' ? null : clampChars(value, 120)
 }
 
 /**
@@ -963,6 +1085,8 @@ export function composeDeck(input = {}) {
       slide = buildFiguresSlide(slideId, ctx, item)
     } else if (item.kind === 'rankList') {
       slide = buildRankListSlide(slideId, ctx, item)
+    } else if (item.kind === 'chart') {
+      slide = buildChartSlide(slideId, ctx, item)
     } else if (item.kind === 'breather') {
       slide = buildBreatherSlide(slideId, ctx, item)
     } else {
@@ -1044,7 +1168,10 @@ function normalizeOutline(outline) {
     const declared = CONTENT_KINDS.includes(raw.kind) ? raw.kind : undefined
     const isSection = bullets.length === 0
     const kind = isSection ? 'section' : declared === undefined || declared === 'section' ? 'bullets' : declared
-    /** @type {{title: string, bullets: string[], notes?: string, kind: SlideKind, chapter?: string}} */
+    /**
+     * @type {{title: string, bullets: string[], notes?: string, kind: SlideKind,
+     *   chapter?: string, diagram?: string, source?: string, conclusion?: string}}
+     */
     const item = {
       title: slideTitle === '' ? '未命名页面' : slideTitle,
       bullets: isSection ? [] : bullets,
@@ -1053,6 +1180,12 @@ function normalizeOutline(outline) {
     if (typeof raw.notes === 'string' && raw.notes.trim() !== '') item.notes = raw.notes.trim()
     if (typeof raw.chapter === 'string' && raw.chapter.trim() !== '') item.chapter = clampChars(oneLine(raw.chapter), 40)
     if (typeof raw.diagram === 'string' && raw.diagram.trim() !== '') item.diagram = raw.diagram.trim()
+    // Provenance and the page reading. Third place this white-list has had to be told about
+    // a field (`chapter`, `diagram`, now these): anything unnamed here is dropped silently.
+    if (typeof raw.source === 'string' && raw.source.trim() !== '') item.source = clampChars(oneLine(raw.source), 120)
+    if (typeof raw.conclusion === 'string' && raw.conclusion.trim() !== '') {
+      item.conclusion = clampChars(oneLine(raw.conclusion), 120)
+    }
     slides.push(item)
   }
   return {
@@ -1108,10 +1241,15 @@ function buildContentSlides(outline, style, ctx, warnings) {
     })
     let kind = slide.kind
 
-    /** @type {{kind: SlideKind, title: string, bullets: string[], notes?: string, chapter?: string, diagram?: string}} */
+    /**
+     * @type {{kind: SlideKind, title: string, bullets: string[], notes?: string,
+     *   chapter?: string, diagram?: string, source?: string, conclusion?: string}}
+     */
     const item = { kind, title: slide.title, bullets: [] }
     if (slide.chapter !== undefined && slide.chapter !== '') item.chapter = slide.chapter
     if (slide.diagram !== undefined && slide.diagram !== '') item.diagram = slide.diagram
+    if (slide.source !== undefined && slide.source !== '') item.source = slide.source
+    if (slide.conclusion !== undefined && slide.conclusion !== '') item.conclusion = slide.conclusion
 
     if (kind === 'diagram') {
       // A diagram page: the figure is the content, so the bullets are supporting claims
@@ -1126,6 +1264,13 @@ function buildContentSlides(outline, style, ctx, warnings) {
       return
     }
 
+    if (kind === 'chart') {
+      item.kind = 'chart'
+      item.bullets = track.bullets
+      if (track.notes !== undefined) item.notes = track.notes
+      out.push(item)
+      return
+    }
     if (kind === 'timeline') {
       const folded = foldTimeline(track, label, warnings)
       item.bullets = folded.bullets
@@ -1134,6 +1279,12 @@ function buildContentSlides(outline, style, ctx, warnings) {
       return
     }
 
+    // Values that parse into one unit are a chart, and that decision has to be made before
+    // the compare/stats capacity check below: a five-row numeric page is not "an over-full
+    // stat row", it is a chart, and reporting the former would be a lie in the warnings.
+    if (kind !== 'diagram' && kind !== 'timeline' && extractChartData(track.bullets) !== null) {
+      kind = 'chart'
+    }
     // `compare` / `stats` are bound by their column/card width, not by the density cap:
     // `LAYOUT_BULLET_CAP` is what keeps a row readable. More bullets than that and the
     // page is no longer a row/two-column page at all — so it degrades to a list.
@@ -1263,6 +1414,16 @@ function varyAdjacentLayouts(slides, style, warnings) {
   const out = slides.map((slide) => ({ ...slide }))
 
   for (const slide of out) {
+    // Values that parse into one unit and >=3 rows are a chart, whatever the author declared:
+    // the geometry is driven by the data, which is exactly the chart branch of the routing
+    // rule. This is the one upgrade that outranks the text layouts.
+    if (['bullets', 'stats', 'rankList'].includes(slide.kind)) {
+      const chart = extractChartData(slide.bullets)
+      if (chart !== null) {
+        slide.kind = 'chart'
+        continue
+      }
+    }
     // `bullets` is what the parser infers for anything it cannot classify, and `stats` is
     // what it infers for anything numeric — including a list of `标签：说明` lines that merely
     // mention a number. Both are candidates for a better fallback shape.
@@ -1824,6 +1985,169 @@ function buildArtSectionSlide(slideId, ctx, item) {
   }, { fill: palette[toneSpec.sectionRule] })
 
   return slideShell(slideId, builder, palette, fitted.text, item.notes)
+}
+
+/* ------------------------------------------------------------------ *
+ * Chart vocabulary: data contract → native chart
+ *
+ * WHY THIS EXISTS: our DSL has had a native `chart` element (compiled to a real Office
+ * chart) since the first version, and the generator essentially never produced one — the
+ * model writes prose, so "a page of numbers" came out as a bullet list. The reference
+ * pipeline solves this by *routing on the information relationship* rather than hoping the
+ * author asks for a chart: if the values drive the geometry, the page is a chart.
+ *
+ * We do the same, with two deliberate differences: the shapes come from a small vocabulary
+ * (bar / line / pie — what our compiler can emit as native, editable chart objects), and
+ * nothing is invented. Unparseable rows, or rows with mixed units, fall back to the ranked
+ * row layout rather than being charted from partial data.
+ * ------------------------------------------------------------------ */
+
+/** Units we accept on a chart value, longest first so `万辆` wins over `万`. */
+const CHART_UNIT = /^(个百分点|万辆|万人|万美元|美元|小时|分钟|天|周|月|年|人|次|页|个|条|项|家|台|套|万|亿|元|块|倍|ms|s|%|％)$/
+
+/** Labels that read as a time axis rather than as categories. */
+const TIME_LABEL = /^(?:(?:19|20)\d{2}\s*年?|Q[1-4]|q[1-4]|\d{1,2}月|一季度|二季度|三季度|四季度|上半年|下半年)$/
+
+/**
+ * Read a bullet list as chart data, or return null.
+ *
+ * A row qualifies when it already reads `label — value` / `label：value`. The chart is only
+ * built when *every* row parses and they share one unit — a bar chart drawn from three of
+ * five rows, or from mixed units, is a lie about the data.
+ *
+ * @param {string[]} bullets
+ * @returns {{
+ *   kind: 'bar' | 'line' | 'pie',
+ *   labels: string[],
+ *   values: number[],
+ *   unit: string,
+ *   rows: Array<{label: string, value: number}>,
+ * } | null}
+ */
+function extractChartData(bullets) {
+  const list = bullets.map((bullet) => oneLine(bullet)).filter((bullet) => bullet !== '')
+  if (list.length < 3) return null
+  /** @type {Array<{label: string, value: number, unit: string}>} */
+  const rows = []
+  for (const bullet of list) {
+    const row = parseChartRow(bullet)
+    if (row === null) return null
+    rows.push(row)
+  }
+  const units = new Set(rows.map((row) => row.unit))
+  if (units.size !== 1) return null
+
+  const labels = rows.map((row) => row.label)
+  const values = rows.map((row) => row.value)
+
+  // Route by the information relationship, not by appearance.
+  const timeLike = labels.filter((label) => TIME_LABEL.test(label)).length
+  let kind = 'bar'
+  if (timeLike >= Math.max(4, Math.ceil(labels.length * 0.75))) {
+    kind = 'line'
+  } else if (values.every((value) => value > 0) && Math.abs(values.reduce((a, b) => a + b, 0) - 100) <= 1.5) {
+    // Percentages that add up to 100 are a composition, not a ranking.
+    kind = 'pie'
+  }
+  return { kind, labels, values, unit: rows[0].unit, rows }
+}
+
+/**
+ * `墨西哥 — 62.52 万辆` → `{label: '墨西哥', value: 62.52, unit: '万辆'}`.
+ * @param {string} bullet
+ * @returns {{label: string, value: number, unit: string} | null}
+ */
+function parseChartRow(bullet) {
+  const flat = String(bullet ?? '').trim()
+  const match = /^(.+?)\s*(?:—|–|-|：|:)\s*([$¥￥]?\s*[\d.,]+)\s*([^\d\s]*)\s*$/.exec(flat)
+  if (match === null) return null
+  const label = oneLine(match[1]).trim()
+  const numeric = Number(match[2].replace(/[$¥￥,\s]/g, ''))
+  if (label === '' || Number.isFinite(numeric) === false) return null
+  const unit = (match[3] ?? '').trim()
+  // A unit we do not know is not a unit: `62.52 万辆` yes, `62.52 台/年` no.
+  if (unit !== '' && CHART_UNIT.test(unit) === false) return null
+  return { label, value: numeric, unit }
+}
+
+/**
+ * Chart page: the figure carries the page; the reading sits beside it when the author wrote one.
+ *
+ * The reference decks never drop a chart into the middle of prose — the chart *is* the page.
+ * With no `结论：` line the chart takes the whole frame; with one it takes ~62% and the
+ * conclusion holds the remaining third, vertically centred against the plot so the eye crosses
+ * from figure to reading on one line.
+ *
+ * @param {string} slideId
+ * @param {LocalContext} ctx
+ * @param {{title: string, bullets: string[], notes?: string, conclusion?: string,
+ *          source?: string, chapter?: string, chapterIndex?: number}} item
+ * @returns {import('./schema.js').CardSlide}
+ */
+function buildChartSlide(slideId, ctx, item) {
+  const { box, palette, toneSpec, warnings } = ctx
+  const builder = makeSlideBuilder(slideId)
+  const header = buildHeader(builder, ctx, item.title, item)
+  const chart = extractChartData(item.bullets)
+  if (chart === null) {
+    // Callers route away from a chart page when the data does not parse; keep it honest if
+    // one slips through anyway.
+    warnings.push(`${header.label} · 数据不足以成图，已改为排行行`)
+    return buildRankListSlide(slideId, ctx, item)
+  }
+
+  const bottom = box.y + box.h
+  const footnoteH = item.source === undefined ? 0 : textHeight(item.source, box.w, TYPE.footnote) + 12
+  const bandTop = header.top
+  const bandH = Math.max(160, bottom - bandTop - footnoteH)
+  const conclusion = typeof item.conclusion === 'string' ? oneLine(item.conclusion) : ''
+  const chartW = conclusion === '' ? box.w : Math.round(box.w * 0.62)
+  // A pie needs a squarish box, or its slices read as different sizes than they are.
+  const chartH = chart.kind === 'pie' ? Math.min(bandH, chartW) : bandH
+
+  builder.raw({
+    type: 'chart',
+    role: 'chart',
+    x: box.x,
+    y: bandTop,
+    w: chartW,
+    h: chartH,
+    chartType: chart.kind,
+    data: {
+      labels: chart.labels,
+      series: [{ name: chart.unit === '' ? '数值' : chart.unit, values: chart.values }],
+    },
+    style: { legend: false, showValues: true },
+  })
+
+  if (conclusion !== '') {
+    const sideX = box.x + chartW + 32
+    const sideW = box.w - chartW - 32
+    const lineH = textHeight(conclusion, sideW, TYPE.body[0])
+    builder.text('body', conclusion, {
+      x: sideX,
+      y: bandTop + Math.max(0, Math.round((bandH - lineH) / 2)),
+      w: sideW,
+      h: lineH,
+    }, textStyle(TYPE.body[0], palette.textPrimary))
+  }
+
+  if (item.source !== undefined) {
+    // Line-height tall, not point-size tall: a 14px run needs ~19px or every source line
+    // reports "overflows its box" and PowerPoint is asked to shrink it — which then renders
+    // the citation smaller than the ladder says it should be.
+    const sourceH = textHeight(item.source, box.w, TYPE.footnote)
+    builder.text('caption', item.source, {
+      x: box.x,
+      y: bottom - sourceH,
+      w: box.w,
+      h: sourceH,
+    }, textStyle(TYPE.footnote, palette[toneSpec.sub]), 'source')
+  }
+
+  const slide = slideShell(slideId, builder, palette, header.text, item.notes)
+  slide.kind = 'chart'
+  return slide
 }
 
 /* ------------------------------------------------------------------ *
@@ -2853,7 +3177,7 @@ function buildBreatherSlide(slideId, ctx, item) {
       return lines * size * 1.2 <= box.h * 0.55
     }) ?? 48
   const headlineSizeFinal = Math.round(headlineSize)
-  const captionSize = Array.isArray(TYPE.body) ? Math.min(...TYPE.body) : TYPE.body
+  const captionSize = Array.isArray(TYPE.body[0]) ? Math.min(...TYPE.body[0]) : TYPE.body[0]
   const headlineH = Math.round(textHeight(headline, box.w, headlineSizeFinal))
   const captionH = caption === '' ? 0 : Math.round(textHeight(caption, box.w, captionSize))
   const gap = caption === '' ? 0 : 24

@@ -121,7 +121,7 @@ check('2a · labelled points become panels, not a bullet list', () => {
 check('2b · a page that is nothing but labelled rows becomes a ranked list', () => {
   const { deck } = composeDeck({
     outline: outline('排行检验', [
-      ['甲', ['墨西哥 — 62.52', '俄罗斯 — 58.27', '阿联酋 — 37.2', '巴西 — 30.1', '英国 — 28.4']],
+      ['甲', ['墨西哥 — 62.52 万辆', '俄罗斯 — 58.27 %', '阿联酋 — 37 个', '巴西 — 30.1 天', '英国 — 28.4 倍']],
     ]),
     theme: THEME,
     style: { maxSlides: 8 },
@@ -131,7 +131,7 @@ check('2b · a page that is nothing but labelled rows becomes a ranked list', ()
   const highlight = page.elements.find((element) => element.id.endsWith('-highlight-1'))
   assert(highlight !== undefined, 'the first row is not marked')
   const values = page.elements.filter((element) => element.id.includes('-value-')).map((element) => element.content)
-  assert(values.includes('62.52'), `values missing: ${stable(values)}`)
+  assert(values.some((value) => value.startsWith('62.52')), `values missing: ${stable(values)}`)
   return `${values.length} ranked rows, first row marked`
 })
 
